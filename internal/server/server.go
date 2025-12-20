@@ -590,6 +590,26 @@ func (s *Server) handleDrawings(w http.ResponseWriter, r *http.Request, gameID s
 		writeError(w, http.StatusInternalServerError, "failed to save drawings")
 		return
 	}
+	if game.Phase == phaseDrawings && drawingsComplete(game) {
+		game, err = s.store.UpdateGame(gameID, func(game *Game) error {
+			if game.Phase != phaseDrawings {
+				return nil
+			}
+			round := currentRound(game)
+			if round == nil {
+				return errors.New("round not started")
+			}
+			if err := s.buildGuessTurns(game, round); err != nil {
+				return err
+			}
+			game.Phase = phaseGuesses
+			return nil
+		})
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to advance game")
+			return
+		}
+	}
 	if game.Phase == phaseGuesses {
 		if err := s.persistPhase(game, "game_advanced", map[string]any{"phase": game.Phase}); err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to advance game")
@@ -1108,6 +1128,9 @@ func (s *Server) buildGuessTurns(game *Game, round *RoundState) error {
 	if len(round.Drawings) == 0 {
 		return errors.New("no drawings submitted")
 	}
+	if len(round.GuessTurns) > 0 {
+		return nil
+	}
 	round.GuessTurns = nil
 	round.CurrentGuess = 0
 	for drawingIndex, drawing := range round.Drawings {
@@ -1125,6 +1148,17 @@ func (s *Server) buildGuessTurns(game *Game, round *RoundState) error {
 		return errors.New("no guess turns available")
 	}
 	return nil
+}
+
+func drawingsComplete(game *Game) bool {
+	if game == nil {
+		return false
+	}
+	round := currentRound(game)
+	if round == nil {
+		return false
+	}
+	return len(round.Drawings) >= len(game.Players) && len(game.Players) > 0
 }
 
 func readJSON(body io.Reader, dest any) error {
