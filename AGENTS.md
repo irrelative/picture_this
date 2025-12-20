@@ -17,13 +17,13 @@
 - Prefer clear package names that match responsibility (e.g., `game`, `storage`, `web`).
 
 ## Testing Guidelines
-- No tests exist yet; add tests alongside new code.
+- Run `make test` and `make e2e-test` before committing changes.
 - Use Go’s `_test.go` naming and table-driven tests where appropriate.
 - Favor integration tests for Postgres-backed flows once persistence is implemented.
 
 ## Commit & Pull Request Guidelines
 - Use Conventional Commits (e.g., `feat: add game state model`, `chore: update Makefile`).
-- When working as Codex, run `git add` and `git commit` after each change to make rollback easy.
+- When working as Codex, run `make test` and `make e2e-test`, then `git add` and `git commit` after each change to make rollback easy.
 - PRs should describe the change, link any related issues, and include screenshots for WebUI changes.
 
 ## Security & Configuration Tips
