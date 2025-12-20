@@ -48,8 +48,8 @@ type Round struct {
 
 type Prompt struct {
 	ID        uint      `gorm:"primaryKey"`
-	RoundID   uint      `gorm:"index;not null"`
-	PlayerID  uint      `gorm:"index;not null"`
+	RoundID   uint      `gorm:"index;not null;uniqueIndex:idx_prompts_round_player"`
+	PlayerID  uint      `gorm:"index;not null;uniqueIndex:idx_prompts_round_player"`
 	Text      string    `gorm:"size:280;not null"`
 	CreatedAt time.Time `gorm:"not null"`
 	UpdatedAt time.Time `gorm:"not null"`
@@ -57,9 +57,9 @@ type Prompt struct {
 
 type Drawing struct {
 	ID        uint      `gorm:"primaryKey"`
-	RoundID   uint      `gorm:"index;not null"`
-	PlayerID  uint      `gorm:"index;not null"`
-	PromptID  uint      `gorm:"index;not null"`
+	RoundID   uint      `gorm:"index;not null;uniqueIndex:idx_drawings_round_player"`
+	PlayerID  uint      `gorm:"index;not null;uniqueIndex:idx_drawings_round_player"`
+	PromptID  uint      `gorm:"index;not null;uniqueIndex:idx_drawings_prompt"`
 	ImageData []byte    `gorm:"type:bytea;not null"`
 	CreatedAt time.Time `gorm:"not null"`
 	UpdatedAt time.Time `gorm:"not null"`
@@ -68,8 +68,8 @@ type Drawing struct {
 type Guess struct {
 	ID        uint      `gorm:"primaryKey"`
 	RoundID   uint      `gorm:"index;not null"`
-	PlayerID  uint      `gorm:"index;not null"`
-	DrawingID uint      `gorm:"index;not null"`
+	PlayerID  uint      `gorm:"index;not null;uniqueIndex:idx_guesses_drawing_player"`
+	DrawingID uint      `gorm:"index;not null;uniqueIndex:idx_guesses_drawing_player"`
 	Text      string    `gorm:"size:280;not null"`
 	CreatedAt time.Time `gorm:"not null"`
 	UpdatedAt time.Time `gorm:"not null"`
@@ -77,8 +77,8 @@ type Guess struct {
 
 type Vote struct {
 	ID        uint      `gorm:"primaryKey"`
-	RoundID   uint      `gorm:"index;not null"`
-	PlayerID  uint      `gorm:"index;not null"`
+	RoundID   uint      `gorm:"index;not null;uniqueIndex:idx_votes_round_player"`
+	PlayerID  uint      `gorm:"index;not null;uniqueIndex:idx_votes_round_player"`
 	GuessID   uint      `gorm:"index;not null"`
 	CreatedAt time.Time `gorm:"not null"`
 	UpdatedAt time.Time `gorm:"not null"`
