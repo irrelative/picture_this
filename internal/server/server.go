@@ -9,6 +9,10 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+
+	"picture-this/internal/web"
+
+	"github.com/a-h/templ"
 )
 
 type Server struct {
@@ -23,10 +27,12 @@ func New() *Server {
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
+	mux.Handle("GET /", templ.Handler(web.Home()))
 	mux.HandleFunc("POST /api/games", s.handleCreateGame)
 	mux.HandleFunc("GET /api/games/", s.handleGameSubroutes)
 	mux.HandleFunc("POST /api/games/", s.handleGameSubroutes)
 	mux.HandleFunc("GET /ws/games/", s.handleWebsocket)
+	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	return mux
 }
 
@@ -87,6 +93,17 @@ func (s *Store) UpdateGame(id string, update func(game *Game) error) (*Game, err
 		return nil, err
 	}
 	return game, nil
+}
+
+func (s *Store) FindGameByJoinCode(code string) (*Game, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, game := range s.games {
+		if game.JoinCode == code {
+			return game, true
+		}
+	}
+	return nil, false
 }
 
 func newJoinCode() string {
@@ -176,8 +193,16 @@ func (s *Server) handleJoinGame(w http.ResponseWriter, r *http.Request, gameID s
 		return nil
 	})
 	if err != nil {
-		http.NotFound(w, r)
-		return
+		if matched, ok := s.store.FindGameByJoinCode(gameID); ok {
+			game, err = s.store.UpdateGame(matched.ID, func(game *Game) error {
+				game.Players = append(game.Players, req.Name)
+				return nil
+			})
+		}
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
 	}
 
 	resp := map[string]any{

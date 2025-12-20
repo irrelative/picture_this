@@ -23,6 +23,17 @@ func TestCreateGame(t *testing.T) {
 	assertString(t, body["join_code"])
 }
 
+func TestHomePage(t *testing.T) {
+	srv := New()
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	resp := doRequest(t, ts, http.MethodGet, "/", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+}
+
 func TestGetGame(t *testing.T) {
 	srv := New()
 	ts := httptest.NewServer(srv.Handler())
@@ -30,6 +41,20 @@ func TestGetGame(t *testing.T) {
 
 	gameID := createGame(t, ts)
 	resp := doRequest(t, ts, http.MethodGet, "/api/games/"+gameID, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+}
+
+func TestJoinGameByCode(t *testing.T) {
+	srv := New()
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	_, joinCode := createGameWithCode(t, ts)
+	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+joinCode+"/join", map[string]string{
+		"name": "Ada",
+	})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
 	}
@@ -161,6 +186,16 @@ func createGame(t *testing.T, ts *httptest.Server) string {
 	}
 	body := decodeBody(t, resp)
 	return body["game_id"].(string)
+}
+
+func createGameWithCode(t *testing.T, ts *httptest.Server) (string, string) {
+	t.Helper()
+	resp := doRequest(t, ts, http.MethodPost, "/api/games", nil)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d", http.StatusCreated, resp.StatusCode)
+	}
+	body := decodeBody(t, resp)
+	return body["game_id"].(string), body["join_code"].(string)
 }
 
 func doRequest(t *testing.T, ts *httptest.Server, method, path string, payload any) *http.Response {
