@@ -191,6 +191,17 @@ func (s *Store) FindGameByJoinCode(code string) (*Game, bool) {
 	return nil, false
 }
 
+func (s *Store) UpdateGameID(game *Game, newID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if game.ID == newID {
+		return
+	}
+	delete(s.games, game.ID)
+	game.ID = newID
+	s.games[newID] = game
+}
+
 func (s *Store) AddPlayer(gameIDOrCode, name string) (*Game, *Player, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -926,6 +937,10 @@ func (s *Server) persistGame(game *Game) error {
 		return err
 	}
 	game.DBID = record.ID
+	newID := fmt.Sprintf("game-%d", record.ID)
+	if game.ID != newID {
+		s.store.UpdateGameID(game, newID)
+	}
 	return s.persistEvent(game, "game_created", map[string]any{
 		"game_id":   game.ID,
 		"join_code": game.JoinCode,
