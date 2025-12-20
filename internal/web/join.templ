@@ -1,6 +1,6 @@
 package web
 
-templ JoinView(code string) {
+templ JoinView(code string, playerName string) {
 	@Layout("Picture This | Join", "/static/join.js", "") {
 		<header class="hero">
 			<span class="tag">Join Game</span>
@@ -15,7 +15,11 @@ templ JoinView(code string) {
 				} else {
 					<input name="code" placeholder="Join code" autocomplete="off" required/>
 				}
-				<input name="name" placeholder="Display name" autocomplete="name" required/>
+				if playerName != "" {
+					<input name="name" placeholder="Display name" autocomplete="name" value={ playerName } required/>
+				} else {
+					<input name="name" placeholder="Display name" autocomplete="name" required/>
+				}
 				<button type="submit" class="primary">Join game</button>
 			</form>
 			<div id="joinResult" class="result"></div>

@@ -8,7 +8,7 @@ package web
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-func Home(flash string) templ.Component {
+func Home(flash string, playerName string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -41,7 +41,35 @@ func Home(flash string) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<header class=\"hero\"><span class=\"tag\">Picture This</span><h1>Draw together. Guess boldly.</h1><p>Host a game in seconds or jump into a session with your code.</p></header><section class=\"panel\"><div><h2>Create a game</h2><p>Generate a new lobby and share the join code with your players.</p></div><button id=\"createGame\" class=\"primary\">Create game</button><div id=\"createResult\" class=\"result\"></div></section><section class=\"panel\"><div><h2>Join a game</h2><p>Enter the join code from the host and your display name.</p></div><form id=\"joinForm\" class=\"join-form\"><input name=\"code\" placeholder=\"Join code\" autocomplete=\"off\" required> <input name=\"name\" placeholder=\"Display name\" autocomplete=\"name\" required> <button type=\"submit\" class=\"secondary\">Join game</button></form><div id=\"joinResult\" class=\"result\"></div></section>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<header class=\"hero\"><span class=\"tag\">Picture This</span><h1>Draw together. Guess boldly.</h1><p>Host a game in seconds or jump into a session with your code.</p></header><section class=\"panel\"><div><h2>Create a game</h2><p>Generate a new lobby and share the join code with your players.</p></div><button id=\"createGame\" class=\"primary\">Create game</button><div id=\"createResult\" class=\"result\"></div></section><section class=\"panel\"><div><h2>Join a game</h2><p>Enter the join code from the host and your display name.</p></div><form id=\"joinForm\" class=\"join-form\"><input name=\"code\" placeholder=\"Join code\" autocomplete=\"off\" required> ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if playerName != "" {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<input name=\"name\" placeholder=\"Display name\" autocomplete=\"name\" value=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var3 string
+				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(playerName)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/home.templ`, Line: 28, Col: 91}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" required> ")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			} else {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<input name=\"name\" placeholder=\"Display name\" autocomplete=\"name\" required> ")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<button type=\"submit\" class=\"secondary\">Join game</button></form><div id=\"joinResult\" class=\"result\"></div></section>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

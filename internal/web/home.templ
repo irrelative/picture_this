@@ -1,6 +1,6 @@
 package web
 
-templ Home(flash string) {
+templ Home(flash string, playerName string) {
 	@Layout("Picture This", "/static/app.js", flash) {
 		<header class="hero">
 			<span class="tag">Picture This</span>
@@ -17,17 +17,21 @@ templ Home(flash string) {
 			<div id="createResult" class="result"></div>
 		</section>
 
-		<section class="panel">
-			<div>
-				<h2>Join a game</h2>
-				<p>Enter the join code from the host and your display name.</p>
-			</div>
-			<form id="joinForm" class="join-form">
-				<input name="code" placeholder="Join code" autocomplete="off" required/>
-				<input name="name" placeholder="Display name" autocomplete="name" required/>
-				<button type="submit" class="secondary">Join game</button>
-			</form>
-			<div id="joinResult" class="result"></div>
-		</section>
+				<section class="panel">
+					<div>
+						<h2>Join a game</h2>
+						<p>Enter the join code from the host and your display name.</p>
+					</div>
+					<form id="joinForm" class="join-form">
+						<input name="code" placeholder="Join code" autocomplete="off" required/>
+						if playerName != "" {
+							<input name="name" placeholder="Display name" autocomplete="name" value={ playerName } required/>
+						} else {
+							<input name="name" placeholder="Display name" autocomplete="name" required/>
+						}
+						<button type="submit" class="secondary">Join game</button>
+					</form>
+					<div id="joinResult" class="result"></div>
+				</section>
 	}
 }

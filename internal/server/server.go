@@ -304,14 +304,17 @@ func (s *Server) handleGameView(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 	flash := ""
+	name := ""
 	if s.sessions != nil {
 		flash = s.sessions.PopFlash(w, r)
+		name = s.sessions.GetName(w, r)
 	}
-	templ.Handler(web.Home(flash)).ServeHTTP(w, r)
+	templ.Handler(web.Home(flash, name)).ServeHTTP(w, r)
 }
 
 func (s *Server) handleJoinView(w http.ResponseWriter, r *http.Request) {
 	code := ""
+	name := ""
 	if strings.HasPrefix(r.URL.Path, "/join/") {
 		code = strings.TrimPrefix(r.URL.Path, "/join/")
 		code = strings.Trim(code, "/")
@@ -320,7 +323,10 @@ func (s *Server) handleJoinView(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	templ.Handler(web.JoinView(code)).ServeHTTP(w, r)
+	if s.sessions != nil {
+		name = s.sessions.GetName(w, r)
+	}
+	templ.Handler(web.JoinView(code, name)).ServeHTTP(w, r)
 }
 
 func (s *Server) handlePlayerView(w http.ResponseWriter, r *http.Request) {
@@ -451,6 +457,10 @@ func (s *Server) handleJoinGame(w http.ResponseWriter, r *http.Request, gameID s
 	resp["player_id"] = playerID
 	writeJSON(w, http.StatusOK, resp)
 	log.Printf("player joined game_id=%s player_id=%d player_name=%s", game.ID, playerID, req.Name)
+
+	if s.sessions != nil {
+		s.sessions.SetName(w, r, req.Name)
+	}
 
 	s.broadcastGameUpdate(game)
 }
@@ -1399,13 +1409,18 @@ func isUniqueViolation(err error) bool {
 type sessionStore struct {
 	db       *gorm.DB
 	mu       sync.Mutex
-	sessions map[string]string
+	sessions map[string]sessionData
+}
+
+type sessionData struct {
+	Flash string
+	Name  string
 }
 
 func newSessionStore(conn *gorm.DB) *sessionStore {
 	return &sessionStore{
 		db:       conn,
-		sessions: make(map[string]string),
+		sessions: make(map[string]sessionData),
 	}
 }
 
@@ -1416,7 +1431,9 @@ func (s *sessionStore) SetFlash(w http.ResponseWriter, r *http.Request, message 
 	id := s.ensureSessionID(w, r)
 	if s.db == nil {
 		s.mu.Lock()
-		s.sessions[id] = message
+		data := s.sessions[id]
+		data.Flash = message
+		s.sessions[id] = data
 		s.mu.Unlock()
 		return
 	}
@@ -1432,8 +1449,10 @@ func (s *sessionStore) PopFlash(w http.ResponseWriter, r *http.Request) string {
 	if s.db == nil {
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		message := s.sessions[id]
-		s.sessions[id] = ""
+		data := s.sessions[id]
+		message := data.Flash
+		data.Flash = ""
+		s.sessions[id] = data
 		return message
 	}
 	var record db.Session
@@ -1447,6 +1466,40 @@ func (s *sessionStore) PopFlash(w http.ResponseWriter, r *http.Request) string {
 	record.Flash = ""
 	_ = s.db.Save(&record).Error
 	return message
+}
+
+func (s *sessionStore) SetName(w http.ResponseWriter, r *http.Request, name string) {
+	if strings.TrimSpace(name) == "" {
+		return
+	}
+	id := s.ensureSessionID(w, r)
+	if s.db == nil {
+		s.mu.Lock()
+		data := s.sessions[id]
+		data.Name = name
+		s.sessions[id] = data
+		s.mu.Unlock()
+		return
+	}
+	record := db.Session{
+		ID:         id,
+		PlayerName: name,
+	}
+	_ = s.db.Save(&record).Error
+}
+
+func (s *sessionStore) GetName(w http.ResponseWriter, r *http.Request) string {
+	id := s.ensureSessionID(w, r)
+	if s.db == nil {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		return s.sessions[id].Name
+	}
+	var record db.Session
+	if err := s.db.Where("id = ?", id).First(&record).Error; err != nil {
+		return ""
+	}
+	return record.PlayerName
 }
 
 func (s *sessionStore) ensureSessionID(w http.ResponseWriter, r *http.Request) string {
