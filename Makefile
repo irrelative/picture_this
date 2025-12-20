@@ -12,4 +12,4 @@ test:
 	go test ./...
 
 migrate:
-	go run ./cmd/server
+	go run ./cmd/migrate
