@@ -23,7 +23,7 @@ This is a port of the game Drawful, as best as possible, using the following tec
 - `GET /ws/games/{game_id}` — websocket for realtime state/events.
 
 ## Database Schema & ORM Plan (Draft)
-- ORM: use `sqlc` (type-safe SQL) over a full ORM to keep queries explicit and fast.
+- ORM: use GORM with the Postgres driver.
 - Tables (initial):
   - `games` — `id`, `join_code`, `phase`, `created_at`, `updated_at`.
   - `players` — `id`, `game_id`, `name`, `is_host`, `joined_at`.
@@ -31,7 +31,8 @@ This is a port of the game Drawful, as best as possible, using the following tec
   - `prompts` — `id`, `round_id`, `player_id`, `text`.
   - `drawings` — `id`, `round_id`, `player_id`, `prompt_id`, `image_data`.
   - `guesses` — `id`, `round_id`, `player_id`, `drawing_id`, `text`.
-  - `votes` — `id`, `round_id`, `player_id`, `guess_id`.
+- `votes` — `id`, `round_id`, `player_id`, `guess_id`.
+- `events` — `id`, `game_id`, `round_id`, `player_id`, `type`, `payload`, `created_at`.
 - Migrations: store SQL migrations under `db/migrations/`.
 
 For now, don't include:
