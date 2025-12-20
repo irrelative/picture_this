@@ -1,0 +1,32 @@
+package web
+
+templ GameView(gameID string) {
+	@Layout("Picture This | Lobby", "/static/game.js") {
+		<header class="hero">
+			<span class="tag">Game Lobby</span>
+			<h1>Gather your players</h1>
+			<p>Share the join code below so everyone can jump in.</p>
+		</header>
+
+		<section class="panel">
+			<div>
+				<h2>Join code</h2>
+				<p id="joinCode" class="join-code">Loading...</p>
+			</div>
+			<div class="status">
+				<span class="label">Status</span>
+				<p id="gameStatus">Loading...</p>
+			</div>
+		</section>
+
+		<section class="panel">
+			<div>
+				<h2>Players</h2>
+				<p>Waiting for everyone to arrive.</p>
+			</div>
+			<ul id="playerList" class="player-list"></ul>
+		</section>
+
+		<div id="gameMeta" data-game-id={ gameID }></div>
+	}
+}

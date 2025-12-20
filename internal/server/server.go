@@ -34,6 +34,7 @@ func New(conn *gorm.DB) *Server {
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("GET /", templ.Handler(web.Home()))
+	mux.HandleFunc("GET /games/", s.handleGameView)
 	mux.HandleFunc("POST /api/games", s.handleCreateGame)
 	mux.HandleFunc("GET /api/games/", s.handleGameSubroutes)
 	mux.HandleFunc("POST /api/games/", s.handleGameSubroutes)
@@ -136,6 +137,20 @@ func (s *Server) handleCreateGame(w http.ResponseWriter, r *http.Request) {
 		"join_code": game.JoinCode,
 	}
 	writeJSON(w, http.StatusCreated, resp)
+}
+
+func (s *Server) handleGameView(w http.ResponseWriter, r *http.Request) {
+	gameID := strings.TrimPrefix(r.URL.Path, "/games/")
+	gameID = strings.Trim(gameID, "/")
+	if gameID == "" || strings.Contains(gameID, "/") {
+		http.NotFound(w, r)
+		return
+	}
+	if _, ok := s.store.GetGame(gameID); !ok {
+		http.NotFound(w, r)
+		return
+	}
+	templ.Handler(web.GameView(gameID)).ServeHTTP(w, r)
 }
 
 func (s *Server) handleGameSubroutes(w http.ResponseWriter, r *http.Request) {

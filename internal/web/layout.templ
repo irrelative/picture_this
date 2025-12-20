@@ -1,6 +1,6 @@
 package web
 
-templ Layout(title string) {
+templ Layout(title string, scriptPath string) {
 	<!doctype html>
 	<html lang="en">
 		<head>
@@ -15,7 +15,9 @@ templ Layout(title string) {
 					{ children... }
 				</main>
 			</div>
-			<script src="/static/app.js"></script>
+			if scriptPath != "" {
+				<script src={ scriptPath }></script>
+			}
 		</body>
 	</html>
 }
