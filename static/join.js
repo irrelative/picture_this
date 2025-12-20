@@ -17,6 +17,6 @@ if (joinForm) {
       joinResult.textContent = data.error || "Failed to join game.";
       return;
     }
-    joinResult.textContent = `Joined game ${data.game_id} as ${data.player}. Waiting for the host...`;
+    window.location.href = `/games/${encodeURIComponent(data.game_id)}`;
   });
 }
