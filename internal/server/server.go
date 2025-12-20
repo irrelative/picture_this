@@ -570,12 +570,6 @@ func (s *Server) handleDrawings(w http.ResponseWriter, r *http.Request, gameID s
 			Prompt:    promptEntry.Text,
 		})
 		game.Drawings = append(game.Drawings, req.ImageData)
-		if len(round.Drawings) == len(game.Players) {
-			if err := s.buildGuessTurns(game, round); err != nil {
-				return err
-			}
-			game.Phase = phaseGuesses
-		}
 		return nil
 	})
 	if err != nil {
@@ -590,27 +584,13 @@ func (s *Server) handleDrawings(w http.ResponseWriter, r *http.Request, gameID s
 		writeError(w, http.StatusInternalServerError, "failed to save drawings")
 		return
 	}
-	if game.Phase == phaseDrawings && drawingsComplete(game) {
-		game, err = s.store.UpdateGame(gameID, func(game *Game) error {
-			if game.Phase != phaseDrawings {
-				return nil
-			}
-			round := currentRound(game)
-			if round == nil {
-				return errors.New("round not started")
-			}
-			if err := s.buildGuessTurns(game, round); err != nil {
-				return err
-			}
-			game.Phase = phaseGuesses
-			return nil
-		})
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to advance game")
-			return
-		}
+	advanced, updated, err := s.tryAdvanceToGuesses(gameID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to advance game")
+		return
 	}
-	if game.Phase == phaseGuesses {
+	if advanced {
+		game = updated
 		if err := s.persistPhase(game, "game_advanced", map[string]any{"phase": game.Phase}); err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to advance game")
 			return
@@ -1159,6 +1139,33 @@ func drawingsComplete(game *Game) bool {
 		return false
 	}
 	return len(round.Drawings) >= len(game.Players) && len(game.Players) > 0
+}
+
+func (s *Server) tryAdvanceToGuesses(gameID string) (bool, *Game, error) {
+	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+		if game.Phase != phaseDrawings {
+			return nil
+		}
+		if !drawingsComplete(game) {
+			return nil
+		}
+		round := currentRound(game)
+		if round == nil {
+			return errors.New("round not started")
+		}
+		if err := s.buildGuessTurns(game, round); err != nil {
+			return err
+		}
+		game.Phase = phaseGuesses
+		return nil
+	})
+	if err != nil {
+		return false, nil, err
+	}
+	if game.Phase != phaseGuesses {
+		return false, game, nil
+	}
+	return true, game, nil
 }
 
 func readJSON(body io.Reader, dest any) error {
