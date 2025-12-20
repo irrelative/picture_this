@@ -156,6 +156,31 @@ input {
   font-weight: 600;
 }
 
+.draw-panel {
+  grid-template-columns: 1fr;
+}
+
+.canvas-wrap {
+  display: grid;
+  gap: 12px;
+}
+
+#drawCanvas {
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  border-radius: 16px;
+  border: 1px solid #e3e3e3;
+  background: #ffffff;
+  touch-action: none;
+}
+
+.canvas-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 @media (min-width: 720px) {
   .panel {
     grid-template-columns: 1fr auto;

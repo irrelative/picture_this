@@ -27,6 +27,20 @@ templ PlayerView(gameID string, playerID int, playerName string) {
 			<ul id="playerList" class="player-list"></ul>
 		</section>
 
+		<section class="panel draw-panel">
+			<div>
+				<h2>Draw your prompt</h2>
+				<p>Use your finger or mouse to sketch. Resolution is fixed for fair play.</p>
+			</div>
+			<div class="canvas-wrap">
+				<canvas id="drawCanvas" width="800" height="600"></canvas>
+				<div class="canvas-actions">
+					<button type="button" id="clearCanvas" class="secondary">Clear</button>
+					<button type="button" id="saveCanvas" class="primary">Save drawing</button>
+				</div>
+			</div>
+		</section>
+
 		<p id="playerError" class="result error"></p>
 		<div id="playerMeta" data-game-id={ gameID } data-player-id={ playerID } data-player-name={ playerName }></div>
 	}

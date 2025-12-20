@@ -4,6 +4,12 @@ const gameStatus = document.getElementById("gameStatus");
 const playerList = document.getElementById("playerList");
 const playerName = document.getElementById("playerName");
 const playerError = document.getElementById("playerError");
+const canvas = document.getElementById("drawCanvas");
+const clearCanvas = document.getElementById("clearCanvas");
+const saveCanvas = document.getElementById("saveCanvas");
+
+const CANVAS_WIDTH = 800;
+const CANVAS_HEIGHT = 600;
 
 async function loadPlayerView() {
   if (!meta) return;
@@ -47,3 +53,92 @@ async function loadPlayerView() {
 
 loadPlayerView();
 setInterval(loadPlayerView, 3000);
+
+function setupCanvas() {
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = "#1a1a1a";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+  let drawing = false;
+  let lastPoint = null;
+
+  function getPoint(event) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = event.clientX ?? (event.touches && event.touches[0]?.clientX);
+    const clientY = event.clientY ?? (event.touches && event.touches[0]?.clientY);
+    if (clientX == null || clientY == null) {
+      return null;
+    }
+    const x = (clientX - rect.left) * (canvas.width / rect.width);
+    const y = (clientY - rect.top) * (canvas.height / rect.height);
+    return { x, y };
+  }
+
+  function startDraw(event) {
+    drawing = true;
+    lastPoint = getPoint(event);
+  }
+
+  function moveDraw(event) {
+    if (!drawing) return;
+    const point = getPoint(event);
+    if (!point || !lastPoint) return;
+    ctx.beginPath();
+    ctx.moveTo(lastPoint.x, lastPoint.y);
+    ctx.lineTo(point.x, point.y);
+    ctx.stroke();
+    lastPoint = point;
+  }
+
+  function endDraw() {
+    drawing = false;
+    lastPoint = null;
+  }
+
+  canvas.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    canvas.setPointerCapture(event.pointerId);
+    startDraw(event);
+  });
+
+  canvas.addEventListener("pointermove", (event) => {
+    event.preventDefault();
+    moveDraw(event);
+  });
+
+  canvas.addEventListener("pointerup", (event) => {
+    event.preventDefault();
+    endDraw();
+    canvas.releasePointerCapture(event.pointerId);
+  });
+
+  canvas.addEventListener("pointerleave", endDraw);
+  canvas.addEventListener("pointercancel", endDraw);
+
+  if (clearCanvas) {
+    clearCanvas.addEventListener("click", () => {
+      ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    });
+  }
+
+  if (saveCanvas) {
+    saveCanvas.addEventListener("click", () => {
+      const dataUrl = canvas.toDataURL("image/png");
+      if (playerError) {
+        playerError.textContent = "Drawing saved locally. Submission wiring is next.";
+      }
+      console.log("drawing data", dataUrl.slice(0, 32));
+    });
+  }
+}
+
+setupCanvas();
