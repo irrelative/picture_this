@@ -57,9 +57,9 @@ type Prompt struct {
 
 type Drawing struct {
 	ID        uint      `gorm:"primaryKey"`
-	RoundID   uint      `gorm:"index;not null;uniqueIndex:idx_drawings_round_player"`
+	RoundID   uint      `gorm:"index;not null;uniqueIndex:idx_drawings_round_player;uniqueIndex:idx_drawings_round_prompt"`
 	PlayerID  uint      `gorm:"index;not null;uniqueIndex:idx_drawings_round_player"`
-	PromptID  uint      `gorm:"index;not null;uniqueIndex:idx_drawings_prompt"`
+	PromptID  uint      `gorm:"index;not null;uniqueIndex:idx_drawings_round_prompt"`
 	ImageData []byte    `gorm:"type:bytea;not null"`
 	CreatedAt time.Time `gorm:"not null"`
 	UpdatedAt time.Time `gorm:"not null"`
@@ -67,9 +67,9 @@ type Drawing struct {
 
 type Guess struct {
 	ID        uint      `gorm:"primaryKey"`
-	RoundID   uint      `gorm:"index;not null"`
-	PlayerID  uint      `gorm:"index;not null;uniqueIndex:idx_guesses_drawing_player"`
-	DrawingID uint      `gorm:"index;not null;uniqueIndex:idx_guesses_drawing_player"`
+	RoundID   uint      `gorm:"index;not null;uniqueIndex:idx_guesses_round_player"`
+	PlayerID  uint      `gorm:"index;not null;uniqueIndex:idx_guesses_round_player"`
+	DrawingID uint      `gorm:"index;not null"`
 	Text      string    `gorm:"size:280;not null"`
 	CreatedAt time.Time `gorm:"not null"`
 	UpdatedAt time.Time `gorm:"not null"`
