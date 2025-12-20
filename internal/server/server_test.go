@@ -1,0 +1,210 @@
+package server
+
+import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+)
+
+func TestCreateGame(t *testing.T) {
+	srv := New()
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	resp := doRequest(t, ts, http.MethodPost, "/api/games", nil)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d", http.StatusCreated, resp.StatusCode)
+	}
+
+	body := decodeBody(t, resp)
+	assertString(t, body["game_id"])
+	assertString(t, body["join_code"])
+}
+
+func TestGetGame(t *testing.T) {
+	srv := New()
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	gameID := createGame(t, ts)
+	resp := doRequest(t, ts, http.MethodGet, "/api/games/"+gameID, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+}
+
+func TestJoinGame(t *testing.T) {
+	srv := New()
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	gameID := createGame(t, ts)
+	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/join", map[string]string{
+		"name": "Ada",
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+}
+
+func TestStartGame(t *testing.T) {
+	srv := New()
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	gameID := createGame(t, ts)
+	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/start", map[string]any{})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+}
+
+func TestSubmitPrompts(t *testing.T) {
+	srv := New()
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	gameID := createGame(t, ts)
+	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/prompts", map[string]any{
+		"prompts": []string{"prompt-1"},
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+}
+
+func TestSubmitDrawings(t *testing.T) {
+	srv := New()
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	gameID := createGame(t, ts)
+	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/drawings", map[string]any{
+		"drawings": []string{"drawing-1"},
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+}
+
+func TestSubmitGuesses(t *testing.T) {
+	srv := New()
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	gameID := createGame(t, ts)
+	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/guesses", map[string]any{
+		"guesses": []string{"guess-1"},
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+}
+
+func TestSubmitVotes(t *testing.T) {
+	srv := New()
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	gameID := createGame(t, ts)
+	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/votes", map[string]any{
+		"votes": []string{"vote-1"},
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+}
+
+func TestAdvanceGame(t *testing.T) {
+	srv := New()
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	gameID := createGame(t, ts)
+	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/advance", map[string]any{})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+}
+
+func TestResults(t *testing.T) {
+	srv := New()
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	gameID := createGame(t, ts)
+	resp := doRequest(t, ts, http.MethodGet, "/api/games/"+gameID+"/results", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+}
+
+func TestWebsocketUpgradeRequired(t *testing.T) {
+	srv := New()
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	gameID := createGame(t, ts)
+	resp := doRequest(t, ts, http.MethodGet, "/ws/games/"+gameID, nil)
+	if resp.StatusCode != http.StatusUpgradeRequired {
+		t.Fatalf("expected status %d, got %d", http.StatusUpgradeRequired, resp.StatusCode)
+	}
+}
+
+func createGame(t *testing.T, ts *httptest.Server) string {
+	t.Helper()
+	resp := doRequest(t, ts, http.MethodPost, "/api/games", nil)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d", http.StatusCreated, resp.StatusCode)
+	}
+	body := decodeBody(t, resp)
+	return body["game_id"].(string)
+}
+
+func doRequest(t *testing.T, ts *httptest.Server, method, path string, payload any) *http.Response {
+	t.Helper()
+	var body *bytes.Reader
+	if payload != nil {
+		data, err := json.Marshal(payload)
+		if err != nil {
+			t.Fatalf("marshal payload: %v", err)
+		}
+		body = bytes.NewReader(data)
+	} else {
+		body = bytes.NewReader(nil)
+	}
+
+	req, err := http.NewRequest(method, ts.URL+path, body)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	if payload != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("do request: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = resp.Body.Close()
+	})
+	return resp
+}
+
+func decodeBody(t *testing.T, resp *http.Response) map[string]any {
+	t.Helper()
+	var body map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	return body
+}
+
+func assertString(t *testing.T, value any) {
+	t.Helper()
+	if _, ok := value.(string); !ok {
+		t.Fatalf("expected string, got %T", value)
+	}
+}
