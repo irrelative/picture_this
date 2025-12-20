@@ -136,6 +136,23 @@ func TestStartGame(t *testing.T) {
 	}
 }
 
+func TestStartGameConflict(t *testing.T) {
+	srv := New(nil)
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	gameID := createGame(t, ts)
+	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/start", map[string]any{})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+
+	resp = doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/start", map[string]any{})
+	if resp.StatusCode != http.StatusConflict {
+		t.Fatalf("expected status %d, got %d", http.StatusConflict, resp.StatusCode)
+	}
+}
+
 func TestSubmitPrompts(t *testing.T) {
 	srv := New(nil)
 	ts := httptest.NewServer(srv.Handler())

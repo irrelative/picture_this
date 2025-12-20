@@ -25,6 +25,26 @@ type Server struct {
 	db    *gorm.DB
 }
 
+const (
+	phaseLobby    = "lobby"
+	phasePrompts  = "prompts"
+	phaseDrawings = "drawings"
+	phaseGuesses  = "guesses"
+	phaseVotes    = "votes"
+	phaseResults  = "results"
+	phaseComplete = "complete"
+)
+
+var phaseOrder = []string{
+	phaseLobby,
+	phasePrompts,
+	phaseDrawings,
+	phaseGuesses,
+	phaseVotes,
+	phaseResults,
+	phaseComplete,
+}
+
 func New(conn *gorm.DB) *Server {
 	return &Server{
 		store: NewStore(),
@@ -89,7 +109,7 @@ func (s *Store) CreateGame() *Game {
 	game := &Game{
 		ID:       id,
 		JoinCode: newJoinCode(),
-		Phase:    "lobby",
+		Phase:    phaseLobby,
 	}
 	s.games[id] = game
 	return game
@@ -309,8 +329,8 @@ func (s *Server) handleJoinGame(w http.ResponseWriter, r *http.Request, gameID s
 	}
 
 	resp := map[string]any{
-		"game_id": game.ID,
-		"player":  req.Name,
+		"game_id":   game.ID,
+		"player":    req.Name,
 		"join_code": game.JoinCode,
 	}
 	resp["player_id"] = playerID
@@ -319,11 +339,18 @@ func (s *Server) handleJoinGame(w http.ResponseWriter, r *http.Request, gameID s
 
 func (s *Server) handleStartGame(w http.ResponseWriter, r *http.Request, gameID string) {
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
-		game.Phase = "in_progress"
+		if game.Phase != phaseLobby {
+			return errors.New("game already started")
+		}
+		game.Phase = phasePrompts
 		return nil
 	})
 	if err != nil {
-		http.NotFound(w, r)
+		if err.Error() == "game not found" {
+			http.NotFound(w, r)
+			return
+		}
+		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
 	if err := s.persistPhase(game, "game_started", map[string]any{"phase": game.Phase}); err != nil {
@@ -435,11 +462,19 @@ func (s *Server) handleVotes(w http.ResponseWriter, r *http.Request, gameID stri
 
 func (s *Server) handleAdvance(w http.ResponseWriter, r *http.Request, gameID string) {
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
-		game.Phase = "next"
+		next, ok := nextPhase(game.Phase)
+		if !ok {
+			return errors.New("no next phase")
+		}
+		game.Phase = next
 		return nil
 	})
 	if err != nil {
-		http.NotFound(w, r)
+		if err.Error() == "game not found" {
+			http.NotFound(w, r)
+			return
+		}
+		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
 	if err := s.persistPhase(game, "game_advanced", map[string]any{"phase": game.Phase}); err != nil {
@@ -530,6 +565,18 @@ func parsePlayerPath(path string) (string, int, bool) {
 		return "", 0, false
 	}
 	return parts[0], playerID, true
+}
+
+func nextPhase(current string) (string, bool) {
+	for i, phase := range phaseOrder {
+		if phase == current {
+			if i+1 >= len(phaseOrder) {
+				return "", false
+			}
+			return phaseOrder[i+1], true
+		}
+	}
+	return "", false
 }
 
 func snapshot(game *Game) map[string]any {

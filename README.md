@@ -22,6 +22,13 @@ This is a port of the game Drawful, as best as possible, using the following tec
 - `GET /api/games/{game_id}/results` — fetch round or final results.
 - `GET /ws/games/{game_id}` — websocket for realtime state/events.
 
+## Game State Transition Flow (Draft)
+- Phases: `lobby` -> `prompts` -> `drawings` -> `guesses` -> `votes` -> `results` -> `complete`.
+- `POST /api/games/{game_id}/start` moves `lobby` to `prompts`.
+- `POST /api/games/{game_id}/advance` moves to the next phase in order.
+- When a phase is completed, submissions lock and the host advances.
+- Results are shown in `results`, then the game is marked `complete`.
+
 ## Database Schema & ORM Plan (Draft)
 - ORM: use GORM with the Postgres driver.
 - Tables (initial):
