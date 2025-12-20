@@ -29,7 +29,25 @@ func Home() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Picture This</title><link rel=\"stylesheet\" href=\"/static/styles.css\"></head><body><main class=\"shell\"><header class=\"hero\"><span class=\"tag\">Picture This</span><h1>Draw together. Guess boldly.</h1><p>Host a game in seconds or jump into a session with your code.</p></header><section class=\"panel\"><div><h2>Create a game</h2><p>Generate a new lobby and share the join code with your players.</p></div><button id=\"createGame\" class=\"primary\">Create game</button><div id=\"createResult\" class=\"result\"></div></section><section class=\"panel\"><div><h2>Join a game</h2><p>Enter the join code from the host and your display name.</p></div><form id=\"joinForm\" class=\"join-form\"><input name=\"code\" placeholder=\"Join code\" autocomplete=\"off\" required> <input name=\"name\" placeholder=\"Display name\" autocomplete=\"name\" required> <button type=\"submit\" class=\"secondary\">Join game</button></form><div id=\"joinResult\" class=\"result\"></div></section></main><script src=\"/static/app.js\"></script></body></html>")
+		templ_7745c5c3_Var2 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+			if !templ_7745c5c3_IsBuffer {
+				defer func() {
+					templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err == nil {
+						templ_7745c5c3_Err = templ_7745c5c3_BufErr
+					}
+				}()
+			}
+			ctx = templ.InitializeContext(ctx)
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<header class=\"hero\"><span class=\"tag\">Picture This</span><h1>Draw together. Guess boldly.</h1><p>Host a game in seconds or jump into a session with your code.</p></header><section class=\"panel\"><div><h2>Create a game</h2><p>Generate a new lobby and share the join code with your players.</p></div><button id=\"createGame\" class=\"primary\">Create game</button><div id=\"createResult\" class=\"result\"></div></section><section class=\"panel\"><div><h2>Join a game</h2><p>Enter the join code from the host and your display name.</p></div><form id=\"joinForm\" class=\"join-form\"><input name=\"code\" placeholder=\"Join code\" autocomplete=\"off\" required> <input name=\"name\" placeholder=\"Display name\" autocomplete=\"name\" required> <button type=\"submit\" class=\"secondary\">Join game</button></form><div id=\"joinResult\" class=\"result\"></div></section>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			return nil
+		})
+		templ_7745c5c3_Err = Layout("Picture This").Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

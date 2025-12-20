@@ -20,6 +20,10 @@ body {
   color: var(--ink);
 }
 
+.page {
+  min-height: 100vh;
+}
+
 .shell {
   max-width: 960px;
   margin: 0 auto;
