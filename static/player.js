@@ -16,6 +16,7 @@ const CANVAS_HEIGHT = 600;
 let pollTimer = null;
 let assignedPrompts = [];
 let selectedPrompt = "";
+let drawingSubmitted = false;
 
 async function loadPlayerView() {
   if (!meta) return;
@@ -64,7 +65,11 @@ function updateFromSnapshot(data) {
   });
 
   if (drawSection) {
-    drawSection.style.display = data.phase === "drawings" ? "grid" : "none";
+    if (data.phase === "drawings" && !drawingSubmitted) {
+      drawSection.style.display = "grid";
+    } else {
+      drawSection.style.display = "none";
+    }
     if (data.phase === "drawings") {
       fetchPrompt();
     }
@@ -196,14 +201,18 @@ function setupCanvas() {
       });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
-        if (playerError) {
-          playerError.textContent = payload.error || "Unable to submit drawing.";
-        }
-        return;
-      }
       if (playerError) {
-        playerError.textContent = "";
+        playerError.textContent = payload.error || "Unable to submit drawing.";
       }
+      return;
+    }
+    if (playerError) {
+      playerError.textContent = "";
+    }
+    drawingSubmitted = true;
+    if (drawSection) {
+      drawSection.style.display = "none";
+    }
     });
   }
 }
