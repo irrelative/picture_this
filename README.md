@@ -1,6 +1,15 @@
 # Picture This
 
-This is a port of the game Drawful, as best as possible, using the following technology:
+Picture This is a Drawful-style party game with a Go backend, templ-rendered UI, and Postgres persistence. Players join from their phones, submit prompts, draw, guess, and vote while the host runs the lobby on a shared screen.
+
+## How It Works
+- Host creates a game and shares the join code.
+- Players join from `/join` and enter prompts.
+- The game advances through drawing, guessing, and voting phases.
+- Results are shown after each round, with state synced via websockets.
+
+## Tech Stack
+This project uses the following technology:
 
 * Golang backend (Go 1.25.5)
 * Golang templ templating for WebUI and mobile interfaces
@@ -8,6 +17,20 @@ This is a port of the game Drawful, as best as possible, using the following tec
 * Minimal javascipt, no frameworks
 * WebUI frontend for managing the game, showing "secret" code
 * Postgres for backend state storage of game, drawings, etc. The game should be able to crash and be restarted without losing game state.
+
+## Getting Started
+1. Copy the example env file: `cp .env.example .env`
+2. Update `DATABASE_URL` in `.env`.
+3. Run migrations: `make migrate`
+4. Start the server: `make run`
+5. Open `http://localhost:8080` to create a game.
+
+## Dev Commands
+- `make run` — generate templ output and start the server.
+- `make build` — generate templ output and build all packages.
+- `make test` — run all tests.
+- `make migrate` — apply SQL migrations in `db/migrations/`.
+- `make migrate-create name=add_table` — create a new migration pair.
 
 ## Planned Server Endpoints (Draft)
 - `POST /api/games` — create a new game; returns `game_id` and `join_code`.
