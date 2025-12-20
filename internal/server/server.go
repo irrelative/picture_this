@@ -119,6 +119,7 @@ type PromptEntry struct {
 type DrawingEntry struct {
 	PlayerID  int
 	ImageData []byte
+	Prompt    string
 	DBID      uint
 }
 
@@ -326,7 +327,37 @@ func (s *Server) handlePlayerView(w http.ResponseWriter, r *http.Request) {
 	templ.Handler(web.PlayerView(game.ID, player.ID, player.Name)).ServeHTTP(w, r)
 }
 
+func (s *Server) handlePlayerPrompt(w http.ResponseWriter, r *http.Request, gameID string, playerID int) {
+	game, player, ok := s.store.GetPlayer(gameID, playerID)
+	if !ok || player == nil {
+		http.NotFound(w, r)
+		return
+	}
+	round := currentRound(game)
+	if round == nil {
+		writeError(w, http.StatusConflict, "round not started")
+		return
+	}
+	prompts := promptsForPlayer(round, player.ID)
+	if len(prompts) == 0 {
+		writeError(w, http.StatusNotFound, "prompt not assigned")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"game_id":   game.ID,
+		"player_id": player.ID,
+		"prompts":   prompts,
+	})
+}
+
 func (s *Server) handleGameSubroutes(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		if playerGameID, playerID, ok := parsePlayerPromptPath(r.URL.Path); ok {
+			s.handlePlayerPrompt(w, r, playerGameID, playerID)
+			return
+		}
+	}
+
 	gameID, action, ok := parseGamePath(r.URL.Path)
 	if !ok {
 		http.NotFound(w, r)
@@ -438,6 +469,10 @@ func (s *Server) handleStartGame(w http.ResponseWriter, r *http.Request, gameID 
 		writeError(w, http.StatusInternalServerError, "failed to create round")
 		return
 	}
+	if err := s.assignPrompts(game); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to assign prompts")
+		return
+	}
 	log.Printf("game started game_id=%s phase=%s", game.ID, game.Phase)
 	writeJSON(w, http.StatusOK, snapshot(game))
 	s.broadcastGameUpdate(game)
@@ -455,6 +490,7 @@ func (s *Server) handlePrompts(w http.ResponseWriter, r *http.Request, gameID st
 type drawingsRequest struct {
 	PlayerID  int    `json:"player_id"`
 	ImageData string `json:"image_data"`
+	Prompt    string `json:"prompt"`
 }
 
 func (s *Server) handleDrawings(w http.ResponseWriter, r *http.Request, gameID string) {
@@ -480,9 +516,14 @@ func (s *Server) handleDrawings(w http.ResponseWriter, r *http.Request, gameID s
 		if round == nil {
 			return errors.New("round not started")
 		}
+		promptEntry, ok := findPromptForPlayer(round, player.ID, req.Prompt)
+		if !ok {
+			return errors.New("prompt not assigned")
+		}
 		round.Drawings = append(round.Drawings, DrawingEntry{
 			PlayerID:  player.ID,
 			ImageData: image,
+			Prompt:    promptEntry.Text,
 		})
 		game.Drawings = append(game.Drawings, req.ImageData)
 		return nil
@@ -495,7 +536,7 @@ func (s *Server) handleDrawings(w http.ResponseWriter, r *http.Request, gameID s
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
-	if err := s.persistDrawing(game, req.PlayerID, image); err != nil {
+	if err := s.persistDrawing(game, req.PlayerID, image, req.Prompt); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to save drawings")
 		return
 	}
@@ -720,6 +761,26 @@ func parsePlayerPath(path string) (string, int, bool) {
 	return parts[0], playerID, true
 }
 
+func parsePlayerPromptPath(path string) (string, int, bool) {
+	const prefix = "/api/games/"
+	if !strings.HasPrefix(path, prefix) {
+		return "", 0, false
+	}
+	rest := strings.TrimPrefix(path, prefix)
+	parts := strings.Split(strings.Trim(rest, "/"), "/")
+	if len(parts) != 4 {
+		return "", 0, false
+	}
+	if parts[1] != "players" || parts[3] != "prompt" {
+		return "", 0, false
+	}
+	playerID, err := strconv.Atoi(parts[2])
+	if err != nil || playerID <= 0 {
+		return "", 0, false
+	}
+	return parts[0], playerID, true
+}
+
 func nextPhase(current string) (string, bool) {
 	for i, phase := range phaseOrder {
 		if phase == current {
@@ -746,6 +807,39 @@ func decodeImageData(data string) ([]byte, error) {
 		return nil, err
 	}
 	return decoded, nil
+}
+
+func promptsForPlayer(round *RoundState, playerID int) []string {
+	if round == nil {
+		return nil
+	}
+	var prompts []string
+	for _, entry := range round.Prompts {
+		if entry.PlayerID == playerID {
+			prompts = append(prompts, entry.Text)
+		}
+	}
+	return prompts
+}
+
+func findPromptForPlayer(round *RoundState, playerID int, promptText string) (PromptEntry, bool) {
+	if round == nil {
+		return PromptEntry{}, false
+	}
+	if promptText != "" {
+		for _, entry := range round.Prompts {
+			if entry.PlayerID == playerID && entry.Text == promptText {
+				return entry, true
+			}
+		}
+		return PromptEntry{}, false
+	}
+	for _, entry := range round.Prompts {
+		if entry.PlayerID == playerID {
+			return entry, true
+		}
+	}
+	return PromptEntry{}, false
 }
 
 type wsHub struct {
@@ -1056,10 +1150,121 @@ func (s *Server) persistPrompts(game *Game, playerID int, prompts []string) erro
 	})
 }
 
-func (s *Server) persistDrawing(game *Game, playerID int, image []byte) error {
+func (s *Server) assignPrompts(game *Game) error {
+	round := currentRound(game)
+	if round == nil {
+		return errors.New("round not started")
+	}
+	if len(round.Prompts) > 0 {
+		return nil
+	}
+	count := game.PromptsPerPlayer
+	if count <= 0 {
+		count = 1
+	}
+	total := len(game.Players) * count
+	if total == 0 {
+		return errors.New("no players to assign prompts")
+	}
+
+	prompts, err := s.loadPromptLibrary(total)
+	if err != nil {
+		return err
+	}
+	if len(prompts) < total {
+		return errors.New("not enough prompts available")
+	}
+
+	idx := 0
+	for _, player := range game.Players {
+		for i := 0; i < count; i++ {
+			round.Prompts = append(round.Prompts, PromptEntry{
+				PlayerID: player.ID,
+				Text:     prompts[idx],
+			})
+			idx++
+		}
+	}
+	if err := s.persistAssignedPrompts(game, round); err != nil {
+		return err
+	}
+	if err := s.persistEvent(game, "prompts_assigned", map[string]any{
+		"count": total,
+	}); err != nil {
+		return err
+	}
+	log.Printf("prompts assigned game_id=%s count=%d", game.ID, total)
+	return nil
+}
+
+func (s *Server) loadPromptLibrary(limit int) ([]string, error) {
+	if s.db == nil {
+		return fallbackPrompts(limit), nil
+	}
+	var records []db.PromptLibrary
+	if err := s.db.Order("random()").Limit(limit).Find(&records).Error; err != nil {
+		return nil, err
+	}
+	prompts := make([]string, 0, len(records))
+	for _, record := range records {
+		prompts = append(prompts, record.Text)
+	}
+	return prompts, nil
+}
+
+func fallbackPrompts(limit int) []string {
+	fallback := []string{
+		"Draw a llama in a suit",
+		"Draw a castle made of pancakes",
+		"Draw a robot learning to dance",
+		"Draw a pirate cat at a tea party",
+		"Draw a rocket powered skateboard",
+		"Draw a haunted treehouse",
+		"Draw a snowy beach day",
+		"Draw a giant sunflower city",
+	}
+	if limit >= len(fallback) {
+		return fallback
+	}
+	return fallback[:limit]
+}
+
+func (s *Server) persistAssignedPrompts(game *Game, round *RoundState) error {
+	if s.db == nil {
+		return nil
+	}
+	if round.DBID == 0 {
+		if err := s.persistRound(game); err != nil {
+			return err
+		}
+	}
+	for i := range round.Prompts {
+		entry := &round.Prompts[i]
+		if entry.DBID != 0 {
+			continue
+		}
+		player, ok := s.store.FindPlayer(game, entry.PlayerID)
+		if !ok || player.DBID == 0 {
+			return errors.New("player not found")
+		}
+		record := db.Prompt{
+			RoundID:  round.DBID,
+			PlayerID: player.DBID,
+			Text:     entry.Text,
+		}
+		if err := s.db.Create(&record).Error; err != nil {
+			return err
+		}
+		entry.DBID = record.ID
+	}
+	return nil
+}
+
+func (s *Server) persistDrawing(game *Game, playerID int, image []byte, promptText string) error {
 	if s.db == nil {
 		return s.persistEvent(game, "drawings_submitted", map[string]any{
 			"player_id": playerID,
+			"prompt":    promptText,
 		})
 	}
 	round := currentRound(game)
@@ -1075,10 +1280,14 @@ func (s *Server) persistDrawing(game *Game, playerID int, image []byte) error {
 	if !ok || player.DBID == 0 {
 		return errors.New("player not found")
 	}
+	promptEntry, ok := findPromptForPlayer(round, playerID, promptText)
+	if !ok || promptEntry.DBID == 0 {
+		return errors.New("prompt not assigned")
+	}
 	record := db.Drawing{
 		RoundID:   round.DBID,
 		PlayerID:  player.DBID,
-		PromptID:  player.DBID,
+		PromptID:  promptEntry.DBID,
 		ImageData: image,
 	}
 	if err := s.db.Create(&record).Error; err != nil {

@@ -5,6 +5,8 @@ const playerList = document.getElementById("playerList");
 const playerName = document.getElementById("playerName");
 const playerError = document.getElementById("playerError");
 const drawSection = document.getElementById("drawSection");
+const promptText = document.getElementById("promptText");
+const promptChoices = document.getElementById("promptChoices");
 const canvas = document.getElementById("drawCanvas");
 const clearCanvas = document.getElementById("clearCanvas");
 const saveCanvas = document.getElementById("saveCanvas");
@@ -12,6 +14,8 @@ const saveCanvas = document.getElementById("saveCanvas");
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 600;
 let pollTimer = null;
+let assignedPrompts = [];
+let selectedPrompt = "";
 
 async function loadPlayerView() {
   if (!meta) return;
@@ -61,6 +65,9 @@ function updateFromSnapshot(data) {
 
   if (drawSection) {
     drawSection.style.display = data.phase === "drawings" ? "grid" : "none";
+    if (data.phase === "drawings") {
+      fetchPrompt();
+    }
   }
 }
 
@@ -181,7 +188,11 @@ function setupCanvas() {
       const res = await fetch(`/api/games/${encodeURIComponent(gameId)}/drawings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ player_id: Number(playerId), image_data: dataUrl })
+        body: JSON.stringify({
+          player_id: Number(playerId),
+          image_data: dataUrl,
+          prompt: selectedPrompt
+        })
       });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -198,3 +209,60 @@ function setupCanvas() {
 }
 
 setupCanvas();
+
+async function fetchPrompt() {
+  if (!meta) return;
+  if (assignedPrompts.length > 0) {
+    return;
+  }
+  const gameId = meta.dataset.gameId;
+  const playerId = meta.dataset.playerId;
+  const res = await fetch(`/api/games/${encodeURIComponent(gameId)}/players/${encodeURIComponent(playerId)}/prompt`);
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    if (playerError) {
+      playerError.textContent = payload.error || "Unable to load prompt.";
+    }
+    return;
+  }
+  assignedPrompts = Array.isArray(payload.prompts) ? payload.prompts : [];
+  if (assignedPrompts.length === 0) {
+    if (playerError) {
+      playerError.textContent = "No prompts assigned.";
+    }
+    return;
+  }
+  selectedPrompt = assignedPrompts[0];
+  renderPromptChoices();
+}
+
+function renderPromptChoices() {
+  if (promptText) {
+    promptText.textContent = selectedPrompt || "Select a prompt";
+  }
+  if (!promptChoices) return;
+  promptChoices.innerHTML = "";
+  if (assignedPrompts.length <= 1) {
+    return;
+  }
+  assignedPrompts.forEach((prompt) => {
+    const label = document.createElement("label");
+    label.className = "prompt-option";
+    const radio = document.createElement("input");
+    radio.type = "radio";
+    radio.name = "promptChoice";
+    radio.value = prompt;
+    radio.checked = prompt === selectedPrompt;
+    radio.addEventListener("change", () => {
+      selectedPrompt = prompt;
+      if (promptText) {
+        promptText.textContent = selectedPrompt;
+      }
+    });
+    const text = document.createElement("span");
+    text.textContent = prompt;
+    label.appendChild(radio);
+    label.appendChild(text);
+    promptChoices.appendChild(label);
+  });
+}

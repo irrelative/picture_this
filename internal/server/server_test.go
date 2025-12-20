@@ -147,6 +147,7 @@ func TestStartGame(t *testing.T) {
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
+	joinPlayer(t, ts, gameID, "Ada")
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/start", map[string]any{})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
@@ -159,6 +160,7 @@ func TestStartGameConflict(t *testing.T) {
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
+	joinPlayer(t, ts, gameID, "Ada")
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/start", map[string]any{})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
@@ -193,9 +195,11 @@ func TestSubmitDrawings(t *testing.T) {
 	gameID := createGame(t, ts)
 	playerID := joinPlayer(t, ts, gameID, "Ada")
 	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/start", map[string]any{})
+	prompt := fetchPrompt(t, ts, gameID, playerID)
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/drawings", map[string]any{
 		"player_id":  playerID,
 		"image_data": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMBAp4pWZkAAAAASUVORK5CYII=",
+		"prompt":     prompt,
 	})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
@@ -307,6 +311,24 @@ func joinPlayer(t *testing.T, ts *httptest.Server, gameID, name string) int {
 	}
 	body := decodeBody(t, resp)
 	return int(body["player_id"].(float64))
+}
+
+func fetchPrompt(t *testing.T, ts *httptest.Server, gameID string, playerID int) string {
+	t.Helper()
+	resp := doRequest(t, ts, http.MethodGet, "/api/games/"+gameID+"/players/"+strconv.Itoa(playerID)+"/prompt", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+	body := decodeBody(t, resp)
+	prompts, ok := body["prompts"].([]any)
+	if !ok || len(prompts) == 0 {
+		t.Fatalf("expected prompts array, got %#v", body["prompts"])
+	}
+	if prompt, ok := prompts[0].(string); ok {
+		return prompt
+	}
+	t.Fatalf("expected prompt string, got %#v", prompts[0])
+	return ""
 }
 
 func doRequest(t *testing.T, ts *httptest.Server, method, path string, payload any) *http.Response {
