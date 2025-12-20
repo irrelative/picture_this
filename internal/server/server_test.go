@@ -262,6 +262,17 @@ func TestSubmitGuesses(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
 	}
+	resp = doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/guesses", map[string]any{
+		"player_id": playerID,
+		"guess":     "guess-2",
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+	snapshot := fetchSnapshot(t, ts, gameID)
+	if snapshot["phase"] != "drawings" {
+		t.Fatalf("expected drawings phase, got %v", snapshot["phase"])
+	}
 }
 
 func TestSubmitVotes(t *testing.T) {
@@ -293,6 +304,30 @@ func TestSubmitVotes(t *testing.T) {
 		"player_id": playerID,
 		"guess":     "guess-2",
 	})
+	prompt = fetchPrompt(t, ts, gameID, playerID)
+	prompt2 = fetchPrompt(t, ts, gameID, playerID2)
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/drawings", map[string]any{
+		"player_id":  playerID,
+		"image_data": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMBAp4pWZkAAAAASUVORK5CYII=",
+		"prompt":     prompt,
+	})
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/drawings", map[string]any{
+		"player_id":  playerID2,
+		"image_data": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMBAp4pWZkAAAAASUVORK5CYII=",
+		"prompt":     prompt2,
+	})
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/guesses", map[string]any{
+		"player_id": playerID2,
+		"guess":     "guess-3",
+	})
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/guesses", map[string]any{
+		"player_id": playerID,
+		"guess":     "guess-4",
+	})
+	snapshot := fetchSnapshot(t, ts, gameID)
+	if snapshot["phase"] != "votes" {
+		t.Fatalf("expected votes phase, got %v", snapshot["phase"])
+	}
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/votes", map[string]any{
 		"player_id": playerID,
 		"guess":     "guess-1",
@@ -379,15 +414,20 @@ func fetchPrompt(t *testing.T, ts *httptest.Server, gameID string, playerID int)
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
 	}
 	body := decodeBody(t, resp)
-	prompts, ok := body["prompts"].([]any)
-	if !ok || len(prompts) == 0 {
-		t.Fatalf("expected prompts array, got %#v", body["prompts"])
-	}
-	if prompt, ok := prompts[0].(string); ok {
+	if prompt, ok := body["prompt"].(string); ok {
 		return prompt
 	}
-	t.Fatalf("expected prompt string, got %#v", prompts[0])
+	t.Fatalf("expected prompt string, got %#v", body["prompt"])
 	return ""
+}
+
+func fetchSnapshot(t *testing.T, ts *httptest.Server, gameID string) map[string]any {
+	t.Helper()
+	resp := doRequest(t, ts, http.MethodGet, "/api/games/"+gameID, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+	return decodeBody(t, resp)
 }
 
 func doRequest(t *testing.T, ts *httptest.Server, method, path string, payload any) *http.Response {

@@ -204,17 +204,6 @@ input {
   margin: 0;
 }
 
-.prompt-choices {
-  display: grid;
-  gap: 8px;
-}
-
-.prompt-option {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  font-weight: 600;
-}
 
 @media (min-width: 720px) {
   .panel {

@@ -367,15 +367,15 @@ func (s *Server) handlePlayerPrompt(w http.ResponseWriter, r *http.Request, game
 		writeError(w, http.StatusConflict, "round not started")
 		return
 	}
-	prompts := promptsForPlayer(round, player.ID)
-	if len(prompts) == 0 {
+	prompt := promptForPlayer(round, player.ID)
+	if prompt == "" {
 		writeError(w, http.StatusNotFound, "prompt not assigned")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"game_id":   game.ID,
 		"player_id": player.ID,
-		"prompts":   prompts,
+		"prompt":    prompt,
 	})
 }
 
@@ -622,7 +622,14 @@ func (s *Server) handleGuesses(w http.ResponseWriter, r *http.Request, gameID st
 		})
 		round.CurrentGuess++
 		if round.CurrentGuess >= len(round.GuessTurns) {
-			game.Phase = phaseVotes
+			if round.Number < game.PromptsPerPlayer {
+				game.Phase = phaseDrawings
+				game.Rounds = append(game.Rounds, RoundState{
+					Number: len(game.Rounds) + 1,
+				})
+			} else {
+				game.Phase = phaseVotes
+			}
 		}
 		return nil
 	})
@@ -638,7 +645,17 @@ func (s *Server) handleGuesses(w http.ResponseWriter, r *http.Request, gameID st
 		writeError(w, http.StatusInternalServerError, "failed to save guesses")
 		return
 	}
-	if game.Phase == phaseVotes {
+	if game.Phase == phaseDrawings {
+		if err := s.persistRound(game); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to create round")
+			return
+		}
+		if err := s.assignPrompts(game); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to assign prompts")
+			return
+		}
+	}
+	if game.Phase == phaseDrawings || game.Phase == phaseVotes {
 		if err := s.persistPhase(game, "game_advanced", map[string]any{"phase": game.Phase}); err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to advance game")
 			return
@@ -922,34 +939,27 @@ func decodeImageData(data string) ([]byte, error) {
 	return decoded, nil
 }
 
-func promptsForPlayer(round *RoundState, playerID int) []string {
+func promptForPlayer(round *RoundState, playerID int) string {
 	if round == nil {
-		return nil
+		return ""
 	}
-	var prompts []string
 	for _, entry := range round.Prompts {
 		if entry.PlayerID == playerID {
-			prompts = append(prompts, entry.Text)
+			return entry.Text
 		}
 	}
-	return prompts
+	return ""
 }
 
 func findPromptForPlayer(round *RoundState, playerID int, promptText string) (PromptEntry, bool) {
 	if round == nil {
 		return PromptEntry{}, false
 	}
-	if promptText != "" {
-		for _, entry := range round.Prompts {
-			if entry.PlayerID == playerID && entry.Text == promptText {
-				return entry, true
-			}
-		}
-		return PromptEntry{}, false
-	}
 	for _, entry := range round.Prompts {
 		if entry.PlayerID == playerID {
-			return entry, true
+			if promptText == "" || entry.Text == promptText {
+				return entry, true
+			}
 		}
 	}
 	return PromptEntry{}, false
@@ -1068,6 +1078,7 @@ func snapshot(game *Game) map[string]any {
 		"phase":              game.Phase,
 		"players":            extractPlayerNames(game.Players),
 		"round_number":       roundNumber,
+		"total_rounds":       game.PromptsPerPlayer,
 		"guess_turn":         guessTurn,
 		"prompts_per_player": game.PromptsPerPlayer,
 		"counts": map[string]int{
@@ -1333,11 +1344,7 @@ func (s *Server) assignPrompts(game *Game) error {
 	if len(round.Prompts) > 0 {
 		return nil
 	}
-	count := game.PromptsPerPlayer
-	if count <= 0 {
-		count = 1
-	}
-	total := len(game.Players) * count
+	total := len(game.Players)
 	if total == 0 {
 		return errors.New("no players to assign prompts")
 	}
@@ -1352,13 +1359,11 @@ func (s *Server) assignPrompts(game *Game) error {
 
 	idx := 0
 	for _, player := range game.Players {
-		for i := 0; i < count; i++ {
-			round.Prompts = append(round.Prompts, PromptEntry{
-				PlayerID: player.ID,
-				Text:     prompts[idx],
-			})
-			idx++
-		}
+		round.Prompts = append(round.Prompts, PromptEntry{
+			PlayerID: player.ID,
+			Text:     prompts[idx],
+		})
+		idx++
 	}
 	if err := s.persistAssignedPrompts(game, round); err != nil {
 		return err

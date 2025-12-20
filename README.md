@@ -47,8 +47,9 @@ This project uses the following technology:
 ## Game State Transition Flow (Draft)
 - Phases: `lobby` -> `drawings` -> `guesses` -> `votes` -> `results` -> `complete`.
 - `POST /api/games/{game_id}/start` moves `lobby` to `drawings`.
-- `POST /api/games/{game_id}/advance` moves to the next phase in order.
-- When a phase is completed, submissions lock and the host advances.
+- Each round assigns one prompt per player from the prompt library.
+- When all drawings are in, the game moves to `guesses` and walks each guess turn sequentially.
+- After guesses complete, either a new round starts (if `PROMPTS_PER_PLAYER` > round count) or the game moves to `votes`.
 - Results are shown in `results`, then the game is marked `complete`.
 
 ## Database Schema & ORM Plan (Draft)
