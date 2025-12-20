@@ -198,21 +198,6 @@ func TestStartGameConflict(t *testing.T) {
 	}
 }
 
-func TestSubmitPrompts(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
-	t.Cleanup(ts.Close)
-
-	gameID := createGame(t, ts)
-	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/prompts", map[string]any{
-		"player_id": 1,
-		"prompts":   []string{"prompt-1"},
-	})
-	if resp.StatusCode != http.StatusGone {
-		t.Fatalf("expected status %d, got %d", http.StatusGone, resp.StatusCode)
-	}
-}
-
 func TestSubmitDrawings(t *testing.T) {
 	srv := New(nil, config.Default())
 	ts := httptest.NewServer(srv.Handler())

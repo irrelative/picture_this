@@ -91,10 +91,6 @@ type Game struct {
 	Players          []Player
 	Rounds           []RoundState
 	PromptsPerPlayer int
-	Prompts          []string
-	Drawings         []string
-	Guesses          []string
-	Votes            []string
 }
 
 type Player struct {
@@ -413,8 +409,6 @@ func (s *Server) handleGameSubroutes(w http.ResponseWriter, r *http.Request) {
 			s.handleJoinGame(w, r, gameID)
 		case "start":
 			s.handleStartGame(w, r, gameID)
-		case "prompts":
-			s.handlePrompts(w, r, gameID)
 		case "drawings":
 			s.handleDrawings(w, r, gameID)
 		case "guesses":
@@ -517,15 +511,6 @@ func (s *Server) handleStartGame(w http.ResponseWriter, r *http.Request, gameID 
 	s.broadcastGameUpdate(game)
 }
 
-type promptsRequest struct {
-	PlayerID int      `json:"player_id"`
-	Prompts  []string `json:"prompts"`
-}
-
-func (s *Server) handlePrompts(w http.ResponseWriter, r *http.Request, gameID string) {
-	writeError(w, http.StatusGone, "prompt entry is disabled")
-}
-
 type drawingsRequest struct {
 	PlayerID  int    `json:"player_id"`
 	ImageData string `json:"image_data"`
@@ -569,7 +554,6 @@ func (s *Server) handleDrawings(w http.ResponseWriter, r *http.Request, gameID s
 			ImageData: image,
 			Prompt:    promptEntry.Text,
 		})
-		game.Drawings = append(game.Drawings, req.ImageData)
 		return nil
 	})
 	if err != nil {
@@ -636,7 +620,6 @@ func (s *Server) handleGuesses(w http.ResponseWriter, r *http.Request, gameID st
 			PlayerID: player.ID,
 			Text:     req.Guess,
 		})
-		game.Guesses = append(game.Guesses, req.Guess)
 		round.CurrentGuess++
 		if round.CurrentGuess >= len(round.GuessTurns) {
 			game.Phase = phaseVotes
@@ -694,7 +677,6 @@ func (s *Server) handleVotes(w http.ResponseWriter, r *http.Request, gameID stri
 			PlayerID:  player.ID,
 			GuessText: req.Guess,
 		})
-		game.Votes = append(game.Votes, req.Guess)
 		return nil
 	})
 	if err != nil {
@@ -1341,42 +1323,6 @@ func (s *Server) persistRound(game *Game) error {
 	}
 	round.DBID = record.ID
 	return nil
-}
-
-func (s *Server) persistPrompts(game *Game, playerID int, prompts []string) error {
-	if s.db == nil {
-		return s.persistEvent(game, "prompts_submitted", map[string]any{
-			"player_id": playerID,
-			"prompts":   prompts,
-		})
-	}
-	round := currentRound(game)
-	if round == nil {
-		return errors.New("round not started")
-	}
-	if round.DBID == 0 {
-		if err := s.persistRound(game); err != nil {
-			return err
-		}
-	}
-	player, ok := s.store.FindPlayer(game, playerID)
-	if !ok || player.DBID == 0 {
-		return errors.New("player not found")
-	}
-	for _, prompt := range prompts {
-		record := db.Prompt{
-			RoundID:  round.DBID,
-			PlayerID: player.DBID,
-			Text:     prompt,
-		}
-		if err := s.db.Create(&record).Error; err != nil {
-			return err
-		}
-	}
-	return s.persistEvent(game, "prompts_submitted", map[string]any{
-		"player_id": playerID,
-		"prompts":   prompts,
-	})
 }
 
 func (s *Server) assignPrompts(game *Game) error {
