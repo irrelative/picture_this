@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -259,6 +260,7 @@ func (s *Server) handleCreateGame(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to create game")
 		return
 	}
+	log.Printf("game created game_id=%s join_code=%s", game.ID, game.JoinCode)
 	resp := map[string]string{
 		"game_id":   game.ID,
 		"join_code": game.JoinCode,
@@ -387,6 +389,7 @@ func (s *Server) handleJoinGame(w http.ResponseWriter, r *http.Request, gameID s
 	}
 	resp["player_id"] = playerID
 	writeJSON(w, http.StatusOK, resp)
+	log.Printf("player joined game_id=%s player_id=%d player_name=%s", game.ID, playerID, req.Name)
 
 	s.broadcastGameUpdate(game)
 }
@@ -418,6 +421,7 @@ func (s *Server) handleStartGame(w http.ResponseWriter, r *http.Request, gameID 
 		writeError(w, http.StatusInternalServerError, "failed to create round")
 		return
 	}
+	log.Printf("game started game_id=%s phase=%s", game.ID, game.Phase)
 	writeJSON(w, http.StatusOK, snapshot(game))
 	s.broadcastGameUpdate(game)
 }
@@ -475,6 +479,7 @@ func (s *Server) handlePrompts(w http.ResponseWriter, r *http.Request, gameID st
 		writeError(w, http.StatusInternalServerError, "failed to save prompts")
 		return
 	}
+	log.Printf("prompts submitted game_id=%s player_id=%d count=%d", game.ID, req.PlayerID, len(req.Prompts))
 	writeJSON(w, http.StatusOK, snapshot(game))
 	s.broadcastGameUpdate(game)
 }
@@ -526,6 +531,7 @@ func (s *Server) handleDrawings(w http.ResponseWriter, r *http.Request, gameID s
 		writeError(w, http.StatusInternalServerError, "failed to save drawings")
 		return
 	}
+	log.Printf("drawing submitted game_id=%s player_id=%d", game.ID, req.PlayerID)
 	writeJSON(w, http.StatusOK, snapshot(game))
 	s.broadcastGameUpdate(game)
 }
@@ -572,6 +578,7 @@ func (s *Server) handleGuesses(w http.ResponseWriter, r *http.Request, gameID st
 		writeError(w, http.StatusInternalServerError, "failed to save guesses")
 		return
 	}
+	log.Printf("guess submitted game_id=%s player_id=%d", game.ID, req.PlayerID)
 	writeJSON(w, http.StatusOK, snapshot(game))
 	s.broadcastGameUpdate(game)
 }
@@ -618,6 +625,7 @@ func (s *Server) handleVotes(w http.ResponseWriter, r *http.Request, gameID stri
 		writeError(w, http.StatusInternalServerError, "failed to save votes")
 		return
 	}
+	log.Printf("vote submitted game_id=%s player_id=%d", game.ID, req.PlayerID)
 	writeJSON(w, http.StatusOK, snapshot(game))
 	s.broadcastGameUpdate(game)
 }
@@ -643,6 +651,7 @@ func (s *Server) handleAdvance(w http.ResponseWriter, r *http.Request, gameID st
 		writeError(w, http.StatusInternalServerError, "failed to advance game")
 		return
 	}
+	log.Printf("game advanced game_id=%s phase=%s", game.ID, game.Phase)
 	writeJSON(w, http.StatusOK, snapshot(game))
 	s.broadcastGameUpdate(game)
 }
@@ -685,6 +694,7 @@ func (s *Server) handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
+	log.Printf("ws connected game_id=%s remote=%s", gameID, r.RemoteAddr)
 	s.ws.Add(gameID, conn)
 	if game, ok := s.store.GetGame(gameID); ok {
 		s.ws.Send(conn, snapshot(game))
@@ -1178,6 +1188,7 @@ func (s *Server) readWS(gameID string, conn *websocket.Conn) {
 	defer s.ws.Remove(gameID, conn)
 	for {
 		if _, _, err := conn.ReadMessage(); err != nil {
+			log.Printf("ws disconnected game_id=%s error=%v", gameID, err)
 			return
 		}
 	}
