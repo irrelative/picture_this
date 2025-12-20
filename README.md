@@ -1,10 +1,10 @@
 # Picture This
 
-Picture This is a Drawful-style party game with a Go backend, templ-rendered UI, and Postgres persistence. Players join from their phones, submit prompts, draw, guess, and vote while the host runs the lobby on a shared screen.
+Picture This is a Drawful-style party game with a Go backend, templ-rendered UI, and Postgres persistence. Players join from their phones, receive prompts from a prompt library, draw, guess, and vote while the host runs the lobby on a shared screen.
 
 ## How It Works
 - Host creates a game and shares the join code.
-- Players join from `/join` and enter prompts.
+- Players join from `/join` and receive assigned prompts.
 - The game advances through drawing, guessing, and voting phases.
 - Results are shown after each round, with state synced via websockets.
 
@@ -37,7 +37,6 @@ This project uses the following technology:
 - `POST /api/games/{game_id}/join` — join a game with a player name.
 - `GET /api/games/{game_id}` — fetch a state snapshot for reconnects.
 - `POST /api/games/{game_id}/start` — host starts the game.
-- `POST /api/games/{game_id}/prompts` — submit prompts for the round.
 - `POST /api/games/{game_id}/drawings` — submit a drawing for a prompt.
 - `POST /api/games/{game_id}/guesses` — submit a guess for a drawing.
 - `POST /api/games/{game_id}/votes` — submit vote(s) for the round.
