@@ -41,14 +41,14 @@ func GameView(gameID string) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<header class=\"hero\"><span class=\"tag\">Game Lobby</span><h1>Gather your players</h1><p>Share the join code below so everyone can jump in.</p></header><section class=\"panel\"><div><h2>Join code</h2><p id=\"joinCode\" class=\"join-code\">Loading...</p></div><div class=\"status\"><span class=\"label\">Status</span><p id=\"gameStatus\">Loading...</p><button type=\"button\" id=\"startGame\" class=\"primary\">Start game</button> <button type=\"button\" id=\"endGame\" class=\"secondary\">End game</button></div></section><section class=\"panel\"><div><h2>Players</h2><p>Waiting for everyone to arrive.</p></div><ul id=\"playerList\" class=\"player-list\"></ul></section><p id=\"gameError\" class=\"result error\"></p><div id=\"gameMeta\" data-game-id=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<header class=\"hero\"><span class=\"tag\">Game Lobby</span><h1>Gather your players</h1><p>Share the join code below so everyone can jump in.</p></header><section class=\"panel\"><div><h2>Join code</h2><p id=\"joinCode\" class=\"join-code\">Loading...</p></div><div class=\"status\"><span class=\"label\">Status</span><p id=\"gameStatus\">Loading...</p><button type=\"button\" id=\"startGame\" class=\"primary\">Start game</button> <button type=\"button\" id=\"endGame\" class=\"secondary\">End game</button></div></section><section class=\"panel\"><div><h2>Players</h2><p>Waiting for everyone to arrive.</p></div><ul id=\"playerList\" class=\"player-list\"></ul></section><section class=\"panel settings-panel\"><div><h2>Lobby settings</h2><p id=\"lobbyStatus\">Loading lobby settings...</p></div><form id=\"settingsForm\" class=\"settings-form\"><label><span class=\"label\">Rounds</span> <input id=\"roundsInput\" name=\"rounds\" type=\"number\" min=\"1\" max=\"10\" required></label> <label><span class=\"label\">Max players (0 = unlimited)</span> <input id=\"maxPlayersInput\" name=\"max_players\" type=\"number\" min=\"0\" max=\"12\" required></label> <label><span class=\"label\">Prompt pack</span> <select id=\"promptCategory\"></select></label> <label class=\"checkbox\"><input id=\"lobbyLocked\" name=\"lobby_locked\" type=\"checkbox\"> <span>Lock lobby to new players</span></label><div class=\"settings-actions\"><button type=\"submit\" class=\"secondary\">Save settings</button> <span id=\"settingsStatus\" class=\"result\"></span></div></form></section><p id=\"gameError\" class=\"result error\"></p><div id=\"gameMeta\" data-game-id=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(gameID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/game.templ`, Line: 33, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/game.templ`, Line: 62, Col: 42}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {

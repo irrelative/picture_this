@@ -33,6 +33,8 @@ type Server struct {
 	homeWS   *homeHub
 	cfg      config.Config
 	sessions *sessionStore
+	timersMu sync.Mutex
+	timers   map[string]*time.Timer
 }
 
 const (
@@ -42,6 +44,11 @@ const (
 	phaseGuessVotes = "guesses-votes"
 	phaseResults    = "results"
 	phaseComplete   = "complete"
+)
+
+const (
+	revealStageGuesses = "guesses"
+	revealStageVotes   = "votes"
 )
 
 var phaseOrder = []string{
@@ -61,6 +68,7 @@ func New(conn *gorm.DB, cfg config.Config) *Server {
 		homeWS:   newHomeHub(),
 		cfg:      cfg,
 		sessions: newSessionStore(conn),
+		timers:   make(map[string]*time.Timer),
 	}
 }
 
@@ -74,6 +82,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/games", s.handleCreateGame)
 	mux.HandleFunc("GET /api/games/", s.handleGameSubroutes)
 	mux.HandleFunc("POST /api/games/", s.handleGameSubroutes)
+	mux.HandleFunc("GET /api/prompts/categories", s.handlePromptCategories)
 	mux.HandleFunc("GET /ws/games/", s.handleWebsocket)
 	mux.HandleFunc("GET /ws/home", s.handleHomeWebsocket)
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
@@ -99,6 +108,10 @@ type Game struct {
 	DBID             uint
 	JoinCode         string
 	Phase            string
+	PhaseStartedAt   time.Time
+	MaxPlayers       int
+	PromptCategory   string
+	LobbyLocked      bool
 	HostID           int
 	Players          []Player
 	Rounds           []RoundState
@@ -123,6 +136,8 @@ type RoundState struct {
 	CurrentGuess int
 	VoteTurns    []VoteTurn
 	CurrentVote  int
+	RevealIndex  int
+	RevealStage  string
 }
 
 type PromptEntry struct {
@@ -181,6 +196,10 @@ func (s *Store) CreateGame(promptsPerPlayer int) *Game {
 		ID:               id,
 		JoinCode:         newJoinCode(),
 		Phase:            phaseLobby,
+		PhaseStartedAt:   time.Now().UTC(),
+		MaxPlayers:       0,
+		PromptCategory:   "",
+		LobbyLocked:      false,
 		PromptsPerPlayer: promptsPerPlayer,
 	}
 	s.games[id] = game
@@ -251,6 +270,15 @@ func (s *Store) AddPlayer(gameIDOrCode, name string) (*Game, *Player, error) {
 		if game.Players[i].Name == name {
 			return game, &game.Players[i], nil
 		}
+	}
+	if game.Phase != phaseLobby {
+		return nil, nil, errors.New("game already started")
+	}
+	if game.LobbyLocked {
+		return nil, nil, errors.New("lobby locked")
+	}
+	if game.MaxPlayers > 0 && len(game.Players) >= game.MaxPlayers {
+		return nil, nil, errors.New("lobby full")
 	}
 
 	player := Player{
@@ -470,6 +498,8 @@ func (s *Server) handleGameSubroutes(w http.ResponseWriter, r *http.Request) {
 			s.handleGuesses(w, r, gameID)
 		case "votes":
 			s.handleVotes(w, r, gameID)
+		case "settings":
+			s.handleSettings(w, r, gameID)
 		case "advance":
 			s.handleAdvance(w, r, gameID)
 		case "end":
@@ -491,6 +521,14 @@ func (s *Server) handleGetGame(w http.ResponseWriter, r *http.Request, gameID st
 	writeJSON(w, http.StatusOK, snapshot(game))
 }
 
+type settingsRequest struct {
+	PlayerID       int    `json:"player_id"`
+	Rounds         int    `json:"rounds"`
+	MaxPlayers     int    `json:"max_players"`
+	PromptCategory string `json:"prompt_category"`
+	LobbyLocked    bool   `json:"lobby_locked"`
+}
+
 type joinRequest struct {
 	Name string `json:"name"`
 }
@@ -508,7 +546,11 @@ func (s *Server) handleJoinGame(w http.ResponseWriter, r *http.Request, gameID s
 
 	game, player, err := s.store.AddPlayer(gameID, req.Name)
 	if err != nil {
-		http.NotFound(w, r)
+		if err.Error() == "game not found" {
+			http.NotFound(w, r)
+			return
+		}
+		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
 
@@ -534,6 +576,49 @@ func (s *Server) handleJoinGame(w http.ResponseWriter, r *http.Request, gameID s
 	s.broadcastGameUpdate(game)
 }
 
+func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request, gameID string) {
+	var req settingsRequest
+	if err := readJSON(r.Body, &req); err != nil || req.PlayerID <= 0 {
+		writeError(w, http.StatusBadRequest, "player_id is required")
+		return
+	}
+	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+		if game.Phase != phaseLobby {
+			return errors.New("settings only available in lobby")
+		}
+		if game.HostID != 0 && req.PlayerID != game.HostID {
+			return errors.New("only host can update settings")
+		}
+		if req.Rounds > 0 {
+			game.PromptsPerPlayer = req.Rounds
+		}
+		if req.MaxPlayers >= 0 {
+			if req.MaxPlayers > 0 && req.MaxPlayers < len(game.Players) {
+				return errors.New("max players is below current player count")
+			}
+			game.MaxPlayers = req.MaxPlayers
+		}
+		game.PromptCategory = strings.TrimSpace(req.PromptCategory)
+		game.LobbyLocked = req.LobbyLocked
+		return nil
+	})
+	if err != nil {
+		if err.Error() == "game not found" {
+			http.NotFound(w, r)
+			return
+		}
+		writeError(w, http.StatusConflict, err.Error())
+		return
+	}
+	if err := s.persistSettings(game); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to save settings")
+		return
+	}
+	log.Printf("settings updated game_id=%s rounds=%d max_players=%d category=%s locked=%t", game.ID, game.PromptsPerPlayer, game.MaxPlayers, game.PromptCategory, game.LobbyLocked)
+	writeJSON(w, http.StatusOK, snapshot(game))
+	s.broadcastGameUpdate(game)
+}
+
 func (s *Server) handleStartGame(w http.ResponseWriter, r *http.Request, gameID string) {
 	var req startRequest
 	_ = readJSON(r.Body, &req)
@@ -547,7 +632,7 @@ func (s *Server) handleStartGame(w http.ResponseWriter, r *http.Request, gameID 
 		if game.Phase != phaseLobby {
 			return errors.New("game already started")
 		}
-		game.Phase = phaseDrawings
+		setPhase(game, phaseDrawings)
 		game.Rounds = append(game.Rounds, RoundState{
 			Number: len(game.Rounds) + 1,
 		})
@@ -576,6 +661,7 @@ func (s *Server) handleStartGame(w http.ResponseWriter, r *http.Request, gameID 
 	log.Printf("game started game_id=%s phase=%s", game.ID, game.Phase)
 	writeJSON(w, http.StatusOK, snapshot(game))
 	s.broadcastGameUpdate(game)
+	s.schedulePhaseTimer(game)
 }
 
 type drawingsRequest struct {
@@ -691,7 +777,7 @@ func (s *Server) handleGuesses(w http.ResponseWriter, r *http.Request, gameID st
 		round.CurrentGuess++
 		if round.CurrentGuess >= len(round.GuessTurns) {
 			if round.Number < game.PromptsPerPlayer {
-				game.Phase = phaseDrawings
+				setPhase(game, phaseDrawings)
 				game.Rounds = append(game.Rounds, RoundState{
 					Number: len(game.Rounds) + 1,
 				})
@@ -699,7 +785,7 @@ func (s *Server) handleGuesses(w http.ResponseWriter, r *http.Request, gameID st
 				if err := s.buildVoteTurns(game, round); err != nil {
 					return err
 				}
-				game.Phase = phaseGuessVotes
+				setPhase(game, phaseGuessVotes)
 			}
 		}
 		return nil
@@ -744,6 +830,7 @@ func (s *Server) handleGuesses(w http.ResponseWriter, r *http.Request, gameID st
 	log.Printf("guess submitted game_id=%s player_id=%d", game.ID, req.PlayerID)
 	writeJSON(w, http.StatusOK, snapshot(game))
 	s.broadcastGameUpdate(game)
+	s.schedulePhaseTimer(game)
 }
 
 type votesRequest struct {
@@ -806,7 +893,8 @@ func (s *Server) handleVotes(w http.ResponseWriter, r *http.Request, gameID stri
 		})
 		round.CurrentVote++
 		if round.CurrentVote >= len(round.VoteTurns) {
-			game.Phase = phaseResults
+			setPhase(game, phaseResults)
+			initReveal(round)
 		}
 		return nil
 	})
@@ -844,6 +932,7 @@ func (s *Server) handleVotes(w http.ResponseWriter, r *http.Request, gameID stri
 	log.Printf("vote submitted game_id=%s player_id=%d", game.ID, req.PlayerID)
 	writeJSON(w, http.StatusOK, snapshot(game))
 	s.broadcastGameUpdate(game)
+	s.schedulePhaseTimer(game)
 }
 
 func (s *Server) handleAdvance(w http.ResponseWriter, r *http.Request, gameID string) {
@@ -852,7 +941,7 @@ func (s *Server) handleAdvance(w http.ResponseWriter, r *http.Request, gameID st
 		if !ok {
 			return errors.New("no next phase")
 		}
-		game.Phase = next
+		setPhase(game, next)
 		if next == phaseGuesses {
 			round := currentRound(game)
 			if err := s.buildGuessTurns(game, round); err != nil {
@@ -864,6 +953,10 @@ func (s *Server) handleAdvance(w http.ResponseWriter, r *http.Request, gameID st
 			if err := s.buildVoteTurns(game, round); err != nil {
 				return err
 			}
+		}
+		if next == phaseResults {
+			round := currentRound(game)
+			initReveal(round)
 		}
 		return nil
 	})
@@ -882,6 +975,7 @@ func (s *Server) handleAdvance(w http.ResponseWriter, r *http.Request, gameID st
 	log.Printf("game advanced game_id=%s phase=%s", game.ID, game.Phase)
 	writeJSON(w, http.StatusOK, snapshot(game))
 	s.broadcastGameUpdate(game)
+	s.schedulePhaseTimer(game)
 }
 
 func (s *Server) handleEndGame(w http.ResponseWriter, r *http.Request, gameID string) {
@@ -889,7 +983,7 @@ func (s *Server) handleEndGame(w http.ResponseWriter, r *http.Request, gameID st
 		if game.Phase == phaseComplete {
 			return errors.New("game already ended")
 		}
-		game.Phase = phaseComplete
+		setPhase(game, phaseComplete)
 		return nil
 	})
 	if err != nil {
@@ -907,6 +1001,7 @@ func (s *Server) handleEndGame(w http.ResponseWriter, r *http.Request, gameID st
 	log.Printf("game ended game_id=%s", game.ID)
 	writeJSON(w, http.StatusOK, snapshot(game))
 	s.broadcastGameUpdate(game)
+	s.cancelPhaseTimer(game.ID)
 }
 
 func (s *Server) endGameFromHost(gameID string) {
@@ -914,7 +1009,7 @@ func (s *Server) endGameFromHost(gameID string) {
 		if game.Phase == phaseComplete {
 			return errors.New("game already ended")
 		}
-		game.Phase = phaseComplete
+		setPhase(game, phaseComplete)
 		return nil
 	})
 	if err != nil {
@@ -925,6 +1020,7 @@ func (s *Server) endGameFromHost(gameID string) {
 	}
 	log.Printf("game ended game_id=%s reason=host_disconnected", game.ID)
 	s.broadcastGameUpdate(game)
+	s.cancelPhaseTimer(game.ID)
 }
 
 func (s *Server) handleResults(w http.ResponseWriter, r *http.Request, gameID string) {
@@ -949,6 +1045,7 @@ func (s *Server) handleResults(w http.ResponseWriter, r *http.Request, gameID st
 		"phase":   game.Phase,
 		"players": extractPlayerNames(game.Players),
 		"results": buildResults(game),
+		"scores":  buildScores(game),
 		"counts": map[string]int{
 			"prompts":  promptsCount,
 			"drawings": drawingsCount,
@@ -1003,6 +1100,19 @@ func (s *Server) handleHomeWebsocket(w http.ResponseWriter, r *http.Request) {
 		"games": s.homeSummaries(),
 	})
 	go s.readHomeWS(conn)
+}
+
+func (s *Server) handlePromptCategories(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"categories": []string{}})
+		return
+	}
+	var categories []string
+	if err := s.db.Model(&db.PromptLibrary{}).Distinct("category").Order("category asc").Pluck("category", &categories).Error; err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to load categories")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"categories": categories})
 }
 
 func parseGamePath(path string) (string, string, bool) {
@@ -1176,6 +1286,18 @@ func containsOption(options []string, choice string) bool {
 	return false
 }
 
+func guessOwner(round *RoundState, drawingIndex int, text string) int {
+	if round == nil {
+		return 0
+	}
+	for _, guess := range round.Guesses {
+		if guess.DrawingIndex == drawingIndex && guess.Text == text {
+			return guess.PlayerID
+		}
+	}
+	return 0
+}
+
 type wsHub struct {
 	mu     sync.Mutex
 	groups map[string]map[*websocket.Conn]struct{}
@@ -1319,6 +1441,8 @@ func snapshot(game *Game) map[string]any {
 	var guessTurn map[string]any
 	var voteTurn map[string]any
 	var results any
+	var scores any
+	var reveal any
 	if round != nil {
 		roundNumber = round.Number
 		promptsCount = len(round.Prompts)
@@ -1352,6 +1476,10 @@ func snapshot(game *Game) map[string]any {
 		}
 		if game.Phase == phaseResults || game.Phase == phaseComplete {
 			results = buildResults(game)
+			scores = buildScores(game)
+			if game.Phase == phaseResults {
+				reveal = buildReveal(game)
+			}
 		}
 	}
 	return map[string]any{
@@ -1359,6 +1487,9 @@ func snapshot(game *Game) map[string]any {
 		"join_code":          game.JoinCode,
 		"phase":              game.Phase,
 		"host_id":            game.HostID,
+		"max_players":        game.MaxPlayers,
+		"prompt_category":    game.PromptCategory,
+		"lobby_locked":       game.LobbyLocked,
 		"players":            extractPlayerNames(game.Players),
 		"round_number":       roundNumber,
 		"total_rounds":       game.PromptsPerPlayer,
@@ -1366,6 +1497,8 @@ func snapshot(game *Game) map[string]any {
 		"vote_turn":          voteTurn,
 		"prompts_per_player": game.PromptsPerPlayer,
 		"results":            results,
+		"scores":             scores,
+		"reveal":             reveal,
 		"counts": map[string]int{
 			"prompts":  promptsCount,
 			"drawings": drawingsCount,
@@ -1430,11 +1563,130 @@ func buildResults(game *Game) []map[string]any {
 	return results
 }
 
+func buildScores(game *Game) []map[string]any {
+	round := currentRound(game)
+	if round == nil {
+		return nil
+	}
+	playerNames := make(map[int]string, len(game.Players))
+	scores := make(map[int]int, len(game.Players))
+	for _, player := range game.Players {
+		playerNames[player.ID] = player.Name
+		scores[player.ID] = 0
+	}
+
+	for drawingIndex, drawing := range round.Drawings {
+		totalVotes := 0
+		correctVotes := 0
+		fooledVotes := 0
+		for _, vote := range round.Votes {
+			if vote.DrawingIndex != drawingIndex {
+				continue
+			}
+			totalVotes++
+			if vote.ChoiceType == "prompt" {
+				scores[vote.PlayerID] += 1000
+				correctVotes++
+			} else {
+				if ownerID := guessOwner(round, drawingIndex, vote.ChoiceText); ownerID != 0 {
+					scores[ownerID] += 500
+				}
+				fooledVotes++
+			}
+		}
+		if fooledVotes > 0 {
+			scores[drawing.PlayerID] += 500 * fooledVotes
+		}
+		if totalVotes > 0 && (correctVotes == 0 || correctVotes == totalVotes) {
+			scores[drawing.PlayerID] += 1000
+		}
+	}
+
+	entries := make([]map[string]any, 0, len(game.Players))
+	for _, player := range game.Players {
+		entries = append(entries, map[string]any{
+			"player_id":   player.ID,
+			"player_name": playerNames[player.ID],
+			"score":       scores[player.ID],
+		})
+	}
+	return entries
+}
+
+func buildReveal(game *Game) map[string]any {
+	round := currentRound(game)
+	if round == nil || len(round.Drawings) == 0 {
+		return nil
+	}
+	if round.RevealStage == "" {
+		initReveal(round)
+	}
+	if round.RevealIndex < 0 || round.RevealIndex >= len(round.Drawings) {
+		return nil
+	}
+	playerNames := make(map[int]string, len(game.Players))
+	for _, player := range game.Players {
+		playerNames[player.ID] = player.Name
+	}
+	drawing := round.Drawings[round.RevealIndex]
+	payload := map[string]any{
+		"index":              round.RevealIndex,
+		"stage":              round.RevealStage,
+		"total":              len(round.Drawings),
+		"drawing_owner":      drawing.PlayerID,
+		"drawing_owner_name": playerNames[drawing.PlayerID],
+		"drawing_image":      encodeImageData(drawing.ImageData),
+	}
+	if round.RevealStage == revealStageGuesses {
+		guesses := make([]map[string]any, 0)
+		for _, guess := range round.Guesses {
+			if guess.DrawingIndex != round.RevealIndex {
+				continue
+			}
+			guesses = append(guesses, map[string]any{
+				"player_id":   guess.PlayerID,
+				"player_name": playerNames[guess.PlayerID],
+				"text":        guess.Text,
+			})
+		}
+		payload["guesses"] = guesses
+	} else if round.RevealStage == revealStageVotes {
+		votes := make([]map[string]any, 0)
+		for _, vote := range round.Votes {
+			if vote.DrawingIndex != round.RevealIndex {
+				continue
+			}
+			votes = append(votes, map[string]any{
+				"player_id":   vote.PlayerID,
+				"player_name": playerNames[vote.PlayerID],
+				"text":        vote.ChoiceText,
+				"type":        vote.ChoiceType,
+			})
+		}
+		payload["prompt"] = drawing.Prompt
+		payload["votes"] = votes
+	}
+	return payload
+}
+
 func currentRound(game *Game) *RoundState {
 	if len(game.Rounds) == 0 {
 		return nil
 	}
 	return &game.Rounds[len(game.Rounds)-1]
+}
+
+func setPhase(game *Game, phase string) {
+	game.Phase = phase
+	game.PhaseStartedAt = time.Now().UTC()
+}
+
+func initReveal(round *RoundState) {
+	if round == nil {
+		return
+	}
+	round.RevealIndex = 0
+	round.RevealStage = revealStageGuesses
 }
 
 func (s *Server) buildGuessTurns(game *Game, round *RoundState) error {
@@ -1521,7 +1773,7 @@ func (s *Server) tryAdvanceToGuesses(gameID string) (bool, *Game, error) {
 		if err := s.buildGuessTurns(game, round); err != nil {
 			return err
 		}
-		game.Phase = phaseGuesses
+		setPhase(game, phaseGuesses)
 		return nil
 	})
 	if err != nil {
@@ -1530,6 +1782,7 @@ func (s *Server) tryAdvanceToGuesses(gameID string) (bool, *Game, error) {
 	if game.Phase != phaseGuesses {
 		return false, game, nil
 	}
+	s.schedulePhaseTimer(game)
 	return true, game, nil
 }
 
@@ -1556,8 +1809,12 @@ func (s *Server) persistGame(game *Game) error {
 		return nil
 	}
 	record := db.Game{
-		JoinCode: game.JoinCode,
-		Phase:    game.Phase,
+		JoinCode:         game.JoinCode,
+		Phase:            game.Phase,
+		PromptsPerPlayer: game.PromptsPerPlayer,
+		MaxPlayers:       game.MaxPlayers,
+		PromptCategory:   game.PromptCategory,
+		LobbyLocked:      game.LobbyLocked,
 	}
 	if err := s.db.Create(&record).Error; err != nil {
 		return err
@@ -1632,6 +1889,30 @@ func (s *Server) persistPhase(game *Game, eventType string, payload map[string]a
 		}
 	}
 	return s.persistEvent(game, eventType, payload)
+}
+
+func (s *Server) persistSettings(game *Game) error {
+	if s.db == nil {
+		return nil
+	}
+	if game.DBID == 0 {
+		if err := s.ensureGameDBID(game); err != nil {
+			return err
+		}
+	}
+	if game.DBID == 0 {
+		return errors.New("game not found")
+	}
+	updates := map[string]any{
+		"prompts_per_player": game.PromptsPerPlayer,
+		"max_players":        game.MaxPlayers,
+		"prompt_category":    game.PromptCategory,
+		"lobby_locked":       game.LobbyLocked,
+	}
+	if err := s.db.Model(&db.Game{}).Where("id = ?", game.DBID).Updates(updates).Error; err != nil {
+		return err
+	}
+	return s.persistEvent(game, "settings_updated", updates)
 }
 
 func (s *Server) persistEvent(game *Game, eventType string, payload map[string]any) error {
@@ -1711,7 +1992,7 @@ func (s *Server) assignPrompts(game *Game) error {
 		return errors.New("no players to assign prompts")
 	}
 
-	prompts, err := s.loadPromptLibrary(total)
+	prompts, err := s.loadPromptLibrary(total, game.PromptCategory)
 	if err != nil {
 		return err
 	}
@@ -1739,12 +2020,16 @@ func (s *Server) assignPrompts(game *Game) error {
 	return nil
 }
 
-func (s *Server) loadPromptLibrary(limit int) ([]string, error) {
+func (s *Server) loadPromptLibrary(limit int, category string) ([]string, error) {
 	if s.db == nil {
 		return fallbackPrompts(limit), nil
 	}
 	var records []db.PromptLibrary
-	if err := s.db.Order("random()").Limit(limit).Find(&records).Error; err != nil {
+	query := s.db
+	if category = strings.TrimSpace(category); category != "" {
+		query = query.Where("category = ?", category)
+	}
+	if err := query.Order("random()").Limit(limit).Find(&records).Error; err != nil {
 		return nil, err
 	}
 	prompts := make([]string, 0, len(records))
@@ -2077,6 +2362,47 @@ func (s *Server) broadcastGameUpdate(game *Game) {
 	s.broadcastHomeUpdate()
 }
 
+func (s *Server) schedulePhaseTimer(game *Game) {
+	duration := s.phaseDuration(game.Phase)
+	if duration <= 0 {
+		s.cancelPhaseTimer(game.ID)
+		return
+	}
+	s.timersMu.Lock()
+	if existing, ok := s.timers[game.ID]; ok {
+		existing.Stop()
+	}
+	timer := time.AfterFunc(duration, func() {
+		s.autoAdvancePhase(game.ID, game.Phase)
+	})
+	s.timers[game.ID] = timer
+	s.timersMu.Unlock()
+}
+
+func (s *Server) cancelPhaseTimer(gameID string) {
+	s.timersMu.Lock()
+	defer s.timersMu.Unlock()
+	if timer, ok := s.timers[gameID]; ok {
+		timer.Stop()
+		delete(s.timers, gameID)
+	}
+}
+
+func (s *Server) phaseDuration(phase string) time.Duration {
+	switch phase {
+	case phaseDrawings:
+		return time.Duration(s.cfg.DrawDurationSeconds) * time.Second
+	case phaseGuesses:
+		return time.Duration(s.cfg.GuessDurationSeconds) * time.Second
+	case phaseGuessVotes:
+		return time.Duration(s.cfg.VoteDurationSeconds) * time.Second
+	case phaseResults:
+		return time.Duration(s.cfg.RevealDurationSeconds) * time.Second
+	default:
+		return 0
+	}
+}
+
 func (s *Server) readWS(gameID string, conn *websocket.Conn, isHost bool) {
 	defer s.ws.Remove(gameID, conn, isHost)
 	if isHost {
@@ -2098,6 +2424,112 @@ func (s *Server) readHomeWS(conn *websocket.Conn) {
 			return
 		}
 	}
+}
+
+func (s *Server) autoAdvancePhase(gameID string, expectedPhase string) {
+	now := time.Now().UTC()
+	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+		if game.Phase != expectedPhase {
+			return errors.New("phase changed")
+		}
+		switch expectedPhase {
+		case phaseDrawings:
+			round := currentRound(game)
+			if round == nil {
+				return errors.New("round not started")
+			}
+			if len(round.Drawings) == 0 {
+				game.Phase = phaseComplete
+				game.PhaseStartedAt = now
+				return nil
+			}
+			if err := s.buildGuessTurns(game, round); err != nil {
+				return err
+			}
+			game.Phase = phaseGuesses
+			game.PhaseStartedAt = now
+		case phaseGuesses:
+			round := currentRound(game)
+			if round == nil {
+				return errors.New("round not started")
+			}
+			round.CurrentGuess = len(round.GuessTurns)
+			if round.Number < game.PromptsPerPlayer {
+				game.Phase = phaseDrawings
+				game.PhaseStartedAt = now
+				game.Rounds = append(game.Rounds, RoundState{
+					Number: len(game.Rounds) + 1,
+				})
+			} else {
+				if err := s.buildVoteTurns(game, round); err != nil {
+					return err
+				}
+				game.Phase = phaseGuessVotes
+				game.PhaseStartedAt = now
+			}
+		case phaseGuessVotes:
+			round := currentRound(game)
+			if round == nil {
+				return errors.New("round not started")
+			}
+			round.CurrentVote = len(round.VoteTurns)
+			game.Phase = phaseResults
+			game.PhaseStartedAt = now
+			initReveal(round)
+		case phaseResults:
+			round := currentRound(game)
+			if round == nil {
+				return errors.New("round not started")
+			}
+			if len(round.Drawings) == 0 {
+				game.Phase = phaseComplete
+				game.PhaseStartedAt = now
+				return nil
+			}
+			if round.RevealStage == "" {
+				initReveal(round)
+			} else if round.RevealStage == revealStageGuesses {
+				round.RevealStage = revealStageVotes
+			} else if round.RevealStage == revealStageVotes {
+				round.RevealIndex++
+				if round.RevealIndex >= len(round.Drawings) {
+					game.Phase = phaseComplete
+					game.PhaseStartedAt = now
+					return nil
+				}
+				round.RevealStage = revealStageGuesses
+			}
+		default:
+			return errors.New("phase not timed")
+		}
+		return nil
+	})
+	if err != nil {
+		return
+	}
+	if game.Phase == phaseDrawings && expectedPhase == phaseGuesses {
+		if err := s.persistRound(game); err != nil {
+			log.Printf("auto-advance persist round failed game_id=%s error=%v", game.ID, err)
+			return
+		}
+		if err := s.assignPrompts(game); err != nil {
+			log.Printf("auto-advance assign prompts failed game_id=%s error=%v", game.ID, err)
+			return
+		}
+	}
+	if game.Phase != expectedPhase {
+		if err := s.persistPhase(game, "game_advanced", map[string]any{"phase": game.Phase, "reason": "timeout"}); err != nil {
+			log.Printf("auto-advance persist phase failed game_id=%s error=%v", game.ID, err)
+			return
+		}
+		log.Printf("game auto-advanced game_id=%s from=%s to=%s", game.ID, expectedPhase, game.Phase)
+	}
+	if game.Phase == phaseComplete {
+		s.cancelPhaseTimer(game.ID)
+	} else {
+		s.schedulePhaseTimer(game)
+	}
+	s.broadcastGameUpdate(game)
 }
 
 func (s *Server) broadcastHomeUpdate() {

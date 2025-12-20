@@ -20,12 +20,20 @@ func LoadDotEnv(path string) error {
 }
 
 type Config struct {
-	PromptsPerPlayer int
+	PromptsPerPlayer      int
+	DrawDurationSeconds   int
+	GuessDurationSeconds  int
+	VoteDurationSeconds   int
+	RevealDurationSeconds int
 }
 
 func Default() Config {
 	return Config{
-		PromptsPerPlayer: 2,
+		PromptsPerPlayer:      2,
+		DrawDurationSeconds:   90,
+		GuessDurationSeconds:  60,
+		VoteDurationSeconds:   45,
+		RevealDurationSeconds: 6,
 	}
 }
 
@@ -34,6 +42,26 @@ func Load() Config {
 	if raw := os.Getenv("PROMPTS_PER_PLAYER"); raw != "" {
 		if value, err := strconv.Atoi(raw); err == nil && value > 0 {
 			cfg.PromptsPerPlayer = value
+		}
+	}
+	if raw := os.Getenv("DRAW_SECONDS"); raw != "" {
+		if value, err := strconv.Atoi(raw); err == nil {
+			cfg.DrawDurationSeconds = value
+		}
+	}
+	if raw := os.Getenv("GUESS_SECONDS"); raw != "" {
+		if value, err := strconv.Atoi(raw); err == nil {
+			cfg.GuessDurationSeconds = value
+		}
+	}
+	if raw := os.Getenv("VOTE_SECONDS"); raw != "" {
+		if value, err := strconv.Atoi(raw); err == nil {
+			cfg.VoteDurationSeconds = value
+		}
+	}
+	if raw := os.Getenv("REVEAL_SECONDS"); raw != "" {
+		if value, err := strconv.Atoi(raw); err == nil {
+			cfg.RevealDurationSeconds = value
 		}
 	}
 	return cfg

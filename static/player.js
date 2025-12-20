@@ -19,7 +19,9 @@ const voteImage = document.getElementById("voteImage");
 const voteForm = document.getElementById("voteForm");
 const voteOptions = document.getElementById("voteOptions");
 const resultsSection = document.getElementById("resultsSection");
+const resultsScores = document.getElementById("resultsScores");
 const resultsList = document.getElementById("resultsList");
+const revealSection = document.getElementById("revealSection");
 const hostSection = document.getElementById("hostSection");
 const hostStartGame = document.getElementById("hostStartGame");
 const hostHelp = document.getElementById("hostHelp");
@@ -238,9 +240,17 @@ function updateResultsPhase(data) {
   }
   resultsSection.style.display = "grid";
   const results = data.results || [];
-  const resultsKey = JSON.stringify(results);
+  const scores = data.scores || [];
+  const reveal = data.reveal || null;
+  const resultsKey = JSON.stringify({ results, scores, reveal, phase: data.phase });
   if (resultsKey !== lastResultsKey) {
-    renderResults(results);
+    if (data.phase === "results") {
+      renderReveal(reveal);
+      renderResults([], scores);
+    } else {
+      renderReveal(null);
+      renderResults(results, scores);
+    }
     lastResultsKey = resultsKey;
   }
 }
@@ -376,7 +386,28 @@ function renderVoteOptions(options) {
   });
 }
 
-function renderResults(results) {
+function renderResults(results, scores) {
+  if (resultsScores) {
+    resultsScores.innerHTML = "";
+    if (!Array.isArray(scores) || scores.length === 0) {
+      const note = document.createElement("p");
+      note.className = "hint";
+      note.textContent = "Scores will appear once voting is complete.";
+      resultsScores.appendChild(note);
+    } else {
+      const header = document.createElement("h3");
+      header.textContent = "Scoreboard";
+      resultsScores.appendChild(header);
+      const list = document.createElement("ul");
+      list.className = "score-list";
+      scores.forEach((entry) => {
+        const item = document.createElement("li");
+        item.textContent = `${entry.player_name}: ${entry.score} pts`;
+        list.appendChild(item);
+      });
+      resultsScores.appendChild(list);
+    }
+  }
   if (!resultsList) return;
   resultsList.innerHTML = "";
   if (!Array.isArray(results) || results.length === 0) {
@@ -441,6 +472,58 @@ function renderResults(results) {
     card.appendChild(votes);
     resultsList.appendChild(card);
   });
+}
+
+function renderReveal(reveal) {
+  if (!revealSection) return;
+  revealSection.innerHTML = "";
+  if (!reveal) {
+    revealSection.style.display = "none";
+    return;
+  }
+  revealSection.style.display = "grid";
+  const header = document.createElement("div");
+  const title = document.createElement("h3");
+  title.textContent = `Reveal ${reveal.index + 1} of ${reveal.total}`;
+  const stage = document.createElement("p");
+  stage.className = "meta";
+  stage.textContent = reveal.stage === "guesses" ? "Guesses" : "Votes";
+  header.appendChild(title);
+  header.appendChild(stage);
+
+  const image = document.createElement("img");
+  image.className = "guess-image";
+  image.alt = "Drawing reveal";
+  image.src = reveal.drawing_image || "";
+
+  const owner = document.createElement("p");
+  owner.className = "meta";
+  owner.textContent = `Artist: ${reveal.drawing_owner_name || "Unknown"}`;
+
+  const list = document.createElement("ul");
+  list.className = "reveal-list";
+  if (reveal.stage === "guesses") {
+    (reveal.guesses || []).forEach((guess) => {
+      const item = document.createElement("li");
+      item.textContent = `${guess.player_name || "Player"}: ${guess.text}`;
+      list.appendChild(item);
+    });
+  } else {
+    const prompt = document.createElement("p");
+    prompt.className = "prompt-text";
+    prompt.textContent = `Prompt: ${reveal.prompt || ""}`;
+    revealSection.appendChild(prompt);
+    (reveal.votes || []).forEach((vote) => {
+      const item = document.createElement("li");
+      item.textContent = `${vote.player_name || "Player"}: ${vote.text}`;
+      list.appendChild(item);
+    });
+  }
+
+  revealSection.appendChild(header);
+  revealSection.appendChild(image);
+  revealSection.appendChild(owner);
+  revealSection.appendChild(list);
 }
 
 if (hostStartGame) {

@@ -5,8 +5,16 @@ const playerList = document.getElementById("playerList");
 const gameError = document.getElementById("gameError");
 const startGame = document.getElementById("startGame");
 const endGame = document.getElementById("endGame");
+const settingsForm = document.getElementById("settingsForm");
+const roundsInput = document.getElementById("roundsInput");
+const maxPlayersInput = document.getElementById("maxPlayersInput");
+const promptCategory = document.getElementById("promptCategory");
+const lobbyLocked = document.getElementById("lobbyLocked");
+const lobbyStatus = document.getElementById("lobbyStatus");
+const settingsStatus = document.getElementById("settingsStatus");
 let pollTimer = null;
 let hostId = 0;
+let categoriesLoaded = false;
 
 async function loadGame() {
   if (!meta) return;
@@ -37,6 +45,7 @@ function updateFromSnapshot(data) {
   hostId = data.host_id || 0;
   if (startGame) {
     startGame.style.display = data.phase === "lobby" ? "inline-flex" : "none";
+    startGame.disabled = data.phase === "lobby" ? (data.players?.length || 0) < 2 : true;
   }
   if (endGame) {
     endGame.style.display = data.phase !== "complete" ? "inline-flex" : "none";
@@ -55,6 +64,34 @@ function updateFromSnapshot(data) {
     item.textContent = player;
     playerList.appendChild(item);
   });
+
+  if (roundsInput) {
+    roundsInput.value = data.total_rounds || data.prompts_per_player || 2;
+  }
+  if (maxPlayersInput) {
+    maxPlayersInput.value = data.max_players || 0;
+  }
+  if (promptCategory) {
+    promptCategory.value = data.prompt_category || "";
+  }
+  if (lobbyLocked) {
+    lobbyLocked.checked = Boolean(data.lobby_locked);
+  }
+  if (lobbyStatus) {
+    const maxPlayers = data.max_players > 0 ? data.max_players : "∞";
+    const lockedText = data.lobby_locked ? "Locked" : "Open";
+    lobbyStatus.textContent = `Players: ${players.length}/${maxPlayers}. ${lockedText} lobby.`;
+  }
+  if (settingsForm) {
+    const disabled = data.phase !== "lobby";
+    Array.from(settingsForm.elements).forEach((el) => {
+      if (el.tagName === "BUTTON") return;
+      el.disabled = disabled;
+    });
+    if (settingsForm.querySelector("button")) {
+      settingsForm.querySelector("button").disabled = disabled;
+    }
+  }
 }
 
 function startPolling() {
@@ -132,3 +169,60 @@ if (endGame) {
 
 loadGame();
 connectWS();
+
+async function loadCategories() {
+  if (categoriesLoaded || !promptCategory) return;
+  categoriesLoaded = true;
+  const res = await fetch("/api/prompts/categories");
+  const data = await res.json().catch(() => ({}));
+  const categories = Array.isArray(data.categories) ? data.categories : [];
+  promptCategory.innerHTML = "";
+  const allOption = document.createElement("option");
+  allOption.value = "";
+  allOption.textContent = "All prompts";
+  promptCategory.appendChild(allOption);
+  categories.forEach((category) => {
+    const option = document.createElement("option");
+    option.value = category;
+    option.textContent = category;
+    promptCategory.appendChild(option);
+  });
+}
+
+if (settingsForm) {
+  settingsForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!meta) return;
+    const gameId = meta.dataset.gameId;
+    const rounds = Number(roundsInput?.value || 0);
+    const maxPlayers = Number(maxPlayersInput?.value || 0);
+    const category = promptCategory ? promptCategory.value : "";
+    const locked = Boolean(lobbyLocked?.checked);
+    if (settingsStatus) {
+      settingsStatus.textContent = "Saving...";
+    }
+    const res = await fetch(`/api/games/${encodeURIComponent(gameId)}/settings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        player_id: hostId || 0,
+        rounds,
+        max_players: maxPlayers,
+        prompt_category: category,
+        lobby_locked: locked
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (settingsStatus) {
+        settingsStatus.textContent = data.error || "Unable to save settings.";
+      }
+      return;
+    }
+    if (settingsStatus) {
+      settingsStatus.textContent = "Settings saved.";
+    }
+    updateFromSnapshot(data);
+  });
+  loadCategories();
+}

@@ -200,6 +200,34 @@ input {
   gap: 12px;
 }
 
+.settings-panel {
+  grid-template-columns: 1fr;
+}
+
+.settings-form {
+  display: grid;
+  gap: 12px;
+}
+
+.settings-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.settings-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+
 .guess-card,
 .vote-card {
   display: grid;
@@ -238,6 +266,36 @@ input {
 .results-list {
   display: grid;
   gap: 16px;
+}
+
+.reveal-card {
+  display: none;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid #e3e3e3;
+  background: #ffffff;
+}
+
+.reveal-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.results-scores {
+  display: grid;
+  gap: 8px;
+}
+
+.score-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  font-weight: 600;
 }
 
 .result-card {

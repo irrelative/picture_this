@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -151,6 +152,60 @@ func TestJoinGame(t *testing.T) {
 	})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+}
+
+func TestUpdateSettings(t *testing.T) {
+	srv := New(nil, config.Default())
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	gameID := createGame(t, ts)
+	hostID := joinPlayer(t, ts, gameID, "Ada")
+	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/settings", map[string]any{
+		"player_id":       hostID,
+		"rounds":          3,
+		"max_players":     4,
+		"prompt_category": "animals",
+		"lobby_locked":    true,
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+	snapshot := fetchSnapshot(t, ts, gameID)
+	if snapshot["total_rounds"] != float64(3) {
+		t.Fatalf("expected rounds 3, got %v", snapshot["total_rounds"])
+	}
+	if snapshot["max_players"] != float64(4) {
+		t.Fatalf("expected max players 4, got %v", snapshot["max_players"])
+	}
+	if snapshot["prompt_category"] != "animals" {
+		t.Fatalf("expected prompt category, got %v", snapshot["prompt_category"])
+	}
+	if snapshot["lobby_locked"] != true {
+		t.Fatalf("expected lobby locked, got %v", snapshot["lobby_locked"])
+	}
+}
+
+func TestJoinGameLocked(t *testing.T) {
+	srv := New(nil, config.Default())
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	gameID := createGame(t, ts)
+	hostID := joinPlayer(t, ts, gameID, "Ada")
+	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/settings", map[string]any{
+		"player_id":    hostID,
+		"lobby_locked": true,
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+	resp = doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/join", map[string]string{
+		"name": "Ben",
+	})
+	if resp.StatusCode != http.StatusConflict {
+		t.Fatalf("expected status %d, got %d", http.StatusConflict, resp.StatusCode)
 	}
 }
 
@@ -395,6 +450,44 @@ func TestResults(t *testing.T) {
 	resp := doRequest(t, ts, http.MethodGet, "/api/games/"+gameID+"/results", nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+}
+
+func TestAutoAdvanceFromDrawings(t *testing.T) {
+	srv := New(nil, config.Default())
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	gameID := createGame(t, ts)
+	hostID := joinPlayer(t, ts, gameID, "Ada")
+	joinPlayer(t, ts, gameID, "Ben")
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/start", map[string]any{
+		"player_id": hostID,
+	})
+
+	_, err := srv.store.UpdateGame(gameID, func(game *Game) error {
+		round := currentRound(game)
+		if round == nil {
+			return errors.New("round not started")
+		}
+		round.Drawings = append(round.Drawings, DrawingEntry{
+			PlayerID:  hostID,
+			ImageData: []byte{0x01},
+			Prompt:    "Test prompt",
+		})
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("update game: %v", err)
+	}
+
+	srv.autoAdvancePhase(gameID, phaseDrawings)
+	snapshot := fetchSnapshot(t, ts, gameID)
+	if snapshot["phase"] != "guesses" {
+		t.Fatalf("expected guesses phase, got %v", snapshot["phase"])
+	}
+	if snapshot["guess_turn"] == nil {
+		t.Fatalf("expected guess turn after auto advance")
 	}
 }
 

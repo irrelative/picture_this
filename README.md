@@ -27,6 +27,13 @@ This project uses the following technology:
 
 When the server starts, it will auto-migrate and load prompts from `prompts.csv` if available.
 
+## Configuration
+- `PROMPTS_PER_PLAYER` — number of rounds to play.
+- `DRAW_SECONDS` — time limit per drawing phase.
+- `GUESS_SECONDS` — time limit per guessing phase.
+- `VOTE_SECONDS` — time limit per vote phase.
+- `REVEAL_SECONDS` — time per reveal step in results.
+
 ## Dev Commands
 - `make run` — generate templ output and start the server.
 - `make build` — generate templ output and build all packages.
@@ -42,8 +49,10 @@ When the server starts, it will auto-migrate and load prompts from `prompts.csv`
 - `POST /api/games/{game_id}/drawings` — submit a drawing for a prompt.
 - `POST /api/games/{game_id}/guesses` — submit a guess for a drawing.
 - `POST /api/games/{game_id}/votes` — submit a vote for the current drawing prompt.
+- `POST /api/games/{game_id}/settings` — update lobby settings (rounds, max players, prompt pack, lock).
 - `POST /api/games/{game_id}/advance` — host/admin advances phase if needed.
 - `GET /api/games/{game_id}/results` — fetch round or final results.
+- `GET /api/prompts/categories` — list available prompt pack categories.
 - `GET /ws/games/{game_id}` — websocket for realtime state/events.
 
 ## Game State Transition Flow (Draft)
@@ -54,6 +63,27 @@ When the server starts, it will auto-migrate and load prompts from `prompts.csv`
 - After guesses complete, either a new round starts (if `PROMPTS_PER_PLAYER` > round count) or the game moves to `guesses-votes`.
 - During `guesses-votes`, each drawing is shown with the prompt plus all guesses as options; players vote on the true prompt.
 - Results are shown in `results` (guesses and votes per drawing), then the game is marked `complete`.
+
+## Roadmap (Drawful Parity)
+### Priority 1: Core Game Scoring & Flow
+- Scoring rules (correct guesses, fooled players, edge cases) and score display.
+- Timed phases with countdowns and auto-advance on timeouts.
+- Reveal sequence per drawing (guesses, then votes) instead of one-shot results.
+
+### Priority 2: Lobby & Round Configuration
+- Host controls for rounds, player limits, and prompt pack selection.
+- Prompt pack filtering and variety rules (no repeats within a game).
+- Player management (kick/rename) and lobby readiness UX.
+
+### Priority 3: Audience & Replay Features
+- Audience mode for non-players with voting.
+- Game replay view using event log for round-by-round playback.
+
+### Priority 4: UX & Safety
+- Drawing tool enhancements (brush sizes/colors, undo).
+- Assign each player a consistent drawing color across the game.
+- Input validation and moderation (name/profanity filtering, rate limits).
+- Accessibility pass and mobile polish (screen reader labels, touch affordances).
 
 ## Database Schema & ORM Plan (Draft)
 - ORM: use GORM with the Postgres driver.
