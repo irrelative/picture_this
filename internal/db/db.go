@@ -32,6 +32,7 @@ func Migrate(conn *gorm.DB) error {
 		&Guess{},
 		&Vote{},
 		&Event{},
+		&PromptLibrary{},
 	); err != nil {
 		return err
 	}
