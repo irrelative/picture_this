@@ -10,6 +10,7 @@ const saveCanvas = document.getElementById("saveCanvas");
 
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 600;
+let pollTimer = null;
 
 async function loadPlayerView() {
   if (!meta) return;
@@ -20,6 +21,10 @@ async function loadPlayerView() {
     playerName.textContent = `Signed in as ${name}. Waiting for the host to begin.`;
   }
 
+  await fetchSnapshot(gameId);
+}
+
+async function fetchSnapshot(gameId) {
   const res = await fetch(`/api/games/${encodeURIComponent(gameId)}`);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -33,6 +38,10 @@ async function loadPlayerView() {
   if (playerError) {
     playerError.textContent = "";
   }
+  updateFromSnapshot(data);
+}
+
+function updateFromSnapshot(data) {
   joinCode.textContent = data.join_code || "Unavailable";
   gameStatus.textContent = data.phase || "Unknown";
 
@@ -51,8 +60,37 @@ async function loadPlayerView() {
   });
 }
 
+function startPolling() {
+  if (pollTimer) return;
+  pollTimer = setInterval(loadPlayerView, 3000);
+}
+
+function connectWS() {
+  if (!meta) return;
+  const gameId = meta.dataset.gameId;
+  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  const socket = new WebSocket(`${protocol}://${window.location.host}/ws/games/${encodeURIComponent(gameId)}`);
+
+  socket.addEventListener("message", (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      updateFromSnapshot(data);
+    } catch {
+      // ignore invalid payloads
+    }
+  });
+
+  socket.addEventListener("close", () => {
+    startPolling();
+  });
+
+  socket.addEventListener("error", () => {
+    startPolling();
+  });
+}
+
 loadPlayerView();
-setInterval(loadPlayerView, 3000);
+connectWS();
 
 function setupCanvas() {
   if (!canvas) return;

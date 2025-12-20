@@ -16,6 +16,7 @@ import (
 	"picture-this/internal/web"
 
 	"github.com/a-h/templ"
+	"github.com/gorilla/websocket"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -23,6 +24,7 @@ import (
 type Server struct {
 	store *Store
 	db    *gorm.DB
+	ws    *wsHub
 }
 
 const (
@@ -49,6 +51,7 @@ func New(conn *gorm.DB) *Server {
 	return &Server{
 		store: NewStore(),
 		db:    conn,
+		ws:    newWSHub(),
 	}
 }
 
@@ -335,6 +338,8 @@ func (s *Server) handleJoinGame(w http.ResponseWriter, r *http.Request, gameID s
 	}
 	resp["player_id"] = playerID
 	writeJSON(w, http.StatusOK, resp)
+
+	s.broadcastGameUpdate(game)
 }
 
 func (s *Server) handleStartGame(w http.ResponseWriter, r *http.Request, gameID string) {
@@ -358,6 +363,7 @@ func (s *Server) handleStartGame(w http.ResponseWriter, r *http.Request, gameID 
 		return
 	}
 	writeJSON(w, http.StatusOK, snapshot(game))
+	s.broadcastGameUpdate(game)
 }
 
 type promptsRequest struct {
@@ -482,6 +488,7 @@ func (s *Server) handleAdvance(w http.ResponseWriter, r *http.Request, gameID st
 		return
 	}
 	writeJSON(w, http.StatusOK, snapshot(game))
+	s.broadcastGameUpdate(game)
 }
 
 func (s *Server) handleResults(w http.ResponseWriter, r *http.Request, gameID string) {
@@ -493,7 +500,7 @@ func (s *Server) handleResults(w http.ResponseWriter, r *http.Request, gameID st
 	writeJSON(w, http.StatusOK, map[string]any{
 		"game_id": game.ID,
 		"phase":   game.Phase,
-		"players": game.Players,
+		"players": extractPlayerNames(game.Players),
 		"counts": map[string]int{
 			"prompts":  len(game.Prompts),
 			"drawings": len(game.Drawings),
@@ -513,8 +520,20 @@ func (s *Server) handleWebsocket(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	w.Header().Set("Upgrade", "websocket")
-	writeError(w, http.StatusUpgradeRequired, "websocket upgrade required")
+	upgrader := websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool {
+			return true
+		},
+	}
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
+	s.ws.Add(gameID, conn)
+	if game, ok := s.store.GetGame(gameID); ok {
+		s.ws.Send(conn, snapshot(game))
+	}
+	go s.readWS(gameID, conn)
 }
 
 func parseGamePath(path string) (string, string, bool) {
@@ -579,16 +598,76 @@ func nextPhase(current string) (string, bool) {
 	return "", false
 }
 
-func snapshot(game *Game) map[string]any {
-	players := make([]string, 0, len(game.Players))
-	for _, player := range game.Players {
-		players = append(players, player.Name)
+type wsHub struct {
+	mu     sync.Mutex
+	groups map[string]map[*websocket.Conn]struct{}
+}
+
+func newWSHub() *wsHub {
+	return &wsHub{
+		groups: make(map[string]map[*websocket.Conn]struct{}),
 	}
+}
+
+func (h *wsHub) Add(gameID string, conn *websocket.Conn) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	group := h.groups[gameID]
+	if group == nil {
+		group = make(map[*websocket.Conn]struct{})
+		h.groups[gameID] = group
+	}
+	group[conn] = struct{}{}
+}
+
+func (h *wsHub) Remove(gameID string, conn *websocket.Conn) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	group := h.groups[gameID]
+	if group == nil {
+		return
+	}
+	delete(group, conn)
+	_ = conn.Close()
+	if len(group) == 0 {
+		delete(h.groups, gameID)
+	}
+}
+
+func (h *wsHub) Send(conn *websocket.Conn, payload any) {
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return
+	}
+	_ = conn.WriteMessage(websocket.TextMessage, data)
+}
+
+func (h *wsHub) Broadcast(gameID string, payload any) {
+	h.mu.Lock()
+	group := h.groups[gameID]
+	conns := make([]*websocket.Conn, 0, len(group))
+	for conn := range group {
+		conns = append(conns, conn)
+	}
+	h.mu.Unlock()
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return
+	}
+	for _, conn := range conns {
+		if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
+			h.Remove(gameID, conn)
+		}
+	}
+}
+
+func snapshot(game *Game) map[string]any {
 	return map[string]any{
 		"game_id":   game.ID,
 		"join_code": game.JoinCode,
 		"phase":     game.Phase,
-		"players":   players,
+		"players":   extractPlayerNames(game.Players),
 		"counts": map[string]int{
 			"prompts":  len(game.Prompts),
 			"drawings": len(game.Drawings),
@@ -596,6 +675,14 @@ func snapshot(game *Game) map[string]any {
 			"votes":    len(game.Votes),
 		},
 	}
+}
+
+func extractPlayerNames(players []Player) []string {
+	names := make([]string, 0, len(players))
+	for _, player := range players {
+		names = append(names, player.Name)
+	}
+	return names
 }
 
 func readJSON(body io.Reader, dest any) error {
@@ -713,4 +800,20 @@ func (s *Server) ensureGameDBID(game *Game) error {
 	}
 	game.DBID = record.ID
 	return nil
+}
+
+func (s *Server) broadcastGameUpdate(game *Game) {
+	if s.ws == nil {
+		return
+	}
+	s.ws.Broadcast(game.ID, snapshot(game))
+}
+
+func (s *Server) readWS(gameID string, conn *websocket.Conn) {
+	defer s.ws.Remove(gameID, conn)
+	for {
+		if _, _, err := conn.ReadMessage(); err != nil {
+			return
+		}
+	}
 }

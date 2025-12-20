@@ -6,7 +6,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
+
+	"github.com/gorilla/websocket"
 )
 
 func TestCreateGame(t *testing.T) {
@@ -239,10 +242,12 @@ func TestWebsocketUpgradeRequired(t *testing.T) {
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
-	resp := doRequest(t, ts, http.MethodGet, "/ws/games/"+gameID, nil)
-	if resp.StatusCode != http.StatusUpgradeRequired {
-		t.Fatalf("expected status %d, got %d", http.StatusUpgradeRequired, resp.StatusCode)
+	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws/games/" + gameID
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("expected websocket connection, got error: %v", err)
 	}
+	_ = conn.Close()
 }
 
 func createGame(t *testing.T, ts *httptest.Server) string {

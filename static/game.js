@@ -3,10 +3,16 @@ const joinCode = document.getElementById("joinCode");
 const gameStatus = document.getElementById("gameStatus");
 const playerList = document.getElementById("playerList");
 const gameError = document.getElementById("gameError");
+const startGame = document.getElementById("startGame");
+let pollTimer = null;
 
 async function loadGame() {
   if (!meta) return;
   const gameId = meta.dataset.gameId;
+  await fetchSnapshot(gameId);
+}
+
+async function fetchSnapshot(gameId) {
   const res = await fetch(`/api/games/${encodeURIComponent(gameId)}`);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -20,6 +26,10 @@ async function loadGame() {
   if (gameError) {
     gameError.textContent = "";
   }
+  updateFromSnapshot(data);
+}
+
+function updateFromSnapshot(data) {
   joinCode.textContent = data.join_code || "Unavailable";
   gameStatus.textContent = data.phase || "Unknown";
 
@@ -38,5 +48,55 @@ async function loadGame() {
   });
 }
 
+function startPolling() {
+  if (pollTimer) return;
+  pollTimer = setInterval(loadGame, 3000);
+}
+
+function connectWS() {
+  if (!meta) return;
+  const gameId = meta.dataset.gameId;
+  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  const socket = new WebSocket(`${protocol}://${window.location.host}/ws/games/${encodeURIComponent(gameId)}`);
+
+  socket.addEventListener("message", (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      updateFromSnapshot(data);
+    } catch {
+      // ignore invalid payloads
+    }
+  });
+
+  socket.addEventListener("close", () => {
+    startPolling();
+  });
+
+  socket.addEventListener("error", () => {
+    startPolling();
+  });
+}
+
+if (startGame) {
+  startGame.addEventListener("click", async () => {
+    if (!meta) return;
+    const gameId = meta.dataset.gameId;
+    const res = await fetch(`/api/games/${encodeURIComponent(gameId)}/start`, {
+      method: "POST"
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (gameError) {
+        gameError.textContent = data.error || "Unable to start game.";
+      }
+      return;
+    }
+    if (gameError) {
+      gameError.textContent = "";
+    }
+    updateFromSnapshot(data);
+  });
+}
+
 loadGame();
-setInterval(loadGame, 3000);
+connectWS();
