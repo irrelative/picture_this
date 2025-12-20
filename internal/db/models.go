@@ -101,3 +101,10 @@ type PromptLibrary struct {
 	CreatedAt time.Time `gorm:"not null"`
 	UpdatedAt time.Time `gorm:"not null"`
 }
+
+type Session struct {
+	ID        string    `gorm:"primaryKey;size:64"`
+	Flash     string    `gorm:"size:280"`
+	CreatedAt time.Time `gorm:"not null"`
+	UpdatedAt time.Time `gorm:"not null"`
+}

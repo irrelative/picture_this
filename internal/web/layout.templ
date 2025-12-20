@@ -1,6 +1,6 @@
 package web
 
-templ Layout(title string, scriptPath string) {
+templ Layout(title string, scriptPath string, flash string) {
 	<!doctype html>
 	<html lang="en">
 		<head>
@@ -12,6 +12,9 @@ templ Layout(title string, scriptPath string) {
 		<body>
 			<div class="page">
 				<main class="shell">
+					if flash != "" {
+						<div class="flash">{ flash }</div>
+					}
 					{ children... }
 				</main>
 			</div>

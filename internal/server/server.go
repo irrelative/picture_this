@@ -26,10 +26,11 @@ import (
 )
 
 type Server struct {
-	store *Store
-	db    *gorm.DB
-	ws    *wsHub
-	cfg   config.Config
+	store    *Store
+	db       *gorm.DB
+	ws       *wsHub
+	cfg      config.Config
+	sessions *sessionStore
 }
 
 const (
@@ -52,16 +53,17 @@ var phaseOrder = []string{
 
 func New(conn *gorm.DB, cfg config.Config) *Server {
 	return &Server{
-		store: NewStore(),
-		db:    conn,
-		ws:    newWSHub(),
-		cfg:   cfg,
+		store:    NewStore(),
+		db:       conn,
+		ws:       newWSHub(),
+		cfg:      cfg,
+		sessions: newSessionStore(conn),
 	}
 }
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("GET /", templ.Handler(web.Home()))
+	mux.HandleFunc("GET /", s.handleHome)
 	mux.HandleFunc("GET /join", s.handleJoinView)
 	mux.HandleFunc("GET /join/", s.handleJoinView)
 	mux.HandleFunc("GET /play/", s.handlePlayerView)
@@ -300,6 +302,14 @@ func (s *Server) handleGameView(w http.ResponseWriter, r *http.Request) {
 	templ.Handler(web.GameView(gameID)).ServeHTTP(w, r)
 }
 
+func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
+	flash := ""
+	if s.sessions != nil {
+		flash = s.sessions.PopFlash(w, r)
+	}
+	templ.Handler(web.Home(flash)).ServeHTTP(w, r)
+}
+
 func (s *Server) handleJoinView(w http.ResponseWriter, r *http.Request) {
 	code := ""
 	if strings.HasPrefix(r.URL.Path, "/join/") {
@@ -321,7 +331,10 @@ func (s *Server) handlePlayerView(w http.ResponseWriter, r *http.Request) {
 	}
 	game, player, ok := s.store.GetPlayer(gameID, playerID)
 	if !ok {
-		http.NotFound(w, r)
+		if s.sessions != nil {
+			s.sessions.SetFlash(w, r, "Game not found. Start a new one or join with a fresh code.")
+		}
+		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
 	templ.Handler(web.PlayerView(game.ID, player.ID, player.Name)).ServeHTTP(w, r)
@@ -1381,6 +1394,83 @@ func isUniqueViolation(err error) bool {
 		return pgErr.Code == "23505"
 	}
 	return false
+}
+
+type sessionStore struct {
+	db       *gorm.DB
+	mu       sync.Mutex
+	sessions map[string]string
+}
+
+func newSessionStore(conn *gorm.DB) *sessionStore {
+	return &sessionStore{
+		db:       conn,
+		sessions: make(map[string]string),
+	}
+}
+
+func (s *sessionStore) SetFlash(w http.ResponseWriter, r *http.Request, message string) {
+	if message == "" {
+		return
+	}
+	id := s.ensureSessionID(w, r)
+	if s.db == nil {
+		s.mu.Lock()
+		s.sessions[id] = message
+		s.mu.Unlock()
+		return
+	}
+	record := db.Session{
+		ID:    id,
+		Flash: message,
+	}
+	_ = s.db.Save(&record).Error
+}
+
+func (s *sessionStore) PopFlash(w http.ResponseWriter, r *http.Request) string {
+	id := s.ensureSessionID(w, r)
+	if s.db == nil {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		message := s.sessions[id]
+		s.sessions[id] = ""
+		return message
+	}
+	var record db.Session
+	if err := s.db.Where("id = ?", id).First(&record).Error; err != nil {
+		return ""
+	}
+	if record.Flash == "" {
+		return ""
+	}
+	message := record.Flash
+	record.Flash = ""
+	_ = s.db.Save(&record).Error
+	return message
+}
+
+func (s *sessionStore) ensureSessionID(w http.ResponseWriter, r *http.Request) string {
+	cookie, err := r.Cookie("pt_session")
+	if err == nil && cookie.Value != "" {
+		return cookie.Value
+	}
+	id := newSessionID()
+	http.SetCookie(w, &http.Cookie{
+		Name:     "pt_session",
+		Value:    id,
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+	return id
+}
+
+func newSessionID() string {
+	buf := make([]byte, 16)
+	if _, err := rand.Read(buf); err != nil {
+		return fmt.Sprintf("sess-%d", time.Now().UnixNano())
+	}
+	return fmt.Sprintf("%x", buf)
 }
 
 func (s *Server) broadcastGameUpdate(game *Game) {

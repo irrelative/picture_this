@@ -88,6 +88,32 @@ func TestPlayerView(t *testing.T) {
 	}
 }
 
+func TestPlayerViewMissingRedirectsWithSession(t *testing.T) {
+	srv := New(nil, config.Default())
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	req, err := http.NewRequest(http.MethodGet, ts.URL+"/play/game-1/1", nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("do request: %v", err)
+	}
+	if resp.StatusCode != http.StatusFound {
+		t.Fatalf("expected status %d, got %d", http.StatusFound, resp.StatusCode)
+	}
+	if len(resp.Header.Values("Set-Cookie")) == 0 {
+		t.Fatalf("expected session cookie to be set")
+	}
+}
+
 func TestGetGame(t *testing.T) {
 	srv := New(nil, config.Default())
 	ts := httptest.NewServer(srv.Handler())

@@ -1,7 +1,7 @@
 package web
 
-templ Home() {
-	@Layout("Picture This", "/static/app.js") {
+templ Home(flash string) {
+	@Layout("Picture This", "/static/app.js", flash) {
 		<header class="hero">
 			<span class="tag">Picture This</span>
 			<h1>Draw together. Guess boldly.</h1>
