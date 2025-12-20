@@ -292,6 +292,7 @@ func (s *Server) handleGameView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, ok := s.store.GetGame(gameID); !ok {
+		log.Printf("game view missing game_id=%s", gameID)
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
