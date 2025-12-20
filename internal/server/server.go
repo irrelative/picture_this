@@ -292,7 +292,7 @@ func (s *Server) handleGameView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, ok := s.store.GetGame(gameID); !ok {
-		http.NotFound(w, r)
+		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
 	templ.Handler(web.GameView(gameID)).ServeHTTP(w, r)
