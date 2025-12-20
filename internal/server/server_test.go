@@ -220,12 +220,22 @@ func TestSubmitDrawings(t *testing.T) {
 
 	gameID := createGame(t, ts)
 	playerID := joinPlayer(t, ts, gameID, "Ada")
+	playerID2 := joinPlayer(t, ts, gameID, "Ben")
 	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/start", map[string]any{})
 	prompt := fetchPrompt(t, ts, gameID, playerID)
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/drawings", map[string]any{
 		"player_id":  playerID,
 		"image_data": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMBAp4pWZkAAAAASUVORK5CYII=",
 		"prompt":     prompt,
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+	prompt2 := fetchPrompt(t, ts, gameID, playerID2)
+	resp = doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/drawings", map[string]any{
+		"player_id":  playerID2,
+		"image_data": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMBAp4pWZkAAAAASUVORK5CYII=",
+		"prompt":     prompt2,
 	})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
@@ -239,10 +249,29 @@ func TestSubmitGuesses(t *testing.T) {
 
 	gameID := createGame(t, ts)
 	playerID := joinPlayer(t, ts, gameID, "Ada")
+	playerID2 := joinPlayer(t, ts, gameID, "Ben")
 	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/start", map[string]any{})
-	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/advance", map[string]any{})
+	prompt := fetchPrompt(t, ts, gameID, playerID)
+	prompt2 := fetchPrompt(t, ts, gameID, playerID2)
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/drawings", map[string]any{
+		"player_id":  playerID,
+		"image_data": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMBAp4pWZkAAAAASUVORK5CYII=",
+		"prompt":     prompt,
+	})
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/drawings", map[string]any{
+		"player_id":  playerID2,
+		"image_data": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMBAp4pWZkAAAAASUVORK5CYII=",
+		"prompt":     prompt2,
+	})
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/guesses", map[string]any{
 		"player_id": playerID,
+		"guess":     "guess-1",
+	})
+	if resp.StatusCode == http.StatusOK {
+		t.Fatalf("expected non-OK for wrong turn, got %d", resp.StatusCode)
+	}
+	resp = doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/guesses", map[string]any{
+		"player_id": playerID2,
 		"guess":     "guess-1",
 	})
 	if resp.StatusCode != http.StatusOK {
@@ -257,9 +286,28 @@ func TestSubmitVotes(t *testing.T) {
 
 	gameID := createGame(t, ts)
 	playerID := joinPlayer(t, ts, gameID, "Ada")
+	playerID2 := joinPlayer(t, ts, gameID, "Ben")
 	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/start", map[string]any{})
-	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/advance", map[string]any{})
-	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/advance", map[string]any{})
+	prompt := fetchPrompt(t, ts, gameID, playerID)
+	prompt2 := fetchPrompt(t, ts, gameID, playerID2)
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/drawings", map[string]any{
+		"player_id":  playerID,
+		"image_data": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMBAp4pWZkAAAAASUVORK5CYII=",
+		"prompt":     prompt,
+	})
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/drawings", map[string]any{
+		"player_id":  playerID2,
+		"image_data": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMBAp4pWZkAAAAASUVORK5CYII=",
+		"prompt":     prompt2,
+	})
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/guesses", map[string]any{
+		"player_id": playerID2,
+		"guess":     "guess-1",
+	})
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/guesses", map[string]any{
+		"player_id": playerID,
+		"guess":     "guess-2",
+	})
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/votes", map[string]any{
 		"player_id": playerID,
 		"guess":     "guess-1",

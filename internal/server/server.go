@@ -104,12 +104,14 @@ type Player struct {
 }
 
 type RoundState struct {
-	Number   int
-	DBID     uint
-	Prompts  []PromptEntry
-	Drawings []DrawingEntry
-	Guesses  []GuessEntry
-	Votes    []VoteEntry
+	Number       int
+	DBID         uint
+	Prompts      []PromptEntry
+	Drawings     []DrawingEntry
+	Guesses      []GuessEntry
+	Votes        []VoteEntry
+	GuessTurns   []GuessTurn
+	CurrentGuess int
 }
 
 type PromptEntry struct {
@@ -129,6 +131,11 @@ type GuessEntry struct {
 	PlayerID int
 	Text     string
 	DBID     uint
+}
+
+type GuessTurn struct {
+	DrawingIndex int
+	GuesserID    int
 }
 
 type VoteEntry struct {
@@ -548,6 +555,11 @@ func (s *Server) handleDrawings(w http.ResponseWriter, r *http.Request, gameID s
 		if round == nil {
 			return errors.New("round not started")
 		}
+		for _, drawing := range round.Drawings {
+			if drawing.PlayerID == player.ID {
+				return errors.New("drawing already submitted")
+			}
+		}
 		promptEntry, ok := findPromptForPlayer(round, player.ID, req.Prompt)
 		if !ok {
 			return errors.New("prompt not assigned")
@@ -558,6 +570,12 @@ func (s *Server) handleDrawings(w http.ResponseWriter, r *http.Request, gameID s
 			Prompt:    promptEntry.Text,
 		})
 		game.Drawings = append(game.Drawings, req.ImageData)
+		if len(round.Drawings) == len(game.Players) {
+			if err := s.buildGuessTurns(game, round); err != nil {
+				return err
+			}
+			game.Phase = phaseGuesses
+		}
 		return nil
 	})
 	if err != nil {
@@ -571,6 +589,13 @@ func (s *Server) handleDrawings(w http.ResponseWriter, r *http.Request, gameID s
 	if err := s.persistDrawing(game, req.PlayerID, image, req.Prompt); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to save drawings")
 		return
+	}
+	if game.Phase == phaseGuesses {
+		if err := s.persistPhase(game, "game_advanced", map[string]any{"phase": game.Phase}); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to advance game")
+			return
+		}
+		log.Printf("game advanced game_id=%s phase=%s", game.ID, game.Phase)
 	}
 	log.Printf("drawing submitted game_id=%s player_id=%d", game.ID, req.PlayerID)
 	writeJSON(w, http.StatusOK, snapshot(game))
@@ -600,11 +625,22 @@ func (s *Server) handleGuesses(w http.ResponseWriter, r *http.Request, gameID st
 		if round == nil {
 			return errors.New("round not started")
 		}
+		if round.CurrentGuess >= len(round.GuessTurns) {
+			return errors.New("no active guess turn")
+		}
+		turn := round.GuessTurns[round.CurrentGuess]
+		if turn.GuesserID != player.ID {
+			return errors.New("not your turn")
+		}
 		round.Guesses = append(round.Guesses, GuessEntry{
 			PlayerID: player.ID,
 			Text:     req.Guess,
 		})
 		game.Guesses = append(game.Guesses, req.Guess)
+		round.CurrentGuess++
+		if round.CurrentGuess >= len(round.GuessTurns) {
+			game.Phase = phaseVotes
+		}
 		return nil
 	})
 	if err != nil {
@@ -618,6 +654,13 @@ func (s *Server) handleGuesses(w http.ResponseWriter, r *http.Request, gameID st
 	if err := s.persistGuess(game, req.PlayerID, req.Guess); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to save guesses")
 		return
+	}
+	if game.Phase == phaseVotes {
+		if err := s.persistPhase(game, "game_advanced", map[string]any{"phase": game.Phase}); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to advance game")
+			return
+		}
+		log.Printf("game advanced game_id=%s phase=%s", game.ID, game.Phase)
 	}
 	log.Printf("guess submitted game_id=%s player_id=%d", game.ID, req.PlayerID)
 	writeJSON(w, http.StatusOK, snapshot(game))
@@ -1009,11 +1052,22 @@ func snapshot(game *Game) map[string]any {
 	guessesCount := 0
 	votesCount := 0
 	roundNumber := 0
+	var guessTurn map[string]any
 	if round != nil {
 		roundNumber = round.Number
 		drawingsCount = len(round.Drawings)
 		guessesCount = len(round.Guesses)
 		votesCount = len(round.Votes)
+		if round.CurrentGuess < len(round.GuessTurns) {
+			turn := round.GuessTurns[round.CurrentGuess]
+			guessTurn = map[string]any{
+				"drawing_index": turn.DrawingIndex,
+				"guesser_id":    turn.GuesserID,
+			}
+			if turn.DrawingIndex >= 0 && turn.DrawingIndex < len(round.Drawings) {
+				guessTurn["drawing_owner"] = round.Drawings[turn.DrawingIndex].PlayerID
+			}
+		}
 	}
 	return map[string]any{
 		"game_id":            game.ID,
@@ -1021,6 +1075,7 @@ func snapshot(game *Game) map[string]any {
 		"phase":              game.Phase,
 		"players":            extractPlayerNames(game.Players),
 		"round_number":       roundNumber,
+		"guess_turn":         guessTurn,
 		"prompts_per_player": game.PromptsPerPlayer,
 		"counts": map[string]int{
 			"prompts":  promptsCount,
@@ -1044,6 +1099,32 @@ func currentRound(game *Game) *RoundState {
 		return nil
 	}
 	return &game.Rounds[len(game.Rounds)-1]
+}
+
+func (s *Server) buildGuessTurns(game *Game, round *RoundState) error {
+	if round == nil {
+		return errors.New("round not started")
+	}
+	if len(round.Drawings) == 0 {
+		return errors.New("no drawings submitted")
+	}
+	round.GuessTurns = nil
+	round.CurrentGuess = 0
+	for drawingIndex, drawing := range round.Drawings {
+		for _, player := range game.Players {
+			if player.ID == drawing.PlayerID {
+				continue
+			}
+			round.GuessTurns = append(round.GuessTurns, GuessTurn{
+				DrawingIndex: drawingIndex,
+				GuesserID:    player.ID,
+			})
+		}
+	}
+	if len(round.GuessTurns) == 0 {
+		return errors.New("no guess turns available")
+	}
+	return nil
 }
 
 func readJSON(body io.Reader, dest any) error {
