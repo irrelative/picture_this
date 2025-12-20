@@ -20,6 +20,7 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/gorilla/websocket"
+	"github.com/jackc/pgconn"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -206,6 +207,12 @@ func (s *Store) AddPlayer(gameIDOrCode, name string) (*Game, *Player, error) {
 	}
 	if !ok {
 		return nil, nil, errors.New("game not found")
+	}
+
+	for i := range game.Players {
+		if game.Players[i].Name == name {
+			return game, &game.Players[i], nil
+		}
 	}
 
 	player := Player{
@@ -929,6 +936,9 @@ func (s *Server) persistPlayer(game *Game, player *Player) (int, error) {
 	if s.db == nil {
 		return player.ID, nil
 	}
+	if player.DBID != 0 {
+		return player.ID, nil
+	}
 	if game.DBID == 0 {
 		if err := s.ensureGameDBID(game); err != nil {
 			return 0, err
@@ -943,6 +953,13 @@ func (s *Server) persistPlayer(game *Game, player *Player) (int, error) {
 		JoinedAt: time.Now().UTC(),
 	}
 	if err := s.db.Create(&record).Error; err != nil {
+		if isUniqueViolation(err) {
+			existing, lookupErr := s.findPlayerDBID(game.DBID, player.Name)
+			if lookupErr == nil && existing != 0 {
+				player.DBID = existing
+				return player.ID, nil
+			}
+		}
 		return 0, err
 	}
 	player.DBID = record.ID
@@ -1175,6 +1192,22 @@ func (s *Server) persistVote(game *Game, playerID int, guess string) error {
 		"player_id": playerID,
 		"guess":     guess,
 	})
+}
+
+func (s *Server) findPlayerDBID(gameDBID uint, name string) (uint, error) {
+	var record db.Player
+	if err := s.db.Where("game_id = ? AND name = ?", gameDBID, name).First(&record).Error; err != nil {
+		return 0, err
+	}
+	return record.ID, nil
+}
+
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		return pgErr.Code == "23505"
+	}
+	return false
 }
 
 func (s *Server) broadcastGameUpdate(game *Game) {

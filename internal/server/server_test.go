@@ -128,6 +128,19 @@ func TestJoinGame(t *testing.T) {
 	}
 }
 
+func TestJoinSameNameReturnsSamePlayer(t *testing.T) {
+	srv := New(nil, config.Default())
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	gameID := createGame(t, ts)
+	playerID := joinPlayer(t, ts, gameID, "Ada")
+	again := joinPlayer(t, ts, gameID, "Ada")
+	if playerID != again {
+		t.Fatalf("expected same player id, got %d and %d", playerID, again)
+	}
+}
+
 func TestStartGame(t *testing.T) {
 	srv := New(nil, config.Default())
 	ts := httptest.NewServer(srv.Handler())
