@@ -4,6 +4,7 @@ const gameStatus = document.getElementById("gameStatus");
 const playerList = document.getElementById("playerList");
 const gameError = document.getElementById("gameError");
 const startGame = document.getElementById("startGame");
+const endGame = document.getElementById("endGame");
 let pollTimer = null;
 
 async function loadGame() {
@@ -35,6 +36,9 @@ function updateFromSnapshot(data) {
   if (startGame) {
     startGame.style.display = data.phase === "lobby" ? "inline-flex" : "none";
   }
+  if (endGame) {
+    endGame.style.display = data.phase !== "complete" ? "inline-flex" : "none";
+  }
 
   playerList.innerHTML = "";
   const players = Array.isArray(data.players) ? data.players : [];
@@ -60,7 +64,7 @@ function connectWS() {
   if (!meta) return;
   const gameId = meta.dataset.gameId;
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-  const socket = new WebSocket(`${protocol}://${window.location.host}/ws/games/${encodeURIComponent(gameId)}`);
+  const socket = new WebSocket(`${protocol}://${window.location.host}/ws/games/${encodeURIComponent(gameId)}?role=host`);
 
   socket.addEventListener("message", (event) => {
     try {
@@ -91,6 +95,27 @@ if (startGame) {
     if (!res.ok) {
       if (gameError) {
         gameError.textContent = data.error || "Unable to start game.";
+      }
+      return;
+    }
+    if (gameError) {
+      gameError.textContent = "";
+    }
+    updateFromSnapshot(data);
+  });
+}
+
+if (endGame) {
+  endGame.addEventListener("click", async () => {
+    if (!meta) return;
+    const gameId = meta.dataset.gameId;
+    const res = await fetch(`/api/games/${encodeURIComponent(gameId)}/end`, {
+      method: "POST"
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (gameError) {
+        gameError.textContent = data.error || "Unable to end game.";
       }
       return;
     }

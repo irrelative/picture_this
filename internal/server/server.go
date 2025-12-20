@@ -343,6 +343,13 @@ func (s *Server) handlePlayerView(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
+	if game.Phase == phaseComplete {
+		if s.sessions != nil {
+			s.sessions.SetFlash(w, r, "That game has ended. Start a new one!")
+		}
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
 	templ.Handler(web.PlayerView(game.ID, player.ID, player.Name)).ServeHTTP(w, r)
 }
 
@@ -409,6 +416,8 @@ func (s *Server) handleGameSubroutes(w http.ResponseWriter, r *http.Request) {
 			s.handleVotes(w, r, gameID)
 		case "advance":
 			s.handleAdvance(w, r, gameID)
+		case "end":
+			s.handleEndGame(w, r, gameID)
 		default:
 			http.NotFound(w, r)
 		}
@@ -688,6 +697,49 @@ func (s *Server) handleAdvance(w http.ResponseWriter, r *http.Request, gameID st
 	s.broadcastGameUpdate(game)
 }
 
+func (s *Server) handleEndGame(w http.ResponseWriter, r *http.Request, gameID string) {
+	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+		if game.Phase == phaseComplete {
+			return errors.New("game already ended")
+		}
+		game.Phase = phaseComplete
+		return nil
+	})
+	if err != nil {
+		if err.Error() == "game not found" {
+			http.NotFound(w, r)
+			return
+		}
+		writeError(w, http.StatusConflict, err.Error())
+		return
+	}
+	if err := s.persistPhase(game, "game_ended", map[string]any{"phase": game.Phase}); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to end game")
+		return
+	}
+	log.Printf("game ended game_id=%s", game.ID)
+	writeJSON(w, http.StatusOK, snapshot(game))
+	s.broadcastGameUpdate(game)
+}
+
+func (s *Server) endGameFromHost(gameID string) {
+	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+		if game.Phase == phaseComplete {
+			return errors.New("game already ended")
+		}
+		game.Phase = phaseComplete
+		return nil
+	})
+	if err != nil {
+		return
+	}
+	if err := s.persistPhase(game, "game_ended", map[string]any{"phase": game.Phase}); err != nil {
+		return
+	}
+	log.Printf("game ended game_id=%s reason=host_disconnected", game.ID)
+	s.broadcastGameUpdate(game)
+}
+
 func (s *Server) handleResults(w http.ResponseWriter, r *http.Request, gameID string) {
 	game, ok := s.store.GetGame(gameID)
 	if !ok {
@@ -717,6 +769,8 @@ func (s *Server) handleWebsocket(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	role := r.URL.Query().Get("role")
+	isHost := role == "host"
 	upgrader := websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool {
 			return true
@@ -727,11 +781,11 @@ func (s *Server) handleWebsocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Printf("ws connected game_id=%s remote=%s", gameID, r.RemoteAddr)
-	s.ws.Add(gameID, conn)
+	s.ws.Add(gameID, conn, isHost)
 	if game, ok := s.store.GetGame(gameID); ok {
 		s.ws.Send(conn, snapshot(game))
 	}
-	go s.readWS(gameID, conn)
+	go s.readWS(gameID, conn, isHost)
 }
 
 func parseGamePath(path string) (string, string, bool) {
@@ -868,15 +922,17 @@ func findPromptForPlayer(round *RoundState, playerID int, promptText string) (Pr
 type wsHub struct {
 	mu     sync.Mutex
 	groups map[string]map[*websocket.Conn]struct{}
+	hosts  map[string]map[*websocket.Conn]struct{}
 }
 
 func newWSHub() *wsHub {
 	return &wsHub{
 		groups: make(map[string]map[*websocket.Conn]struct{}),
+		hosts:  make(map[string]map[*websocket.Conn]struct{}),
 	}
 }
 
-func (h *wsHub) Add(gameID string, conn *websocket.Conn) {
+func (h *wsHub) Add(gameID string, conn *websocket.Conn, isHost bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	group := h.groups[gameID]
@@ -885,9 +941,17 @@ func (h *wsHub) Add(gameID string, conn *websocket.Conn) {
 		h.groups[gameID] = group
 	}
 	group[conn] = struct{}{}
+	if isHost {
+		hostGroup := h.hosts[gameID]
+		if hostGroup == nil {
+			hostGroup = make(map[*websocket.Conn]struct{})
+			h.hosts[gameID] = hostGroup
+		}
+		hostGroup[conn] = struct{}{}
+	}
 }
 
-func (h *wsHub) Remove(gameID string, conn *websocket.Conn) {
+func (h *wsHub) Remove(gameID string, conn *websocket.Conn, isHost bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	group := h.groups[gameID]
@@ -898,6 +962,15 @@ func (h *wsHub) Remove(gameID string, conn *websocket.Conn) {
 	_ = conn.Close()
 	if len(group) == 0 {
 		delete(h.groups, gameID)
+	}
+	if isHost {
+		hostGroup := h.hosts[gameID]
+		if hostGroup != nil {
+			delete(hostGroup, conn)
+			if len(hostGroup) == 0 {
+				delete(h.hosts, gameID)
+			}
+		}
 	}
 }
 
@@ -924,7 +997,7 @@ func (h *wsHub) Broadcast(gameID string, payload any) {
 	}
 	for _, conn := range conns {
 		if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
-			h.Remove(gameID, conn)
+			h.Remove(gameID, conn, false)
 		}
 	}
 }
@@ -1533,8 +1606,11 @@ func (s *Server) broadcastGameUpdate(game *Game) {
 	s.ws.Broadcast(game.ID, snapshot(game))
 }
 
-func (s *Server) readWS(gameID string, conn *websocket.Conn) {
-	defer s.ws.Remove(gameID, conn)
+func (s *Server) readWS(gameID string, conn *websocket.Conn, isHost bool) {
+	defer s.ws.Remove(gameID, conn, isHost)
+	if isHost {
+		defer s.endGameFromHost(gameID)
+	}
 	for {
 		if _, _, err := conn.ReadMessage(); err != nil {
 			log.Printf("ws disconnected game_id=%s error=%v", gameID, err)
