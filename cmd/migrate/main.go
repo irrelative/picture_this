@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"path/filepath"
 
 	"picture-this/internal/config"
 
@@ -16,7 +17,12 @@ func main() {
 		log.Printf("failed to load .env: %v", err)
 	}
 
-	m, err := migrate.New("file://db/migrations", mustDatabaseURL())
+	sourceURL, err := migrationSourceURL()
+	if err != nil {
+		log.Fatalf("migration source error: %v", err)
+	}
+
+	m, err := migrate.New(sourceURL, mustDatabaseURL())
 	if err != nil {
 		log.Fatalf("migration setup failed: %v", err)
 	}
@@ -32,4 +38,16 @@ func mustDatabaseURL() string {
 		log.Fatal("DATABASE_URL is not set")
 	}
 	return dsn
+}
+
+func migrationSourceURL() (string, error) {
+	path := filepath.Join("db", "migrations")
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		return "", err
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	return "file://" + abs, nil
 }
