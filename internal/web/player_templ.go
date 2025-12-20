@@ -41,7 +41,7 @@ func PlayerView(gameID string, playerID int, playerName string) templ.Component 
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<header class=\"hero\"><span class=\"tag\">Player View</span><h1>You're in!</h1><p id=\"playerName\">Waiting for the host to begin.</p></header><section class=\"panel\"><div><h2>Join code</h2><p id=\"joinCode\" class=\"join-code\">Loading...</p></div><div class=\"status\"><span class=\"label\">Status</span><p id=\"gameStatus\">Loading...</p></div></section><section class=\"panel\"><div><h2>Players</h2><p>You're signed in as <strong>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<header class=\"hero\"><span class=\"tag\">Player View</span><h1>You're in!</h1><p id=\"playerName\">Loading...</p></header><section class=\"panel\"><div><h2>Join code</h2><p id=\"joinCode\" class=\"join-code\">Loading...</p></div><div class=\"status\"><span class=\"label\">Status</span><p id=\"gameStatus\">Loading...</p></div></section><section class=\"panel\"><div><h2>Players</h2><p>You're signed in as <strong>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -54,14 +54,14 @@ func PlayerView(gameID string, playerID int, playerName string) templ.Component 
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</strong>.</p></div><ul id=\"playerList\" class=\"player-list\"></ul></section><section id=\"drawSection\" class=\"panel draw-panel\"><div><h2>Draw your prompt</h2><p>Use your finger or mouse to sketch. Resolution is fixed for fair play.</p></div><div class=\"prompt-card\"><span class=\"label\">Your prompt</span><p id=\"promptText\" class=\"prompt-text\">Loading...</p></div><div class=\"canvas-wrap\"><canvas id=\"drawCanvas\" width=\"800\" height=\"600\"></canvas><div class=\"canvas-actions\"><button type=\"button\" id=\"saveCanvas\" class=\"primary\">Save drawing</button></div></div></section><p id=\"playerError\" class=\"result error\"></p><div id=\"playerMeta\" data-game-id=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</strong>.</p></div><ul id=\"playerList\" class=\"player-list\"></ul></section><section id=\"drawSection\" class=\"panel draw-panel\"><div><h2>Draw your prompt</h2><p>Use your finger or mouse to sketch. Resolution is fixed for fair play.</p></div><div class=\"prompt-card\"><span class=\"label\">Your prompt</span><p id=\"promptText\" class=\"prompt-text\">Loading...</p></div><div class=\"canvas-wrap\"><canvas id=\"drawCanvas\" width=\"800\" height=\"600\"></canvas><div class=\"canvas-actions\"><button type=\"button\" id=\"saveCanvas\" class=\"primary\">Save drawing</button></div></div></section><section id=\"guessSection\" class=\"panel guess-panel\"><div><h2>Guess the prompt</h2><p id=\"guessStatus\">Waiting for your turn to guess.</p></div><div class=\"guess-card\"><img id=\"guessImage\" class=\"guess-image\" alt=\"Drawing to guess\"><form id=\"guessForm\" class=\"guess-form\"><input id=\"guessInput\" name=\"guess\" placeholder=\"Type your guess\" autocomplete=\"off\" required> <button type=\"submit\" class=\"primary\">Submit guess</button></form></div></section><section id=\"voteSection\" class=\"panel vote-panel\"><div><h2>Pick the real prompt</h2><p id=\"voteStatus\">Waiting for your turn to vote.</p></div><div class=\"vote-card\"><img id=\"voteImage\" class=\"guess-image\" alt=\"Drawing to vote on\"><form id=\"voteForm\" class=\"vote-form\"><div id=\"voteOptions\" class=\"vote-options\"></div><button type=\"submit\" class=\"primary\">Submit vote</button></form></div></section><section id=\"resultsSection\" class=\"panel results-panel\"><div><h2>Results</h2><p>See who guessed what and which prompts won the vote.</p></div><div id=\"resultsList\" class=\"results-list\"></div></section><section id=\"hostSection\" class=\"panel host-panel\"><div><h2>Host controls</h2><p>As the host, you can start the game for everyone.</p></div><div class=\"host-actions\"><button type=\"button\" id=\"hostStartGame\" class=\"primary\">Start game</button><p id=\"hostHelp\" class=\"hint\">Waiting for the host.</p></div></section><p id=\"playerError\" class=\"result error\"></p><div id=\"playerMeta\" data-game-id=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(gameID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 48, Col: 44}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 95, Col: 44}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -74,7 +74,7 @@ func PlayerView(gameID string, playerID int, playerName string) templ.Component 
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(playerID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 48, Col: 72}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 95, Col: 72}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -87,7 +87,7 @@ func PlayerView(gameID string, playerID int, playerName string) templ.Component 
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(playerName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 48, Col: 104}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 95, Col: 104}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {

@@ -1,6 +1,6 @@
 package web
 
-templ Home(flash string, playerName string) {
+templ Home(flash string, playerName string, games []GameSummary) {
 	@Layout("Picture This", "/static/app.js", flash) {
 		<header class="hero">
 			<span class="tag">Picture This</span>
@@ -17,21 +17,57 @@ templ Home(flash string, playerName string) {
 			<div id="createResult" class="result"></div>
 		</section>
 
-				<section class="panel">
-					<div>
-						<h2>Join a game</h2>
-						<p>Enter the join code from the host and your display name.</p>
+		<section class="panel">
+			<div>
+				<h2>Join a game</h2>
+				<p>Enter the join code from the host and your display name.</p>
+			</div>
+			<form id="joinForm" class="join-form">
+				<input name="code" placeholder="Join code" autocomplete="off" required/>
+				if playerName != "" {
+					<input name="name" placeholder="Display name" autocomplete="name" value={ playerName } required/>
+				} else {
+					<input name="name" placeholder="Display name" autocomplete="name" required/>
+				}
+				<button type="submit" class="secondary">Join game</button>
+			</form>
+			<div id="joinResult" class="result"></div>
+		</section>
+
+		<section class="panel active-panel" id="activeGames" data-player-name={ playerName }>
+			<div>
+				<h2>Active games</h2>
+				<p>Jump into a lobby or keep an eye on games in progress.</p>
+			</div>
+			if len(games) == 0 {
+				<p id="noGames" class="hint">No active games yet.</p>
+			} else {
+				<p id="noGames" class="hint" style="display:none;">No active games yet.</p>
+			}
+			<div id="gameList" class="game-list">
+				for _, game := range games {
+					<div class="game-card">
+						<div>
+							<h3>{ game.ID }</h3>
+							<p class="meta">State: { game.Phase } · Players: { game.Players }</p>
+						</div>
+						<div class="game-actions">
+							if game.Phase == "lobby" {
+								<button
+									class="secondary join-active"
+									data-join-code={ game.JoinCode }
+									data-game-id={ game.ID }
+									data-result-id={ "joinResult-" + game.ID }
+									type="button"
+								>Join lobby</button>
+							} else {
+								<span class="status-pill">In progress</span>
+							}
+							<p id={ "joinResult-" + game.ID } class="result"></p>
+						</div>
 					</div>
-					<form id="joinForm" class="join-form">
-						<input name="code" placeholder="Join code" autocomplete="off" required/>
-						if playerName != "" {
-							<input name="name" placeholder="Display name" autocomplete="name" value={ playerName } required/>
-						} else {
-							<input name="name" placeholder="Display name" autocomplete="name" required/>
-						}
-						<button type="submit" class="secondary">Join game</button>
-					</form>
-					<div id="joinResult" class="result"></div>
-				</section>
+				}
+			</div>
+		</section>
 	}
 }

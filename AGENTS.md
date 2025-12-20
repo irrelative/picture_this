@@ -18,7 +18,7 @@
 - Prefer clear package names that match responsibility (e.g., `game`, `storage`, `web`).
 
 ## Testing Guidelines
-- Run `make test` and `make e2e-test` before committing changes.
+- Always run `make test` and `make e2e-test` for any code change before committing.
 - Use Go’s `_test.go` naming and table-driven tests where appropriate.
 - Favor integration tests for Postgres-backed flows once persistence is implemented.
 

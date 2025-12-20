@@ -54,7 +54,7 @@ def main():
     assert status == 200, f"join Bob failed: {status} {bob}"
     print(f"Joined players: Alice={alice['player_id']} Bob={bob['player_id']}")
 
-    status, started = request_json("POST", f"{base_url}/api/games/{game_id}/start", {})
+    status, started = request_json("POST", f"{base_url}/api/games/{game_id}/start", {"player_id": alice["player_id"]})
     assert status == 200, f"start game failed: {status} {started}"
     print(f"Started game phase={started.get('phase')}")
 
@@ -116,20 +116,27 @@ def main():
         if round_number < total_rounds:
             assert snapshot.get("phase") == "drawings", f"expected drawings phase, got {snapshot.get('phase')}"
         else:
-            assert snapshot.get("phase") == "votes", f"expected votes phase, got {snapshot.get('phase')}"
+            assert snapshot.get("phase") == "guesses-votes", f"expected guesses-votes phase, got {snapshot.get('phase')}"
 
-    status, vote = request_json(
-        "POST",
-        f"{base_url}/api/games/{game_id}/votes",
-        {"player_id": alice["player_id"], "guess": "wild guess"},
-    )
-    assert status == 200, f"vote failed: {vote}"
-    status, vote = request_json(
-        "POST",
-        f"{base_url}/api/games/{game_id}/votes",
-        {"player_id": bob["player_id"], "guess": "another guess"},
-    )
-    assert status == 200, f"vote failed: {vote}"
+    guard = 0
+    while snapshot.get("phase") == "guesses-votes" and guard < 20:
+        guard += 1
+        turn = snapshot.get("vote_turn")
+        assert turn, "no vote turn found"
+        voter = turn["voter_id"]
+        options = turn.get("options") or []
+        assert options, "no vote options"
+        choice = options[0]
+        status, _ = request_json(
+            "POST",
+            f"{base_url}/api/games/{game_id}/votes",
+            {"player_id": voter, "choice": choice},
+        )
+        assert status == 200, f"vote failed for player {voter}"
+        status, snapshot = request_json("GET", f"{base_url}/api/games/{game_id}")
+        assert status == 200, "snapshot failed"
+
+    assert snapshot.get("phase") == "results", f"expected results phase, got {snapshot.get('phase')}"
     print("Votes submitted")
 
     status, results = request_json("GET", f"{base_url}/api/games/{game_id}/results")

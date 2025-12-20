@@ -21,6 +21,12 @@ func main() {
 		log.Printf("database disabled: %v", err)
 	} else if err := db.Migrate(conn); err != nil {
 		log.Fatalf("database migration failed: %v", err)
+	} else {
+		if inserted, err := db.LoadPromptLibrary(conn, "prompts.csv"); err != nil {
+			log.Printf("failed to load prompts: %v", err)
+		} else if inserted > 0 {
+			log.Printf("loaded %d prompts", inserted)
+		}
 	}
 
 	addr := ":8080"

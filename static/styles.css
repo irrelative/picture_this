@@ -168,6 +168,12 @@ input {
   grid-template-columns: 1fr;
 }
 
+.guess-panel,
+.vote-panel,
+.results-panel {
+  grid-template-columns: 1fr;
+}
+
 .canvas-wrap {
   display: grid;
   gap: 12px;
@@ -187,6 +193,126 @@ input {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.host-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.guess-card,
+.vote-card {
+  display: grid;
+  gap: 12px;
+}
+
+.guess-image {
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid #e3e3e3;
+  background: #ffffff;
+}
+
+.guess-form,
+.vote-form {
+  display: grid;
+  gap: 12px;
+}
+
+.vote-options {
+  display: grid;
+  gap: 10px;
+}
+
+.vote-option {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #e3e3e3;
+  background: #ffffff;
+  font-weight: 600;
+}
+
+.results-list {
+  display: grid;
+  gap: 16px;
+}
+
+.result-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid #e3e3e3;
+  background: #ffffff;
+}
+
+.result-block {
+  display: grid;
+  gap: 6px;
+}
+
+.active-panel {
+  grid-template-columns: 1fr;
+}
+
+.game-list {
+  display: grid;
+  gap: 12px;
+}
+
+.game-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid #e3e3e3;
+  background: #ffffff;
+}
+
+.game-card h3 {
+  margin: 0 0 4px;
+}
+
+.game-card .meta {
+  margin: 0;
+  color: #5b6770;
+}
+
+.game-actions {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #ffe7c2;
+  color: #5b3b00;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.host-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #5b6770;
+}
+
+button.primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .prompt-card {

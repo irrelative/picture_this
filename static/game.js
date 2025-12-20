@@ -6,6 +6,7 @@ const gameError = document.getElementById("gameError");
 const startGame = document.getElementById("startGame");
 const endGame = document.getElementById("endGame");
 let pollTimer = null;
+let hostId = 0;
 
 async function loadGame() {
   if (!meta) return;
@@ -33,6 +34,7 @@ async function fetchSnapshot(gameId) {
 function updateFromSnapshot(data) {
   joinCode.textContent = data.join_code || "Unavailable";
   gameStatus.textContent = data.phase || "Unknown";
+  hostId = data.host_id || 0;
   if (startGame) {
     startGame.style.display = data.phase === "lobby" ? "inline-flex" : "none";
   }
@@ -89,7 +91,9 @@ if (startGame) {
     if (!meta) return;
     const gameId = meta.dataset.gameId;
     const res = await fetch(`/api/games/${encodeURIComponent(gameId)}/start`, {
-      method: "POST"
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ player_id: hostId || 0 })
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {

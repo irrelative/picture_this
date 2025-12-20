@@ -21,7 +21,7 @@ migrate-create:
 load-prompts:
 	go run ./cmd/load-prompts -file prompts.csv
 
-DATABASE_URL_TEST ?= postgres://user:password@localhost:5432/picture_this_test?sslmode=disable
+DATABASE_URL_TEST ?= postgres:///picture_this_test?sslmode=disable
 PORT_TEST ?= 8081
 
 e2e-test:
@@ -30,10 +30,10 @@ e2e-test:
 	DATABASE_URL="$(DATABASE_URL_TEST)" make migrate; \
 	PORT="$(PORT_TEST)" DATABASE_URL="$(DATABASE_URL_TEST)" make run > /tmp/picture_this_test.log 2>&1 & \
 	SERVER_PID=$$!; \
-	trap 'kill $$SERVER_PID' EXIT; \
+	trap 'kill $$SERVER_PID 2>/dev/null || true' EXIT; \
 	sleep 1; \
 	DATABASE_URL="$(DATABASE_URL_TEST)" make load-prompts; \
 	BASE_URL="http://localhost:$(PORT_TEST)" python3 scripts/e2e_game.py; \
-	kill $$SERVER_PID; \
+	kill $$SERVER_PID 2>/dev/null || true; \
 	wait $$SERVER_PID 2>/dev/null || true; \
 	trap - EXIT;

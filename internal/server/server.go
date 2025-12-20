@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -29,24 +30,25 @@ type Server struct {
 	store    *Store
 	db       *gorm.DB
 	ws       *wsHub
+	homeWS   *homeHub
 	cfg      config.Config
 	sessions *sessionStore
 }
 
 const (
-	phaseLobby    = "lobby"
-	phaseDrawings = "drawings"
-	phaseGuesses  = "guesses"
-	phaseVotes    = "votes"
-	phaseResults  = "results"
-	phaseComplete = "complete"
+	phaseLobby      = "lobby"
+	phaseDrawings   = "drawings"
+	phaseGuesses    = "guesses"
+	phaseGuessVotes = "guesses-votes"
+	phaseResults    = "results"
+	phaseComplete   = "complete"
 )
 
 var phaseOrder = []string{
 	phaseLobby,
 	phaseDrawings,
 	phaseGuesses,
-	phaseVotes,
+	phaseGuessVotes,
 	phaseResults,
 	phaseComplete,
 }
@@ -56,6 +58,7 @@ func New(conn *gorm.DB, cfg config.Config) *Server {
 		store:    NewStore(),
 		db:       conn,
 		ws:       newWSHub(),
+		homeWS:   newHomeHub(),
 		cfg:      cfg,
 		sessions: newSessionStore(conn),
 	}
@@ -72,6 +75,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/games/", s.handleGameSubroutes)
 	mux.HandleFunc("POST /api/games/", s.handleGameSubroutes)
 	mux.HandleFunc("GET /ws/games/", s.handleWebsocket)
+	mux.HandleFunc("GET /ws/home", s.handleHomeWebsocket)
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	return mux
 }
@@ -83,20 +87,29 @@ type Store struct {
 	games        map[string]*Game
 }
 
+type GameSummary struct {
+	ID       string
+	JoinCode string
+	Phase    string
+	Players  int
+}
+
 type Game struct {
 	ID               string
 	DBID             uint
 	JoinCode         string
 	Phase            string
+	HostID           int
 	Players          []Player
 	Rounds           []RoundState
 	PromptsPerPlayer int
 }
 
 type Player struct {
-	ID   int
-	Name string
-	DBID uint
+	ID     int
+	Name   string
+	IsHost bool
+	DBID   uint
 }
 
 type RoundState struct {
@@ -108,6 +121,8 @@ type RoundState struct {
 	Votes        []VoteEntry
 	GuessTurns   []GuessTurn
 	CurrentGuess int
+	VoteTurns    []VoteTurn
+	CurrentVote  int
 }
 
 type PromptEntry struct {
@@ -124,9 +139,10 @@ type DrawingEntry struct {
 }
 
 type GuessEntry struct {
-	PlayerID int
-	Text     string
-	DBID     uint
+	PlayerID     int
+	DrawingIndex int
+	Text         string
+	DBID         uint
 }
 
 type GuessTurn struct {
@@ -135,9 +151,16 @@ type GuessTurn struct {
 }
 
 type VoteEntry struct {
-	PlayerID  int
-	GuessText string
-	DBID      uint
+	PlayerID     int
+	DrawingIndex int
+	ChoiceText   string
+	ChoiceType   string
+	DBID         uint
+}
+
+type VoteTurn struct {
+	DrawingIndex int
+	VoterID      int
 }
 
 func NewStore() *Store {
@@ -231,12 +254,43 @@ func (s *Store) AddPlayer(gameIDOrCode, name string) (*Game, *Player, error) {
 	}
 
 	player := Player{
-		ID:   s.nextPlayerID,
-		Name: name,
+		ID:     s.nextPlayerID,
+		Name:   name,
+		IsHost: len(game.Players) == 0,
 	}
 	s.nextPlayerID++
 	game.Players = append(game.Players, player)
+	if player.IsHost {
+		game.HostID = player.ID
+	}
 	return game, &game.Players[len(game.Players)-1], nil
+}
+
+func (s *Store) ListGameSummaries() []GameSummary {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	games := make([]GameSummary, 0, len(s.games))
+	for _, game := range s.games {
+		games = append(games, GameSummary{
+			ID:       game.ID,
+			JoinCode: game.JoinCode,
+			Phase:    game.Phase,
+			Players:  len(game.Players),
+		})
+	}
+	sort.Slice(games, func(i, j int) bool {
+		return gameSortKey(games[i].ID) < gameSortKey(games[j].ID)
+	})
+	return games
+}
+
+func gameSortKey(id string) int {
+	if strings.HasPrefix(id, "game-") {
+		if parsed, err := strconv.Atoi(strings.TrimPrefix(id, "game-")); err == nil {
+			return parsed
+		}
+	}
+	return 0
 }
 
 func (s *Store) GetPlayer(gameID string, playerID int) (*Game, *Player, bool) {
@@ -288,6 +342,7 @@ func (s *Server) handleCreateGame(w http.ResponseWriter, r *http.Request) {
 		"join_code": game.JoinCode,
 	}
 	writeJSON(w, http.StatusCreated, resp)
+	s.broadcastHomeUpdate()
 }
 
 func (s *Server) handleGameView(w http.ResponseWriter, r *http.Request) {
@@ -312,7 +367,7 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 		flash = s.sessions.PopFlash(w, r)
 		name = s.sessions.GetName(w, r)
 	}
-	templ.Handler(web.Home(flash, name)).ServeHTTP(w, r)
+	templ.Handler(web.Home(flash, name, s.homeSummaries())).ServeHTTP(w, r)
 }
 
 func (s *Server) handleJoinView(w http.ResponseWriter, r *http.Request) {
@@ -440,6 +495,10 @@ type joinRequest struct {
 	Name string `json:"name"`
 }
 
+type startRequest struct {
+	PlayerID int `json:"player_id"`
+}
+
 func (s *Server) handleJoinGame(w http.ResponseWriter, r *http.Request, gameID string) {
 	var req joinRequest
 	if err := readJSON(r.Body, &req); err != nil || strings.TrimSpace(req.Name) == "" {
@@ -476,7 +535,15 @@ func (s *Server) handleJoinGame(w http.ResponseWriter, r *http.Request, gameID s
 }
 
 func (s *Server) handleStartGame(w http.ResponseWriter, r *http.Request, gameID string) {
+	var req startRequest
+	_ = readJSON(r.Body, &req)
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+		if len(game.Players) < 2 {
+			return errors.New("not enough players")
+		}
+		if game.HostID != 0 && req.PlayerID != 0 && req.PlayerID != game.HostID {
+			return errors.New("only host can start")
+		}
 		if game.Phase != phaseLobby {
 			return errors.New("game already started")
 		}
@@ -617,8 +684,9 @@ func (s *Server) handleGuesses(w http.ResponseWriter, r *http.Request, gameID st
 			return errors.New("not your turn")
 		}
 		round.Guesses = append(round.Guesses, GuessEntry{
-			PlayerID: player.ID,
-			Text:     req.Guess,
+			PlayerID:     player.ID,
+			DrawingIndex: turn.DrawingIndex,
+			Text:         req.Guess,
 		})
 		round.CurrentGuess++
 		if round.CurrentGuess >= len(round.GuessTurns) {
@@ -628,7 +696,10 @@ func (s *Server) handleGuesses(w http.ResponseWriter, r *http.Request, gameID st
 					Number: len(game.Rounds) + 1,
 				})
 			} else {
-				game.Phase = phaseVotes
+				if err := s.buildVoteTurns(game, round); err != nil {
+					return err
+				}
+				game.Phase = phaseGuessVotes
 			}
 		}
 		return nil
@@ -641,7 +712,15 @@ func (s *Server) handleGuesses(w http.ResponseWriter, r *http.Request, gameID st
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
-	if err := s.persistGuess(game, req.PlayerID, req.Guess); err != nil {
+	turnIndex := 0
+	if round := currentRound(game); round != nil && round.CurrentGuess > 0 {
+		turnIndex = round.CurrentGuess - 1
+	}
+	drawingIndex := -1
+	if round := currentRound(game); round != nil && turnIndex < len(round.GuessTurns) {
+		drawingIndex = round.GuessTurns[turnIndex].DrawingIndex
+	}
+	if err := s.persistGuess(game, req.PlayerID, drawingIndex, req.Guess); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to save guesses")
 		return
 	}
@@ -655,7 +734,7 @@ func (s *Server) handleGuesses(w http.ResponseWriter, r *http.Request, gameID st
 			return
 		}
 	}
-	if game.Phase == phaseDrawings || game.Phase == phaseVotes {
+	if game.Phase == phaseDrawings || game.Phase == phaseGuessVotes {
 		if err := s.persistPhase(game, "game_advanced", map[string]any{"phase": game.Phase}); err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to advance game")
 			return
@@ -669,17 +748,26 @@ func (s *Server) handleGuesses(w http.ResponseWriter, r *http.Request, gameID st
 
 type votesRequest struct {
 	PlayerID int    `json:"player_id"`
+	Choice   string `json:"choice"`
 	Guess    string `json:"guess"`
 }
 
 func (s *Server) handleVotes(w http.ResponseWriter, r *http.Request, gameID string) {
 	var req votesRequest
-	if err := readJSON(r.Body, &req); err != nil || req.PlayerID <= 0 || strings.TrimSpace(req.Guess) == "" {
+	if err := readJSON(r.Body, &req); err != nil || req.PlayerID <= 0 {
+		writeError(w, http.StatusBadRequest, "votes are required")
+		return
+	}
+	choiceText := strings.TrimSpace(req.Choice)
+	if choiceText == "" {
+		choiceText = strings.TrimSpace(req.Guess)
+	}
+	if choiceText == "" {
 		writeError(w, http.StatusBadRequest, "votes are required")
 		return
 	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
-		if game.Phase != phaseVotes {
+		if game.Phase != phaseGuessVotes {
 			return errors.New("votes not accepted in this phase")
 		}
 		player, ok := s.store.FindPlayer(game, req.PlayerID)
@@ -690,10 +778,36 @@ func (s *Server) handleVotes(w http.ResponseWriter, r *http.Request, gameID stri
 		if round == nil {
 			return errors.New("round not started")
 		}
+		if round.CurrentVote >= len(round.VoteTurns) {
+			return errors.New("no active vote turn")
+		}
+		turn := round.VoteTurns[round.CurrentVote]
+		if turn.VoterID != player.ID {
+			return errors.New("not your turn")
+		}
+		for _, vote := range round.Votes {
+			if vote.PlayerID == player.ID && vote.DrawingIndex == turn.DrawingIndex {
+				return errors.New("vote already submitted")
+			}
+		}
+		options := voteOptionsForDrawing(round, turn.DrawingIndex)
+		if !containsOption(options, choiceText) {
+			return errors.New("invalid vote option")
+		}
+		choiceType := "guess"
+		if drawingPrompt(round, turn.DrawingIndex) == choiceText {
+			choiceType = "prompt"
+		}
 		round.Votes = append(round.Votes, VoteEntry{
-			PlayerID:  player.ID,
-			GuessText: req.Guess,
+			PlayerID:     player.ID,
+			DrawingIndex: turn.DrawingIndex,
+			ChoiceText:   choiceText,
+			ChoiceType:   choiceType,
 		})
+		round.CurrentVote++
+		if round.CurrentVote >= len(round.VoteTurns) {
+			game.Phase = phaseResults
+		}
 		return nil
 	})
 	if err != nil {
@@ -704,9 +818,28 @@ func (s *Server) handleVotes(w http.ResponseWriter, r *http.Request, gameID stri
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
-	if err := s.persistVote(game, req.PlayerID, req.Guess); err != nil {
+	turnIndex := 0
+	if round := currentRound(game); round != nil && round.CurrentVote > 0 {
+		turnIndex = round.CurrentVote - 1
+	}
+	drawingIndex := -1
+	if round := currentRound(game); round != nil && turnIndex < len(round.VoteTurns) {
+		drawingIndex = round.VoteTurns[turnIndex].DrawingIndex
+	}
+	choiceType := "guess"
+	if round := currentRound(game); round != nil && drawingPrompt(round, drawingIndex) == choiceText {
+		choiceType = "prompt"
+	}
+	if err := s.persistVote(game, req.PlayerID, drawingIndex, choiceText, choiceType); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to save votes")
 		return
+	}
+	if game.Phase == phaseResults {
+		if err := s.persistPhase(game, "game_advanced", map[string]any{"phase": game.Phase}); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to advance game")
+			return
+		}
+		log.Printf("game advanced game_id=%s phase=%s", game.ID, game.Phase)
 	}
 	log.Printf("vote submitted game_id=%s player_id=%d", game.ID, req.PlayerID)
 	writeJSON(w, http.StatusOK, snapshot(game))
@@ -720,6 +853,18 @@ func (s *Server) handleAdvance(w http.ResponseWriter, r *http.Request, gameID st
 			return errors.New("no next phase")
 		}
 		game.Phase = next
+		if next == phaseGuesses {
+			round := currentRound(game)
+			if err := s.buildGuessTurns(game, round); err != nil {
+				return err
+			}
+		}
+		if next == phaseGuessVotes {
+			round := currentRound(game)
+			if err := s.buildVoteTurns(game, round); err != nil {
+				return err
+			}
+		}
 		return nil
 	})
 	if err != nil {
@@ -803,6 +948,7 @@ func (s *Server) handleResults(w http.ResponseWriter, r *http.Request, gameID st
 		"game_id": game.ID,
 		"phase":   game.Phase,
 		"players": extractPlayerNames(game.Players),
+		"results": buildResults(game),
 		"counts": map[string]int{
 			"prompts":  promptsCount,
 			"drawings": drawingsCount,
@@ -839,6 +985,24 @@ func (s *Server) handleWebsocket(w http.ResponseWriter, r *http.Request) {
 		s.ws.Send(conn, snapshot(game))
 	}
 	go s.readWS(gameID, conn, isHost)
+}
+
+func (s *Server) handleHomeWebsocket(w http.ResponseWriter, r *http.Request) {
+	upgrader := websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool {
+			return true
+		},
+	}
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
+	log.Printf("ws connected home remote=%s", r.RemoteAddr)
+	s.homeWS.Add(conn)
+	s.homeWS.Send(conn, map[string]any{
+		"games": s.homeSummaries(),
+	})
+	go s.readHomeWS(conn)
 }
 
 func parseGamePath(path string) (string, string, bool) {
@@ -939,6 +1103,13 @@ func decodeImageData(data string) ([]byte, error) {
 	return decoded, nil
 }
 
+func encodeImageData(image []byte) string {
+	if len(image) == 0 {
+		return ""
+	}
+	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(image)
+}
+
 func promptForPlayer(round *RoundState, playerID int) string {
 	if round == nil {
 		return ""
@@ -965,16 +1136,67 @@ func findPromptForPlayer(round *RoundState, playerID int, promptText string) (Pr
 	return PromptEntry{}, false
 }
 
+func drawingPrompt(round *RoundState, drawingIndex int) string {
+	if round == nil || drawingIndex < 0 || drawingIndex >= len(round.Drawings) {
+		return ""
+	}
+	return round.Drawings[drawingIndex].Prompt
+}
+
+func voteOptionsForDrawing(round *RoundState, drawingIndex int) []string {
+	if round == nil || drawingIndex < 0 || drawingIndex >= len(round.Drawings) {
+		return nil
+	}
+	seen := make(map[string]struct{})
+	options := make([]string, 0, 1+len(round.Guesses))
+	prompt := round.Drawings[drawingIndex].Prompt
+	if prompt != "" {
+		seen[prompt] = struct{}{}
+		options = append(options, prompt)
+	}
+	for _, guess := range round.Guesses {
+		if guess.DrawingIndex != drawingIndex {
+			continue
+		}
+		if _, ok := seen[guess.Text]; ok {
+			continue
+		}
+		seen[guess.Text] = struct{}{}
+		options = append(options, guess.Text)
+	}
+	return options
+}
+
+func containsOption(options []string, choice string) bool {
+	for _, option := range options {
+		if option == choice {
+			return true
+		}
+	}
+	return false
+}
+
 type wsHub struct {
 	mu     sync.Mutex
 	groups map[string]map[*websocket.Conn]struct{}
 	hosts  map[string]map[*websocket.Conn]struct{}
 }
 
+type homeHub struct {
+	mu    sync.Mutex
+	conns map[*websocket.Conn]struct{}
+}
+
 func newWSHub() *wsHub {
 	return &wsHub{
 		groups: make(map[string]map[*websocket.Conn]struct{}),
 		hosts:  make(map[string]map[*websocket.Conn]struct{}),
+	}
+}
+
+func newHomeHub() *homeHub {
+	return &homeHub{
+		conns: make(map[*websocket.Conn]struct{}),
 	}
 }
 
@@ -994,6 +1216,45 @@ func (h *wsHub) Add(gameID string, conn *websocket.Conn, isHost bool) {
 			h.hosts[gameID] = hostGroup
 		}
 		hostGroup[conn] = struct{}{}
+	}
+}
+
+func (h *homeHub) Add(conn *websocket.Conn) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.conns[conn] = struct{}{}
+}
+
+func (h *homeHub) Remove(conn *websocket.Conn) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	delete(h.conns, conn)
+	_ = conn.Close()
+}
+
+func (h *homeHub) Send(conn *websocket.Conn, payload any) {
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return
+	}
+	_ = conn.WriteMessage(websocket.TextMessage, data)
+}
+
+func (h *homeHub) Broadcast(payload any) {
+	h.mu.Lock()
+	conns := make([]*websocket.Conn, 0, len(h.conns))
+	for conn := range h.conns {
+		conns = append(conns, conn)
+	}
+	h.mu.Unlock()
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return
+	}
+	for _, conn := range conns {
+		if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
+			h.Remove(conn)
+		}
 	}
 }
 
@@ -1056,8 +1317,11 @@ func snapshot(game *Game) map[string]any {
 	votesCount := 0
 	roundNumber := 0
 	var guessTurn map[string]any
+	var voteTurn map[string]any
+	var results any
 	if round != nil {
 		roundNumber = round.Number
+		promptsCount = len(round.Prompts)
 		drawingsCount = len(round.Drawings)
 		guessesCount = len(round.Guesses)
 		votesCount = len(round.Votes)
@@ -1068,19 +1332,40 @@ func snapshot(game *Game) map[string]any {
 				"guesser_id":    turn.GuesserID,
 			}
 			if turn.DrawingIndex >= 0 && turn.DrawingIndex < len(round.Drawings) {
-				guessTurn["drawing_owner"] = round.Drawings[turn.DrawingIndex].PlayerID
+				drawing := round.Drawings[turn.DrawingIndex]
+				guessTurn["drawing_owner"] = drawing.PlayerID
+				guessTurn["drawing_image"] = encodeImageData(drawing.ImageData)
 			}
+		}
+		if round.CurrentVote < len(round.VoteTurns) {
+			turn := round.VoteTurns[round.CurrentVote]
+			voteTurn = map[string]any{
+				"drawing_index": turn.DrawingIndex,
+				"voter_id":      turn.VoterID,
+			}
+			if turn.DrawingIndex >= 0 && turn.DrawingIndex < len(round.Drawings) {
+				drawing := round.Drawings[turn.DrawingIndex]
+				voteTurn["drawing_owner"] = drawing.PlayerID
+				voteTurn["drawing_image"] = encodeImageData(drawing.ImageData)
+				voteTurn["options"] = voteOptionsForDrawing(round, turn.DrawingIndex)
+			}
+		}
+		if game.Phase == phaseResults || game.Phase == phaseComplete {
+			results = buildResults(game)
 		}
 	}
 	return map[string]any{
 		"game_id":            game.ID,
 		"join_code":          game.JoinCode,
 		"phase":              game.Phase,
+		"host_id":            game.HostID,
 		"players":            extractPlayerNames(game.Players),
 		"round_number":       roundNumber,
 		"total_rounds":       game.PromptsPerPlayer,
 		"guess_turn":         guessTurn,
+		"vote_turn":          voteTurn,
 		"prompts_per_player": game.PromptsPerPlayer,
+		"results":            results,
 		"counts": map[string]int{
 			"prompts":  promptsCount,
 			"drawings": drawingsCount,
@@ -1096,6 +1381,53 @@ func extractPlayerNames(players []Player) []string {
 		names = append(names, player.Name)
 	}
 	return names
+}
+
+func buildResults(game *Game) []map[string]any {
+	round := currentRound(game)
+	if round == nil {
+		return nil
+	}
+	playerNames := make(map[int]string, len(game.Players))
+	for _, player := range game.Players {
+		playerNames[player.ID] = player.Name
+	}
+	results := make([]map[string]any, 0, len(round.Drawings))
+	for drawingIndex, drawing := range round.Drawings {
+		guesses := make([]map[string]any, 0)
+		for _, guess := range round.Guesses {
+			if guess.DrawingIndex != drawingIndex {
+				continue
+			}
+			guesses = append(guesses, map[string]any{
+				"player_id":   guess.PlayerID,
+				"player_name": playerNames[guess.PlayerID],
+				"text":        guess.Text,
+			})
+		}
+		votes := make([]map[string]any, 0)
+		for _, vote := range round.Votes {
+			if vote.DrawingIndex != drawingIndex {
+				continue
+			}
+			votes = append(votes, map[string]any{
+				"player_id":   vote.PlayerID,
+				"player_name": playerNames[vote.PlayerID],
+				"text":        vote.ChoiceText,
+				"type":        vote.ChoiceType,
+			})
+		}
+		results = append(results, map[string]any{
+			"drawing_index":      drawingIndex,
+			"drawing_owner":      drawing.PlayerID,
+			"drawing_owner_name": playerNames[drawing.PlayerID],
+			"drawing_image":      encodeImageData(drawing.ImageData),
+			"prompt":             drawing.Prompt,
+			"guesses":            guesses,
+			"votes":              votes,
+		})
+	}
+	return results
 }
 
 func currentRound(game *Game) *RoundState {
@@ -1130,6 +1462,35 @@ func (s *Server) buildGuessTurns(game *Game, round *RoundState) error {
 	}
 	if len(round.GuessTurns) == 0 {
 		return errors.New("no guess turns available")
+	}
+	return nil
+}
+
+func (s *Server) buildVoteTurns(game *Game, round *RoundState) error {
+	if round == nil {
+		return errors.New("round not started")
+	}
+	if len(round.Drawings) == 0 {
+		return errors.New("no drawings submitted")
+	}
+	if len(round.VoteTurns) > 0 {
+		return nil
+	}
+	round.VoteTurns = nil
+	round.CurrentVote = 0
+	for drawingIndex, drawing := range round.Drawings {
+		for _, player := range game.Players {
+			if player.ID == drawing.PlayerID {
+				continue
+			}
+			round.VoteTurns = append(round.VoteTurns, VoteTurn{
+				DrawingIndex: drawingIndex,
+				VoterID:      player.ID,
+			})
+		}
+	}
+	if len(round.VoteTurns) == 0 {
+		return errors.New("no vote turns available")
 	}
 	return nil
 }
@@ -1230,6 +1591,7 @@ func (s *Server) persistPlayer(game *Game, player *Player) (int, error) {
 	record := db.Player{
 		GameID:   game.DBID,
 		Name:     player.Name,
+		IsHost:   player.IsHost,
 		JoinedAt: time.Now().UTC(),
 	}
 	if err := s.db.Create(&record).Error; err != nil {
@@ -1473,12 +1835,25 @@ func (s *Server) persistDrawing(game *Game, playerID int, image []byte, promptTe
 	if err := s.db.Create(&record).Error; err != nil {
 		return err
 	}
+	s.store.UpdateGame(game.ID, func(game *Game) error {
+		round := currentRound(game)
+		if round == nil {
+			return nil
+		}
+		for i := range round.Drawings {
+			if round.Drawings[i].PlayerID == playerID {
+				round.Drawings[i].DBID = record.ID
+				break
+			}
+		}
+		return nil
+	})
 	return s.persistEvent(game, "drawings_submitted", map[string]any{
 		"player_id": playerID,
 	})
 }
 
-func (s *Server) persistGuess(game *Game, playerID int, guess string) error {
+func (s *Server) persistGuess(game *Game, playerID int, drawingIndex int, guess string) error {
 	if s.db == nil {
 		return s.persistEvent(game, "guesses_submitted", map[string]any{
 			"player_id": playerID,
@@ -1498,10 +1873,14 @@ func (s *Server) persistGuess(game *Game, playerID int, guess string) error {
 	if !ok || player.DBID == 0 {
 		return errors.New("player not found")
 	}
+	drawingID := uint(0)
+	if drawingIndex >= 0 && drawingIndex < len(round.Drawings) {
+		drawingID = round.Drawings[drawingIndex].DBID
+	}
 	record := db.Guess{
 		RoundID:   round.DBID,
 		PlayerID:  player.DBID,
-		DrawingID: 0,
+		DrawingID: drawingID,
 		Text:      guess,
 	}
 	if err := s.db.Create(&record).Error; err != nil {
@@ -1513,11 +1892,11 @@ func (s *Server) persistGuess(game *Game, playerID int, guess string) error {
 	})
 }
 
-func (s *Server) persistVote(game *Game, playerID int, guess string) error {
+func (s *Server) persistVote(game *Game, playerID int, drawingIndex int, choiceText string, choiceType string) error {
 	if s.db == nil {
 		return s.persistEvent(game, "votes_submitted", map[string]any{
 			"player_id": playerID,
-			"guess":     guess,
+			"choice":    choiceText,
 		})
 	}
 	round := currentRound(game)
@@ -1533,17 +1912,24 @@ func (s *Server) persistVote(game *Game, playerID int, guess string) error {
 	if !ok || player.DBID == 0 {
 		return errors.New("player not found")
 	}
+	drawingID := uint(0)
+	if drawingIndex >= 0 && drawingIndex < len(round.Drawings) {
+		drawingID = round.Drawings[drawingIndex].DBID
+	}
 	record := db.Vote{
-		RoundID:  round.DBID,
-		PlayerID: player.DBID,
-		GuessID:  0,
+		RoundID:    round.DBID,
+		PlayerID:   player.DBID,
+		DrawingID:  drawingID,
+		GuessID:    0,
+		ChoiceText: choiceText,
+		ChoiceType: choiceType,
 	}
 	if err := s.db.Create(&record).Error; err != nil {
 		return err
 	}
 	return s.persistEvent(game, "votes_submitted", map[string]any{
 		"player_id": playerID,
-		"guess":     guess,
+		"choice":    choiceText,
 	})
 }
 
@@ -1688,6 +2074,7 @@ func (s *Server) broadcastGameUpdate(game *Game) {
 		return
 	}
 	s.ws.Broadcast(game.ID, snapshot(game))
+	s.broadcastHomeUpdate()
 }
 
 func (s *Server) readWS(gameID string, conn *websocket.Conn, isHost bool) {
@@ -1701,4 +2088,36 @@ func (s *Server) readWS(gameID string, conn *websocket.Conn, isHost bool) {
 			return
 		}
 	}
+}
+
+func (s *Server) readHomeWS(conn *websocket.Conn) {
+	defer s.homeWS.Remove(conn)
+	for {
+		if _, _, err := conn.ReadMessage(); err != nil {
+			log.Printf("home ws disconnected error=%v", err)
+			return
+		}
+	}
+}
+
+func (s *Server) broadcastHomeUpdate() {
+	if s.homeWS == nil {
+		return
+	}
+	s.homeWS.Broadcast(map[string]any{
+		"games": s.homeSummaries(),
+	})
+}
+
+func (s *Server) homeSummaries() []web.GameSummary {
+	summaries := make([]web.GameSummary, 0)
+	for _, game := range s.store.ListGameSummaries() {
+		summaries = append(summaries, web.GameSummary{
+			ID:       game.ID,
+			JoinCode: game.JoinCode,
+			Phase:    game.Phase,
+			Players:  game.Players,
+		})
+	}
+	return summaries
 }
