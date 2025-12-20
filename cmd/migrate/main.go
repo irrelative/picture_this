@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"picture-this/internal/config"
 
@@ -17,9 +18,13 @@ func main() {
 		log.Printf("failed to load .env: %v", err)
 	}
 
-	sourceURL, err := migrationSourceURL()
+	sourceURL, hasFiles, err := migrationSourceURL()
 	if err != nil {
 		log.Fatalf("migration source error: %v", err)
+	}
+	if !hasFiles {
+		log.Println("no migrations found")
+		return
 	}
 
 	m, err := migrate.New(sourceURL, mustDatabaseURL())
@@ -40,14 +45,33 @@ func mustDatabaseURL() string {
 	return dsn
 }
 
-func migrationSourceURL() (string, error) {
+func migrationSourceURL() (string, bool, error) {
 	path := filepath.Join("db", "migrations")
 	if err := os.MkdirAll(path, 0o755); err != nil {
-		return "", err
+		return "", false, err
+	}
+	if !hasMigrationFiles(path) {
+		return "", false, nil
 	}
 	abs, err := filepath.Abs(path)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
-	return "file://" + abs, nil
+	return "file://" + abs, true, nil
+}
+
+func hasMigrationFiles(path string) bool {
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return false
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if strings.HasSuffix(entry.Name(), ".sql") {
+			return true
+		}
+	}
+	return false
 }
