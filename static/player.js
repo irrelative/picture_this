@@ -8,7 +8,6 @@ const drawSection = document.getElementById("drawSection");
 const promptText = document.getElementById("promptText");
 const promptChoices = document.getElementById("promptChoices");
 const canvas = document.getElementById("drawCanvas");
-const clearCanvas = document.getElementById("clearCanvas");
 const saveCanvas = document.getElementById("saveCanvas");
 
 const CANVAS_WIDTH = 800;
@@ -175,14 +174,6 @@ function setupCanvas() {
 
   canvas.addEventListener("pointerleave", endDraw);
   canvas.addEventListener("pointercancel", endDraw);
-
-  if (clearCanvas) {
-    clearCanvas.addEventListener("click", () => {
-      ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-    });
-  }
 
   if (saveCanvas) {
     saveCanvas.addEventListener("click", async () => {
