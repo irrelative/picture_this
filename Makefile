@@ -10,3 +10,6 @@ build:
 
 test:
 	go test ./...
+
+migrate:
+	go run ./cmd/server
