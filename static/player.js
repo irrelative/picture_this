@@ -4,9 +4,6 @@ const gameStatus = document.getElementById("gameStatus");
 const playerList = document.getElementById("playerList");
 const playerName = document.getElementById("playerName");
 const playerError = document.getElementById("playerError");
-const promptSection = document.getElementById("promptSection");
-const promptForm = document.getElementById("promptForm");
-const promptStatus = document.getElementById("promptStatus");
 const drawSection = document.getElementById("drawSection");
 const canvas = document.getElementById("drawCanvas");
 const clearCanvas = document.getElementById("clearCanvas");
@@ -15,7 +12,6 @@ const saveCanvas = document.getElementById("saveCanvas");
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 600;
 let pollTimer = null;
-let promptsPerPlayer = 2;
 
 async function loadPlayerView() {
   if (!meta) return;
@@ -49,10 +45,6 @@ async function fetchSnapshot(gameId) {
 function updateFromSnapshot(data) {
   joinCode.textContent = data.join_code || "Unavailable";
   gameStatus.textContent = data.phase || "Unknown";
-  if (typeof data.prompts_per_player === "number" && data.prompts_per_player > 0) {
-    promptsPerPlayer = data.prompts_per_player;
-  }
-
   playerList.innerHTML = "";
   const players = Array.isArray(data.players) ? data.players : [];
   if (players.length === 0) {
@@ -67,14 +59,8 @@ function updateFromSnapshot(data) {
     playerList.appendChild(item);
   });
 
-  if (promptSection) {
-    promptSection.style.display = data.phase === "prompts" ? "grid" : "none";
-  }
   if (drawSection) {
     drawSection.style.display = data.phase === "drawings" ? "grid" : "none";
-  }
-  if (promptForm && promptForm.children.length !== promptsPerPlayer + 1) {
-    renderPromptInputs();
   }
 }
 
@@ -212,63 +198,3 @@ function setupCanvas() {
 }
 
 setupCanvas();
-
-function renderPromptInputs() {
-  if (!promptForm) return;
-  promptForm.innerHTML = "";
-  for (let i = 0; i < promptsPerPlayer; i += 1) {
-    const input = document.createElement("input");
-    input.name = `prompt-${i + 1}`;
-    input.placeholder = `Prompt ${i + 1}`;
-    input.required = true;
-    promptForm.appendChild(input);
-  }
-  const button = document.createElement("button");
-  button.type = "submit";
-  button.className = "primary";
-  button.textContent = "Submit prompts";
-  promptForm.appendChild(button);
-}
-
-if (promptForm) {
-  promptForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    if (!meta) return;
-    const gameId = meta.dataset.gameId;
-    const playerId = Number(meta.dataset.playerId);
-    const prompts = [];
-    for (let i = 0; i < promptForm.elements.length; i += 1) {
-      const element = promptForm.elements[i];
-      if (element.tagName === "INPUT") {
-        const value = element.value.trim();
-        if (value) {
-          prompts.push(value);
-        }
-      }
-    }
-    if (prompts.length === 0) {
-      if (promptStatus) {
-        promptStatus.textContent = "Add at least one prompt.";
-      }
-      return;
-    }
-    if (promptStatus) {
-      promptStatus.textContent = "Submitting prompts...";
-    }
-    const res = await fetch(`/api/games/${encodeURIComponent(gameId)}/prompts`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ player_id: playerId, prompts })
-    });
-    const payload = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      if (promptStatus) {
-        promptStatus.textContent = payload.error || "Unable to submit prompts.";
-      }
-      return;
-    }
-    if (promptStatus) {
-      promptStatus.textContent = "Prompts submitted!";
-    }
-  });
-}

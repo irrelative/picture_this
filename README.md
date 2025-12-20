@@ -46,8 +46,8 @@ This project uses the following technology:
 - `GET /ws/games/{game_id}` — websocket for realtime state/events.
 
 ## Game State Transition Flow (Draft)
-- Phases: `lobby` -> `prompts` -> `drawings` -> `guesses` -> `votes` -> `results` -> `complete`.
-- `POST /api/games/{game_id}/start` moves `lobby` to `prompts`.
+- Phases: `lobby` -> `drawings` -> `guesses` -> `votes` -> `results` -> `complete`.
+- `POST /api/games/{game_id}/start` moves `lobby` to `drawings`.
 - `POST /api/games/{game_id}/advance` moves to the next phase in order.
 - When a phase is completed, submissions lock and the host advances.
 - Results are shown in `results`, then the game is marked `complete`.

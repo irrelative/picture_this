@@ -34,7 +34,6 @@ type Server struct {
 
 const (
 	phaseLobby    = "lobby"
-	phasePrompts  = "prompts"
 	phaseDrawings = "drawings"
 	phaseGuesses  = "guesses"
 	phaseVotes    = "votes"
@@ -44,7 +43,6 @@ const (
 
 var phaseOrder = []string{
 	phaseLobby,
-	phasePrompts,
 	phaseDrawings,
 	phaseGuesses,
 	phaseVotes,
@@ -417,7 +415,7 @@ func (s *Server) handleStartGame(w http.ResponseWriter, r *http.Request, gameID 
 		if game.Phase != phaseLobby {
 			return errors.New("game already started")
 		}
-		game.Phase = phasePrompts
+		game.Phase = phaseDrawings
 		game.Rounds = append(game.Rounds, RoundState{
 			Number: len(game.Rounds) + 1,
 		})
@@ -450,56 +448,7 @@ type promptsRequest struct {
 }
 
 func (s *Server) handlePrompts(w http.ResponseWriter, r *http.Request, gameID string) {
-	var req promptsRequest
-	if err := readJSON(r.Body, &req); err != nil || len(req.Prompts) == 0 || req.PlayerID <= 0 {
-		writeError(w, http.StatusBadRequest, "prompts are required")
-		return
-	}
-	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
-		if game.Phase != phasePrompts {
-			return errors.New("prompts not accepted in this phase")
-		}
-		player, ok := s.store.FindPlayer(game, req.PlayerID)
-		if !ok {
-			return errors.New("player not found")
-		}
-		round := currentRound(game)
-		if round == nil {
-			return errors.New("round not started")
-		}
-		existing := 0
-		for _, entry := range round.Prompts {
-			if entry.PlayerID == req.PlayerID {
-				existing++
-			}
-		}
-		if existing+len(req.Prompts) > game.PromptsPerPlayer {
-			return errors.New("prompt limit exceeded")
-		}
-		for _, prompt := range req.Prompts {
-			round.Prompts = append(round.Prompts, PromptEntry{
-				PlayerID: player.ID,
-				Text:     prompt,
-			})
-		}
-		game.Prompts = append(game.Prompts, req.Prompts...)
-		return nil
-	})
-	if err != nil {
-		if err.Error() == "game not found" {
-			http.NotFound(w, r)
-			return
-		}
-		writeError(w, http.StatusConflict, err.Error())
-		return
-	}
-	if err := s.persistPrompts(game, req.PlayerID, req.Prompts); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to save prompts")
-		return
-	}
-	log.Printf("prompts submitted game_id=%s player_id=%d count=%d", game.ID, req.PlayerID, len(req.Prompts))
-	writeJSON(w, http.StatusOK, snapshot(game))
-	s.broadcastGameUpdate(game)
+	writeError(w, http.StatusGone, "prompt entry is disabled")
 }
 
 type drawingsRequest struct {
@@ -871,7 +820,6 @@ func snapshot(game *Game) map[string]any {
 	roundNumber := 0
 	if round != nil {
 		roundNumber = round.Number
-		promptsCount = len(round.Prompts)
 		drawingsCount = len(round.Drawings)
 		guessesCount = len(round.Guesses)
 		votesCount = len(round.Votes)

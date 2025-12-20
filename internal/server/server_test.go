@@ -176,14 +176,12 @@ func TestSubmitPrompts(t *testing.T) {
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
-	playerID := joinPlayer(t, ts, gameID, "Ada")
-	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/start", map[string]any{})
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/prompts", map[string]any{
-		"player_id": playerID,
+		"player_id": 1,
 		"prompts":   []string{"prompt-1"},
 	})
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	if resp.StatusCode != http.StatusGone {
+		t.Fatalf("expected status %d, got %d", http.StatusGone, resp.StatusCode)
 	}
 }
 
@@ -195,7 +193,6 @@ func TestSubmitDrawings(t *testing.T) {
 	gameID := createGame(t, ts)
 	playerID := joinPlayer(t, ts, gameID, "Ada")
 	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/start", map[string]any{})
-	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/advance", map[string]any{})
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/drawings", map[string]any{
 		"player_id":  playerID,
 		"image_data": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMBAp4pWZkAAAAASUVORK5CYII=",
@@ -214,7 +211,6 @@ func TestSubmitGuesses(t *testing.T) {
 	playerID := joinPlayer(t, ts, gameID, "Ada")
 	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/start", map[string]any{})
 	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/advance", map[string]any{})
-	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/advance", map[string]any{})
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/guesses", map[string]any{
 		"player_id": playerID,
 		"guess":     "guess-1",
@@ -232,7 +228,6 @@ func TestSubmitVotes(t *testing.T) {
 	gameID := createGame(t, ts)
 	playerID := joinPlayer(t, ts, gameID, "Ada")
 	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/start", map[string]any{})
-	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/advance", map[string]any{})
 	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/advance", map[string]any{})
 	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/advance", map[string]any{})
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/votes", map[string]any{
