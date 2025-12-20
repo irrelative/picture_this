@@ -54,14 +54,14 @@ func PlayerView(gameID string, playerID int, playerName string) templ.Component 
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</strong>.</p></div><ul id=\"playerList\" class=\"player-list\"></ul></section><div id=\"playerMeta\" data-game-id=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</strong>.</p></div><ul id=\"playerList\" class=\"player-list\"></ul></section><p id=\"playerError\" class=\"result error\"></p><div id=\"playerMeta\" data-game-id=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(gameID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 30, Col: 44}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 31, Col: 44}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -74,7 +74,7 @@ func PlayerView(gameID string, playerID int, playerName string) templ.Component 
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(playerID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 30, Col: 72}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 31, Col: 72}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -87,7 +87,7 @@ func PlayerView(gameID string, playerID int, playerName string) templ.Component 
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(playerName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 30, Col: 104}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 31, Col: 104}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {

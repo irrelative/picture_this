@@ -3,6 +3,7 @@ const joinCode = document.getElementById("joinCode");
 const gameStatus = document.getElementById("gameStatus");
 const playerList = document.getElementById("playerList");
 const playerName = document.getElementById("playerName");
+const playerError = document.getElementById("playerError");
 
 async function loadPlayerView() {
   if (!meta) return;
@@ -14,12 +15,18 @@ async function loadPlayerView() {
   }
 
   const res = await fetch(`/api/games/${encodeURIComponent(gameId)}`);
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     joinCode.textContent = "Unavailable";
     gameStatus.textContent = "Unknown";
+    if (playerError) {
+      playerError.textContent = data.error || "Unable to load game status.";
+    }
     return;
   }
-  const data = await res.json();
+  if (playerError) {
+    playerError.textContent = "";
+  }
   joinCode.textContent = data.join_code || "Unavailable";
   gameStatus.textContent = data.phase || "Unknown";
 

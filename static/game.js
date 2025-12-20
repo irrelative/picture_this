@@ -2,17 +2,24 @@ const meta = document.getElementById("gameMeta");
 const joinCode = document.getElementById("joinCode");
 const gameStatus = document.getElementById("gameStatus");
 const playerList = document.getElementById("playerList");
+const gameError = document.getElementById("gameError");
 
 async function loadGame() {
   if (!meta) return;
   const gameId = meta.dataset.gameId;
   const res = await fetch(`/api/games/${encodeURIComponent(gameId)}`);
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     joinCode.textContent = "Unavailable";
     gameStatus.textContent = "Unknown";
+    if (gameError) {
+      gameError.textContent = data.error || "Unable to load game status.";
+    }
     return;
   }
-  const data = await res.json();
+  if (gameError) {
+    gameError.textContent = "";
+  }
   joinCode.textContent = data.join_code || "Unavailable";
   gameStatus.textContent = data.phase || "Unknown";
 

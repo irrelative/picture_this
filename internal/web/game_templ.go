@@ -41,14 +41,14 @@ func GameView(gameID string) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<header class=\"hero\"><span class=\"tag\">Game Lobby</span><h1>Gather your players</h1><p>Share the join code below so everyone can jump in.</p></header><section class=\"panel\"><div><h2>Join code</h2><p id=\"joinCode\" class=\"join-code\">Loading...</p></div><div class=\"status\"><span class=\"label\">Status</span><p id=\"gameStatus\">Loading...</p></div></section><section class=\"panel\"><div><h2>Players</h2><p>Waiting for everyone to arrive.</p></div><ul id=\"playerList\" class=\"player-list\"></ul></section><div id=\"gameMeta\" data-game-id=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<header class=\"hero\"><span class=\"tag\">Game Lobby</span><h1>Gather your players</h1><p>Share the join code below so everyone can jump in.</p></header><section class=\"panel\"><div><h2>Join code</h2><p id=\"joinCode\" class=\"join-code\">Loading...</p></div><div class=\"status\"><span class=\"label\">Status</span><p id=\"gameStatus\">Loading...</p></div></section><section class=\"panel\"><div><h2>Players</h2><p>Waiting for everyone to arrive.</p></div><ul id=\"playerList\" class=\"player-list\"></ul></section><p id=\"gameError\" class=\"result error\"></p><div id=\"gameMeta\" data-game-id=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(gameID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/game.templ`, Line: 30, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/game.templ`, Line: 31, Col: 42}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {

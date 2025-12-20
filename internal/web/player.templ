@@ -27,6 +27,7 @@ templ PlayerView(gameID string, playerID int, playerName string) {
 			<ul id="playerList" class="player-list"></ul>
 		</section>
 
+		<p id="playerError" class="result error"></p>
 		<div id="playerMeta" data-game-id={ gameID } data-player-id={ playerID } data-player-name={ playerName }></div>
 	}
 }

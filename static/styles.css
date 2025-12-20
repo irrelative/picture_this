@@ -125,6 +125,10 @@ input {
   color: #2b2b2b;
 }
 
+.error {
+  color: #b00020;
+}
+
 .join-code {
   font-size: clamp(1.6rem, 3vw, 2.2rem);
   font-weight: 700;
