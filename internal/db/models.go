@@ -19,7 +19,7 @@ type Game struct {
 
 type Player struct {
 	ID        uint      `gorm:"primaryKey"`
-	GameID    uint      `gorm:"index;not null"`
+	GameID    uint      `gorm:"index;not null;uniqueIndex:idx_players_game_name"`
 	Name      string    `gorm:"size:64;not null;uniqueIndex:idx_players_game_name"`
 	IsHost    bool      `gorm:"not null;default:false"`
 	JoinedAt  time.Time `gorm:"not null"`
