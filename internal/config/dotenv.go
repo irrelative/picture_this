@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
@@ -16,4 +17,24 @@ func LoadDotEnv(path string) error {
 		return err
 	}
 	return godotenv.Load(path)
+}
+
+type Config struct {
+	PromptsPerPlayer int
+}
+
+func Default() Config {
+	return Config{
+		PromptsPerPlayer: 2,
+	}
+}
+
+func Load() Config {
+	cfg := Default()
+	if raw := os.Getenv("PROMPTS_PER_PLAYER"); raw != "" {
+		if value, err := strconv.Atoi(raw); err == nil && value > 0 {
+			cfg.PromptsPerPlayer = value
+		}
+	}
+	return cfg
 }

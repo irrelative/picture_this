@@ -10,10 +10,11 @@ import (
 	"testing"
 
 	"github.com/gorilla/websocket"
+	"picture-this/internal/config"
 )
 
 func TestCreateGame(t *testing.T) {
-	srv := New(nil)
+	srv := New(nil, config.Default())
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
@@ -28,7 +29,7 @@ func TestCreateGame(t *testing.T) {
 }
 
 func TestHomePage(t *testing.T) {
-	srv := New(nil)
+	srv := New(nil, config.Default())
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
@@ -39,7 +40,7 @@ func TestHomePage(t *testing.T) {
 }
 
 func TestGameView(t *testing.T) {
-	srv := New(nil)
+	srv := New(nil, config.Default())
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
@@ -51,7 +52,7 @@ func TestGameView(t *testing.T) {
 }
 
 func TestJoinView(t *testing.T) {
-	srv := New(nil)
+	srv := New(nil, config.Default())
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
@@ -67,7 +68,7 @@ func TestJoinView(t *testing.T) {
 }
 
 func TestPlayerView(t *testing.T) {
-	srv := New(nil)
+	srv := New(nil, config.Default())
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
@@ -88,7 +89,7 @@ func TestPlayerView(t *testing.T) {
 }
 
 func TestGetGame(t *testing.T) {
-	srv := New(nil)
+	srv := New(nil, config.Default())
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
@@ -100,7 +101,7 @@ func TestGetGame(t *testing.T) {
 }
 
 func TestJoinGameByCode(t *testing.T) {
-	srv := New(nil)
+	srv := New(nil, config.Default())
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
@@ -114,7 +115,7 @@ func TestJoinGameByCode(t *testing.T) {
 }
 
 func TestJoinGame(t *testing.T) {
-	srv := New(nil)
+	srv := New(nil, config.Default())
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
@@ -128,7 +129,7 @@ func TestJoinGame(t *testing.T) {
 }
 
 func TestStartGame(t *testing.T) {
-	srv := New(nil)
+	srv := New(nil, config.Default())
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
@@ -140,7 +141,7 @@ func TestStartGame(t *testing.T) {
 }
 
 func TestStartGameConflict(t *testing.T) {
-	srv := New(nil)
+	srv := New(nil, config.Default())
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
@@ -157,13 +158,16 @@ func TestStartGameConflict(t *testing.T) {
 }
 
 func TestSubmitPrompts(t *testing.T) {
-	srv := New(nil)
+	srv := New(nil, config.Default())
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
+	playerID := joinPlayer(t, ts, gameID, "Ada")
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/start", map[string]any{})
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/prompts", map[string]any{
-		"prompts": []string{"prompt-1"},
+		"player_id": playerID,
+		"prompts":   []string{"prompt-1"},
 	})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
@@ -171,13 +175,17 @@ func TestSubmitPrompts(t *testing.T) {
 }
 
 func TestSubmitDrawings(t *testing.T) {
-	srv := New(nil)
+	srv := New(nil, config.Default())
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
+	playerID := joinPlayer(t, ts, gameID, "Ada")
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/start", map[string]any{})
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/advance", map[string]any{})
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/drawings", map[string]any{
-		"drawings": []string{"drawing-1"},
+		"player_id":  playerID,
+		"image_data": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMBAp4pWZkAAAAASUVORK5CYII=",
 	})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
@@ -185,13 +193,18 @@ func TestSubmitDrawings(t *testing.T) {
 }
 
 func TestSubmitGuesses(t *testing.T) {
-	srv := New(nil)
+	srv := New(nil, config.Default())
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
+	playerID := joinPlayer(t, ts, gameID, "Ada")
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/start", map[string]any{})
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/advance", map[string]any{})
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/advance", map[string]any{})
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/guesses", map[string]any{
-		"guesses": []string{"guess-1"},
+		"player_id": playerID,
+		"guess":     "guess-1",
 	})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
@@ -199,13 +212,19 @@ func TestSubmitGuesses(t *testing.T) {
 }
 
 func TestSubmitVotes(t *testing.T) {
-	srv := New(nil)
+	srv := New(nil, config.Default())
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
+	playerID := joinPlayer(t, ts, gameID, "Ada")
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/start", map[string]any{})
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/advance", map[string]any{})
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/advance", map[string]any{})
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/advance", map[string]any{})
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/votes", map[string]any{
-		"votes": []string{"vote-1"},
+		"player_id": playerID,
+		"guess":     "guess-1",
 	})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
@@ -213,7 +232,7 @@ func TestSubmitVotes(t *testing.T) {
 }
 
 func TestAdvanceGame(t *testing.T) {
-	srv := New(nil)
+	srv := New(nil, config.Default())
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
@@ -225,7 +244,7 @@ func TestAdvanceGame(t *testing.T) {
 }
 
 func TestResults(t *testing.T) {
-	srv := New(nil)
+	srv := New(nil, config.Default())
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
@@ -237,7 +256,7 @@ func TestResults(t *testing.T) {
 }
 
 func TestWebsocketUpgradeRequired(t *testing.T) {
-	srv := New(nil)
+	srv := New(nil, config.Default())
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
@@ -268,6 +287,18 @@ func createGameWithCode(t *testing.T, ts *httptest.Server) (string, string) {
 	}
 	body := decodeBody(t, resp)
 	return body["game_id"].(string), body["join_code"].(string)
+}
+
+func joinPlayer(t *testing.T, ts *httptest.Server, gameID, name string) int {
+	t.Helper()
+	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/join", map[string]string{
+		"name": name,
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+	body := decodeBody(t, resp)
+	return int(body["player_id"].(float64))
 }
 
 func doRequest(t *testing.T, ts *httptest.Server, method, path string, payload any) *http.Response {

@@ -14,6 +14,7 @@ func main() {
 	if err := config.LoadDotEnv(".env"); err != nil {
 		log.Printf("failed to load .env: %v", err)
 	}
+	cfg := config.Load()
 
 	conn, err := db.Open()
 	if err != nil {
@@ -27,7 +28,7 @@ func main() {
 		addr = ":" + env
 	}
 
-	srv := server.New(conn)
+	srv := server.New(conn, cfg)
 	log.Printf("picture-this server listening on %s", addr)
 	if err := http.ListenAndServe(addr, srv.Handler()); err != nil {
 		log.Fatal(err)

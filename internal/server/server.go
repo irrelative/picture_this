@@ -2,6 +2,7 @@ package server
 
 import (
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"picture-this/internal/config"
 	"picture-this/internal/db"
 	"picture-this/internal/web"
 
@@ -25,6 +27,7 @@ type Server struct {
 	store *Store
 	db    *gorm.DB
 	ws    *wsHub
+	cfg   config.Config
 }
 
 const (
@@ -47,11 +50,12 @@ var phaseOrder = []string{
 	phaseComplete,
 }
 
-func New(conn *gorm.DB) *Server {
+func New(conn *gorm.DB, cfg config.Config) *Server {
 	return &Server{
 		store: NewStore(),
 		db:    conn,
 		ws:    newWSHub(),
+		cfg:   cfg,
 	}
 }
 
@@ -78,21 +82,56 @@ type Store struct {
 }
 
 type Game struct {
-	ID       string
-	DBID     uint
-	JoinCode string
-	Phase    string
-	Players  []Player
-	Prompts  []string
-	Drawings []string
-	Guesses  []string
-	Votes    []string
+	ID               string
+	DBID             uint
+	JoinCode         string
+	Phase            string
+	Players          []Player
+	Rounds           []RoundState
+	PromptsPerPlayer int
+	Prompts          []string
+	Drawings         []string
+	Guesses          []string
+	Votes            []string
 }
 
 type Player struct {
 	ID   int
 	Name string
 	DBID uint
+}
+
+type RoundState struct {
+	Number   int
+	DBID     uint
+	Prompts  []PromptEntry
+	Drawings []DrawingEntry
+	Guesses  []GuessEntry
+	Votes    []VoteEntry
+}
+
+type PromptEntry struct {
+	PlayerID int
+	Text     string
+	DBID     uint
+}
+
+type DrawingEntry struct {
+	PlayerID  int
+	ImageData []byte
+	DBID      uint
+}
+
+type GuessEntry struct {
+	PlayerID int
+	Text     string
+	DBID     uint
+}
+
+type VoteEntry struct {
+	PlayerID  int
+	GuessText string
+	DBID      uint
 }
 
 func NewStore() *Store {
@@ -103,16 +142,17 @@ func NewStore() *Store {
 	}
 }
 
-func (s *Store) CreateGame() *Game {
+func (s *Store) CreateGame(promptsPerPlayer int) *Game {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	id := fmt.Sprintf("game-%d", s.nextID)
 	s.nextID++
 	game := &Game{
-		ID:       id,
-		JoinCode: newJoinCode(),
-		Phase:    phaseLobby,
+		ID:               id,
+		JoinCode:         newJoinCode(),
+		Phase:            phaseLobby,
+		PromptsPerPlayer: promptsPerPlayer,
 	}
 	s.games[id] = game
 	return game
@@ -192,6 +232,15 @@ func (s *Store) GetPlayer(gameID string, playerID int) (*Game, *Player, bool) {
 	return game, nil, false
 }
 
+func (s *Store) FindPlayer(game *Game, playerID int) (*Player, bool) {
+	for i := range game.Players {
+		if game.Players[i].ID == playerID {
+			return &game.Players[i], true
+		}
+	}
+	return nil, false
+}
+
 func newJoinCode() string {
 	const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 	buf := make([]byte, 6)
@@ -205,7 +254,7 @@ func newJoinCode() string {
 }
 
 func (s *Server) handleCreateGame(w http.ResponseWriter, r *http.Request) {
-	game := s.store.CreateGame()
+	game := s.store.CreateGame(s.cfg.PromptsPerPlayer)
 	if err := s.persistGame(game); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to create game")
 		return
@@ -348,6 +397,9 @@ func (s *Server) handleStartGame(w http.ResponseWriter, r *http.Request, gameID 
 			return errors.New("game already started")
 		}
 		game.Phase = phasePrompts
+		game.Rounds = append(game.Rounds, RoundState{
+			Number: len(game.Rounds) + 1,
+		})
 		return nil
 	})
 	if err != nil {
@@ -362,108 +414,212 @@ func (s *Server) handleStartGame(w http.ResponseWriter, r *http.Request, gameID 
 		writeError(w, http.StatusInternalServerError, "failed to start game")
 		return
 	}
+	if err := s.persistRound(game); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to create round")
+		return
+	}
 	writeJSON(w, http.StatusOK, snapshot(game))
 	s.broadcastGameUpdate(game)
 }
 
 type promptsRequest struct {
-	Prompts []string `json:"prompts"`
+	PlayerID int      `json:"player_id"`
+	Prompts  []string `json:"prompts"`
 }
 
 func (s *Server) handlePrompts(w http.ResponseWriter, r *http.Request, gameID string) {
 	var req promptsRequest
-	if err := readJSON(r.Body, &req); err != nil || len(req.Prompts) == 0 {
+	if err := readJSON(r.Body, &req); err != nil || len(req.Prompts) == 0 || req.PlayerID <= 0 {
 		writeError(w, http.StatusBadRequest, "prompts are required")
 		return
 	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+		if game.Phase != phasePrompts {
+			return errors.New("prompts not accepted in this phase")
+		}
+		player, ok := s.store.FindPlayer(game, req.PlayerID)
+		if !ok {
+			return errors.New("player not found")
+		}
+		round := currentRound(game)
+		if round == nil {
+			return errors.New("round not started")
+		}
+		existing := 0
+		for _, entry := range round.Prompts {
+			if entry.PlayerID == req.PlayerID {
+				existing++
+			}
+		}
+		if existing+len(req.Prompts) > game.PromptsPerPlayer {
+			return errors.New("prompt limit exceeded")
+		}
+		for _, prompt := range req.Prompts {
+			round.Prompts = append(round.Prompts, PromptEntry{
+				PlayerID: player.ID,
+				Text:     prompt,
+			})
+		}
 		game.Prompts = append(game.Prompts, req.Prompts...)
 		return nil
 	})
 	if err != nil {
-		http.NotFound(w, r)
+		if err.Error() == "game not found" {
+			http.NotFound(w, r)
+			return
+		}
+		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
-	if err := s.persistEvent(game, "prompts_submitted", map[string]any{"prompts": req.Prompts}); err != nil {
+	if err := s.persistPrompts(game, req.PlayerID, req.Prompts); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to save prompts")
 		return
 	}
 	writeJSON(w, http.StatusOK, snapshot(game))
+	s.broadcastGameUpdate(game)
 }
 
 type drawingsRequest struct {
-	Drawings []string `json:"drawings"`
+	PlayerID  int    `json:"player_id"`
+	ImageData string `json:"image_data"`
 }
 
 func (s *Server) handleDrawings(w http.ResponseWriter, r *http.Request, gameID string) {
 	var req drawingsRequest
-	if err := readJSON(r.Body, &req); err != nil || len(req.Drawings) == 0 {
+	if err := readJSON(r.Body, &req); err != nil || req.PlayerID <= 0 || req.ImageData == "" {
 		writeError(w, http.StatusBadRequest, "drawings are required")
 		return
 	}
+	image, err := decodeImageData(req.ImageData)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid image data")
+		return
+	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
-		game.Drawings = append(game.Drawings, req.Drawings...)
+		if game.Phase != phaseDrawings {
+			return errors.New("drawings not accepted in this phase")
+		}
+		player, ok := s.store.FindPlayer(game, req.PlayerID)
+		if !ok {
+			return errors.New("player not found")
+		}
+		round := currentRound(game)
+		if round == nil {
+			return errors.New("round not started")
+		}
+		round.Drawings = append(round.Drawings, DrawingEntry{
+			PlayerID:  player.ID,
+			ImageData: image,
+		})
+		game.Drawings = append(game.Drawings, req.ImageData)
 		return nil
 	})
 	if err != nil {
-		http.NotFound(w, r)
+		if err.Error() == "game not found" {
+			http.NotFound(w, r)
+			return
+		}
+		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
-	if err := s.persistEvent(game, "drawings_submitted", map[string]any{"drawings": req.Drawings}); err != nil {
+	if err := s.persistDrawing(game, req.PlayerID, image); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to save drawings")
 		return
 	}
 	writeJSON(w, http.StatusOK, snapshot(game))
+	s.broadcastGameUpdate(game)
 }
 
 type guessesRequest struct {
-	Guesses []string `json:"guesses"`
+	PlayerID int    `json:"player_id"`
+	Guess    string `json:"guess"`
 }
 
 func (s *Server) handleGuesses(w http.ResponseWriter, r *http.Request, gameID string) {
 	var req guessesRequest
-	if err := readJSON(r.Body, &req); err != nil || len(req.Guesses) == 0 {
+	if err := readJSON(r.Body, &req); err != nil || req.PlayerID <= 0 || strings.TrimSpace(req.Guess) == "" {
 		writeError(w, http.StatusBadRequest, "guesses are required")
 		return
 	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
-		game.Guesses = append(game.Guesses, req.Guesses...)
+		if game.Phase != phaseGuesses {
+			return errors.New("guesses not accepted in this phase")
+		}
+		player, ok := s.store.FindPlayer(game, req.PlayerID)
+		if !ok {
+			return errors.New("player not found")
+		}
+		round := currentRound(game)
+		if round == nil {
+			return errors.New("round not started")
+		}
+		round.Guesses = append(round.Guesses, GuessEntry{
+			PlayerID: player.ID,
+			Text:     req.Guess,
+		})
+		game.Guesses = append(game.Guesses, req.Guess)
 		return nil
 	})
 	if err != nil {
-		http.NotFound(w, r)
+		if err.Error() == "game not found" {
+			http.NotFound(w, r)
+			return
+		}
+		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
-	if err := s.persistEvent(game, "guesses_submitted", map[string]any{"guesses": req.Guesses}); err != nil {
+	if err := s.persistGuess(game, req.PlayerID, req.Guess); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to save guesses")
 		return
 	}
 	writeJSON(w, http.StatusOK, snapshot(game))
+	s.broadcastGameUpdate(game)
 }
 
 type votesRequest struct {
-	Votes []string `json:"votes"`
+	PlayerID int    `json:"player_id"`
+	Guess    string `json:"guess"`
 }
 
 func (s *Server) handleVotes(w http.ResponseWriter, r *http.Request, gameID string) {
 	var req votesRequest
-	if err := readJSON(r.Body, &req); err != nil || len(req.Votes) == 0 {
+	if err := readJSON(r.Body, &req); err != nil || req.PlayerID <= 0 || strings.TrimSpace(req.Guess) == "" {
 		writeError(w, http.StatusBadRequest, "votes are required")
 		return
 	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
-		game.Votes = append(game.Votes, req.Votes...)
+		if game.Phase != phaseVotes {
+			return errors.New("votes not accepted in this phase")
+		}
+		player, ok := s.store.FindPlayer(game, req.PlayerID)
+		if !ok {
+			return errors.New("player not found")
+		}
+		round := currentRound(game)
+		if round == nil {
+			return errors.New("round not started")
+		}
+		round.Votes = append(round.Votes, VoteEntry{
+			PlayerID:  player.ID,
+			GuessText: req.Guess,
+		})
+		game.Votes = append(game.Votes, req.Guess)
 		return nil
 	})
 	if err != nil {
-		http.NotFound(w, r)
+		if err.Error() == "game not found" {
+			http.NotFound(w, r)
+			return
+		}
+		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
-	if err := s.persistEvent(game, "votes_submitted", map[string]any{"votes": req.Votes}); err != nil {
+	if err := s.persistVote(game, req.PlayerID, req.Guess); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to save votes")
 		return
 	}
 	writeJSON(w, http.StatusOK, snapshot(game))
+	s.broadcastGameUpdate(game)
 }
 
 func (s *Server) handleAdvance(w http.ResponseWriter, r *http.Request, gameID string) {
@@ -598,6 +754,22 @@ func nextPhase(current string) (string, bool) {
 	return "", false
 }
 
+func decodeImageData(data string) ([]byte, error) {
+	if data == "" {
+		return nil, errors.New("empty image")
+	}
+	parts := strings.SplitN(data, ",", 2)
+	payload := data
+	if len(parts) == 2 {
+		payload = parts[1]
+	}
+	decoded, err := base64.StdEncoding.DecodeString(payload)
+	if err != nil {
+		return nil, err
+	}
+	return decoded, nil
+}
+
 type wsHub struct {
 	mu     sync.Mutex
 	groups map[string]map[*websocket.Conn]struct{}
@@ -663,16 +835,31 @@ func (h *wsHub) Broadcast(gameID string, payload any) {
 }
 
 func snapshot(game *Game) map[string]any {
+	round := currentRound(game)
+	promptsCount := 0
+	drawingsCount := 0
+	guessesCount := 0
+	votesCount := 0
+	roundNumber := 0
+	if round != nil {
+		roundNumber = round.Number
+		promptsCount = len(round.Prompts)
+		drawingsCount = len(round.Drawings)
+		guessesCount = len(round.Guesses)
+		votesCount = len(round.Votes)
+	}
 	return map[string]any{
-		"game_id":   game.ID,
-		"join_code": game.JoinCode,
-		"phase":     game.Phase,
-		"players":   extractPlayerNames(game.Players),
+		"game_id":            game.ID,
+		"join_code":          game.JoinCode,
+		"phase":              game.Phase,
+		"players":            extractPlayerNames(game.Players),
+		"round_number":       roundNumber,
+		"prompts_per_player": game.PromptsPerPlayer,
 		"counts": map[string]int{
-			"prompts":  len(game.Prompts),
-			"drawings": len(game.Drawings),
-			"guesses":  len(game.Guesses),
-			"votes":    len(game.Votes),
+			"prompts":  promptsCount,
+			"drawings": drawingsCount,
+			"guesses":  guessesCount,
+			"votes":    votesCount,
 		},
 	}
 }
@@ -683,6 +870,13 @@ func extractPlayerNames(players []Player) []string {
 		names = append(names, player.Name)
 	}
 	return names
+}
+
+func currentRound(game *Game) *RoundState {
+	if len(game.Rounds) == 0 {
+		return nil
+	}
+	return &game.Rounds[len(game.Rounds)-1]
 }
 
 func readJSON(body io.Reader, dest any) error {
@@ -763,6 +957,11 @@ func (s *Server) persistPhase(game *Game, eventType string, payload map[string]a
 	if err := s.db.Model(&db.Game{}).Where("id = ?", game.DBID).Update("phase", game.Phase).Error; err != nil {
 		return err
 	}
+	if round := currentRound(game); round != nil && round.DBID != 0 {
+		if err := s.db.Model(&db.Round{}).Where("id = ?", round.DBID).Update("status", game.Phase).Error; err != nil {
+			return err
+		}
+	}
 	return s.persistEvent(game, eventType, payload)
 }
 
@@ -800,6 +999,172 @@ func (s *Server) ensureGameDBID(game *Game) error {
 	}
 	game.DBID = record.ID
 	return nil
+}
+
+func (s *Server) persistRound(game *Game) error {
+	if s.db == nil {
+		return nil
+	}
+	round := currentRound(game)
+	if round == nil || round.DBID != 0 {
+		return nil
+	}
+	if game.DBID == 0 {
+		if err := s.ensureGameDBID(game); err != nil {
+			return err
+		}
+	}
+	if game.DBID == 0 {
+		return errors.New("game not found")
+	}
+	record := db.Round{
+		GameID: game.DBID,
+		Number: round.Number,
+		Status: game.Phase,
+	}
+	if err := s.db.Create(&record).Error; err != nil {
+		return err
+	}
+	round.DBID = record.ID
+	return nil
+}
+
+func (s *Server) persistPrompts(game *Game, playerID int, prompts []string) error {
+	if s.db == nil {
+		return s.persistEvent(game, "prompts_submitted", map[string]any{
+			"player_id": playerID,
+			"prompts":   prompts,
+		})
+	}
+	round := currentRound(game)
+	if round == nil {
+		return errors.New("round not started")
+	}
+	if round.DBID == 0 {
+		if err := s.persistRound(game); err != nil {
+			return err
+		}
+	}
+	player, ok := s.store.FindPlayer(game, playerID)
+	if !ok || player.DBID == 0 {
+		return errors.New("player not found")
+	}
+	for _, prompt := range prompts {
+		record := db.Prompt{
+			RoundID:  round.DBID,
+			PlayerID: player.DBID,
+			Text:     prompt,
+		}
+		if err := s.db.Create(&record).Error; err != nil {
+			return err
+		}
+	}
+	return s.persistEvent(game, "prompts_submitted", map[string]any{
+		"player_id": playerID,
+		"prompts":   prompts,
+	})
+}
+
+func (s *Server) persistDrawing(game *Game, playerID int, image []byte) error {
+	if s.db == nil {
+		return s.persistEvent(game, "drawings_submitted", map[string]any{
+			"player_id": playerID,
+		})
+	}
+	round := currentRound(game)
+	if round == nil {
+		return errors.New("round not started")
+	}
+	if round.DBID == 0 {
+		if err := s.persistRound(game); err != nil {
+			return err
+		}
+	}
+	player, ok := s.store.FindPlayer(game, playerID)
+	if !ok || player.DBID == 0 {
+		return errors.New("player not found")
+	}
+	record := db.Drawing{
+		RoundID:   round.DBID,
+		PlayerID:  player.DBID,
+		PromptID:  player.DBID,
+		ImageData: image,
+	}
+	if err := s.db.Create(&record).Error; err != nil {
+		return err
+	}
+	return s.persistEvent(game, "drawings_submitted", map[string]any{
+		"player_id": playerID,
+	})
+}
+
+func (s *Server) persistGuess(game *Game, playerID int, guess string) error {
+	if s.db == nil {
+		return s.persistEvent(game, "guesses_submitted", map[string]any{
+			"player_id": playerID,
+			"guess":     guess,
+		})
+	}
+	round := currentRound(game)
+	if round == nil {
+		return errors.New("round not started")
+	}
+	if round.DBID == 0 {
+		if err := s.persistRound(game); err != nil {
+			return err
+		}
+	}
+	player, ok := s.store.FindPlayer(game, playerID)
+	if !ok || player.DBID == 0 {
+		return errors.New("player not found")
+	}
+	record := db.Guess{
+		RoundID:   round.DBID,
+		PlayerID:  player.DBID,
+		DrawingID: 0,
+		Text:      guess,
+	}
+	if err := s.db.Create(&record).Error; err != nil {
+		return err
+	}
+	return s.persistEvent(game, "guesses_submitted", map[string]any{
+		"player_id": playerID,
+		"guess":     guess,
+	})
+}
+
+func (s *Server) persistVote(game *Game, playerID int, guess string) error {
+	if s.db == nil {
+		return s.persistEvent(game, "votes_submitted", map[string]any{
+			"player_id": playerID,
+			"guess":     guess,
+		})
+	}
+	round := currentRound(game)
+	if round == nil {
+		return errors.New("round not started")
+	}
+	if round.DBID == 0 {
+		if err := s.persistRound(game); err != nil {
+			return err
+		}
+	}
+	player, ok := s.store.FindPlayer(game, playerID)
+	if !ok || player.DBID == 0 {
+		return errors.New("player not found")
+	}
+	record := db.Vote{
+		RoundID:  round.DBID,
+		PlayerID: player.DBID,
+		GuessID:  0,
+	}
+	if err := s.db.Create(&record).Error; err != nil {
+		return err
+	}
+	return s.persistEvent(game, "votes_submitted", map[string]any{
+		"player_id": playerID,
+		"guess":     guess,
+	})
 }
 
 func (s *Server) broadcastGameUpdate(game *Game) {

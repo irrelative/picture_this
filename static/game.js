@@ -32,6 +32,9 @@ async function fetchSnapshot(gameId) {
 function updateFromSnapshot(data) {
   joinCode.textContent = data.join_code || "Unavailable";
   gameStatus.textContent = data.phase || "Unknown";
+  if (startGame) {
+    startGame.style.display = data.phase === "lobby" ? "inline-flex" : "none";
+  }
 
   playerList.innerHTML = "";
   const players = Array.isArray(data.players) ? data.players : [];
