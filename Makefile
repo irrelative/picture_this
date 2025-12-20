@@ -7,3 +7,6 @@ run:
 build:
 	templ generate
 	go build ./...
+
+test:
+	go test ./...
