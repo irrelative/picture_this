@@ -8,7 +8,8 @@
 ## Build, Test, and Development Commands
 - `make run` — run all Go packages (updates to target `./cmd/server` can follow once the entrypoint stabilizes).
 - `make build` — build all Go packages.
-- `go test ./...` — run all Go tests.
+- `make test` — run all Go tests.
+- `make e2e-test` — run the end-to-end game script against a test database.
 - `templ generate` — regenerate templates if `templ` is used.
 
 ## Coding Style & Naming Conventions
