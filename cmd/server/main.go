@@ -27,7 +27,7 @@ func main() {
 		addr = ":" + env
 	}
 
-	srv := server.New()
+	srv := server.New(conn)
 	log.Printf("picture-this server listening on %s", addr)
 	if err := http.ListenAndServe(addr, srv.Handler()); err != nil {
 		log.Fatal(err)

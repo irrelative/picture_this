@@ -9,19 +9,25 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
+	"picture-this/internal/db"
 	"picture-this/internal/web"
 
 	"github.com/a-h/templ"
+	"gorm.io/datatypes"
+	"gorm.io/gorm"
 )
 
 type Server struct {
 	store *Store
+	db    *gorm.DB
 }
 
-func New() *Server {
+func New(conn *gorm.DB) *Server {
 	return &Server{
 		store: NewStore(),
+		db:    conn,
 	}
 }
 
@@ -44,6 +50,7 @@ type Store struct {
 
 type Game struct {
 	ID       string
+	DBID     uint
 	JoinCode string
 	Phase    string
 	Players  []string
@@ -120,6 +127,10 @@ func newJoinCode() string {
 
 func (s *Server) handleCreateGame(w http.ResponseWriter, r *http.Request) {
 	game := s.store.CreateGame()
+	if err := s.persistGame(game); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to create game")
+		return
+	}
 	resp := map[string]string{
 		"game_id":   game.ID,
 		"join_code": game.JoinCode,
@@ -205,9 +216,18 @@ func (s *Server) handleJoinGame(w http.ResponseWriter, r *http.Request, gameID s
 		}
 	}
 
+	playerID, persistErr := s.persistPlayer(game, req.Name)
+	if persistErr != nil {
+		writeError(w, http.StatusInternalServerError, "failed to join game")
+		return
+	}
+
 	resp := map[string]any{
 		"game_id": game.ID,
 		"player":  req.Name,
+	}
+	if playerID != 0 {
+		resp["player_id"] = playerID
 	}
 	writeJSON(w, http.StatusOK, resp)
 }
@@ -219,6 +239,10 @@ func (s *Server) handleStartGame(w http.ResponseWriter, r *http.Request, gameID 
 	})
 	if err != nil {
 		http.NotFound(w, r)
+		return
+	}
+	if err := s.persistPhase(game, "game_started", map[string]any{"phase": game.Phase}); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to start game")
 		return
 	}
 	writeJSON(w, http.StatusOK, snapshot(game))
@@ -242,6 +266,10 @@ func (s *Server) handlePrompts(w http.ResponseWriter, r *http.Request, gameID st
 		http.NotFound(w, r)
 		return
 	}
+	if err := s.persistEvent(game, "prompts_submitted", map[string]any{"prompts": req.Prompts}); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to save prompts")
+		return
+	}
 	writeJSON(w, http.StatusOK, snapshot(game))
 }
 
@@ -261,6 +289,10 @@ func (s *Server) handleDrawings(w http.ResponseWriter, r *http.Request, gameID s
 	})
 	if err != nil {
 		http.NotFound(w, r)
+		return
+	}
+	if err := s.persistEvent(game, "drawings_submitted", map[string]any{"drawings": req.Drawings}); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to save drawings")
 		return
 	}
 	writeJSON(w, http.StatusOK, snapshot(game))
@@ -284,6 +316,10 @@ func (s *Server) handleGuesses(w http.ResponseWriter, r *http.Request, gameID st
 		http.NotFound(w, r)
 		return
 	}
+	if err := s.persistEvent(game, "guesses_submitted", map[string]any{"guesses": req.Guesses}); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to save guesses")
+		return
+	}
 	writeJSON(w, http.StatusOK, snapshot(game))
 }
 
@@ -305,6 +341,10 @@ func (s *Server) handleVotes(w http.ResponseWriter, r *http.Request, gameID stri
 		http.NotFound(w, r)
 		return
 	}
+	if err := s.persistEvent(game, "votes_submitted", map[string]any{"votes": req.Votes}); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to save votes")
+		return
+	}
 	writeJSON(w, http.StatusOK, snapshot(game))
 }
 
@@ -315,6 +355,10 @@ func (s *Server) handleAdvance(w http.ResponseWriter, r *http.Request, gameID st
 	})
 	if err != nil {
 		http.NotFound(w, r)
+		return
+	}
+	if err := s.persistPhase(game, "game_advanced", map[string]any{"phase": game.Phase}); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to advance game")
 		return
 	}
 	writeJSON(w, http.StatusOK, snapshot(game))
@@ -417,4 +461,102 @@ func writeError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, map[string]string{
 		"error": message,
 	})
+}
+
+func (s *Server) persistGame(game *Game) error {
+	if s.db == nil {
+		return nil
+	}
+	record := db.Game{
+		JoinCode: game.JoinCode,
+		Phase:    game.Phase,
+	}
+	if err := s.db.Create(&record).Error; err != nil {
+		return err
+	}
+	game.DBID = record.ID
+	return s.persistEvent(game, "game_created", map[string]any{
+		"game_id":   game.ID,
+		"join_code": game.JoinCode,
+	})
+}
+
+func (s *Server) persistPlayer(game *Game, name string) (uint, error) {
+	if s.db == nil {
+		return 0, nil
+	}
+	if game.DBID == 0 {
+		if err := s.ensureGameDBID(game); err != nil {
+			return 0, err
+		}
+		if game.DBID == 0 {
+			return 0, errors.New("game not found")
+		}
+	}
+	player := db.Player{
+		GameID:   game.DBID,
+		Name:     name,
+		JoinedAt: time.Now().UTC(),
+	}
+	if err := s.db.Create(&player).Error; err != nil {
+		return 0, err
+	}
+	if err := s.persistEvent(game, "player_joined", map[string]any{"player": name}); err != nil {
+		return player.ID, err
+	}
+	return player.ID, nil
+}
+
+func (s *Server) persistPhase(game *Game, eventType string, payload map[string]any) error {
+	if s.db == nil {
+		return nil
+	}
+	if game.DBID == 0 {
+		if err := s.ensureGameDBID(game); err != nil {
+			return err
+		}
+	}
+	if game.DBID == 0 {
+		return errors.New("game not found")
+	}
+	if err := s.db.Model(&db.Game{}).Where("id = ?", game.DBID).Update("phase", game.Phase).Error; err != nil {
+		return err
+	}
+	return s.persistEvent(game, eventType, payload)
+}
+
+func (s *Server) persistEvent(game *Game, eventType string, payload map[string]any) error {
+	if s.db == nil {
+		return nil
+	}
+	if game.DBID == 0 {
+		if err := s.ensureGameDBID(game); err != nil {
+			return err
+		}
+	}
+	if game.DBID == 0 {
+		return errors.New("game not found")
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	event := db.Event{
+		GameID:  game.DBID,
+		Type:    eventType,
+		Payload: datatypes.JSON(data),
+	}
+	return s.db.Create(&event).Error
+}
+
+func (s *Server) ensureGameDBID(game *Game) error {
+	if s.db == nil || game.DBID != 0 {
+		return nil
+	}
+	var record db.Game
+	if err := s.db.Where("join_code = ?", game.JoinCode).First(&record).Error; err != nil {
+		return nil
+	}
+	game.DBID = record.ID
+	return nil
 }

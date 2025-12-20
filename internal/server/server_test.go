@@ -9,7 +9,7 @@ import (
 )
 
 func TestCreateGame(t *testing.T) {
-	srv := New()
+	srv := New(nil)
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
@@ -24,7 +24,7 @@ func TestCreateGame(t *testing.T) {
 }
 
 func TestHomePage(t *testing.T) {
-	srv := New()
+	srv := New(nil)
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
@@ -35,7 +35,7 @@ func TestHomePage(t *testing.T) {
 }
 
 func TestGetGame(t *testing.T) {
-	srv := New()
+	srv := New(nil)
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
@@ -47,7 +47,7 @@ func TestGetGame(t *testing.T) {
 }
 
 func TestJoinGameByCode(t *testing.T) {
-	srv := New()
+	srv := New(nil)
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
@@ -61,7 +61,7 @@ func TestJoinGameByCode(t *testing.T) {
 }
 
 func TestJoinGame(t *testing.T) {
-	srv := New()
+	srv := New(nil)
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
@@ -75,7 +75,7 @@ func TestJoinGame(t *testing.T) {
 }
 
 func TestStartGame(t *testing.T) {
-	srv := New()
+	srv := New(nil)
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
@@ -87,7 +87,7 @@ func TestStartGame(t *testing.T) {
 }
 
 func TestSubmitPrompts(t *testing.T) {
-	srv := New()
+	srv := New(nil)
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
@@ -101,7 +101,7 @@ func TestSubmitPrompts(t *testing.T) {
 }
 
 func TestSubmitDrawings(t *testing.T) {
-	srv := New()
+	srv := New(nil)
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
@@ -115,7 +115,7 @@ func TestSubmitDrawings(t *testing.T) {
 }
 
 func TestSubmitGuesses(t *testing.T) {
-	srv := New()
+	srv := New(nil)
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
@@ -129,7 +129,7 @@ func TestSubmitGuesses(t *testing.T) {
 }
 
 func TestSubmitVotes(t *testing.T) {
-	srv := New()
+	srv := New(nil)
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
@@ -143,7 +143,7 @@ func TestSubmitVotes(t *testing.T) {
 }
 
 func TestAdvanceGame(t *testing.T) {
-	srv := New()
+	srv := New(nil)
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
@@ -155,7 +155,7 @@ func TestAdvanceGame(t *testing.T) {
 }
 
 func TestResults(t *testing.T) {
-	srv := New()
+	srv := New(nil)
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
@@ -167,7 +167,7 @@ func TestResults(t *testing.T) {
 }
 
 func TestWebsocketUpgradeRequired(t *testing.T) {
-	srv := New()
+	srv := New(nil)
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
