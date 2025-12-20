@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -36,6 +37,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /", templ.Handler(web.Home()))
 	mux.HandleFunc("GET /join", s.handleJoinView)
 	mux.HandleFunc("GET /join/", s.handleJoinView)
+	mux.HandleFunc("GET /play/", s.handlePlayerView)
 	mux.HandleFunc("GET /games/", s.handleGameView)
 	mux.HandleFunc("POST /api/games", s.handleCreateGame)
 	mux.HandleFunc("GET /api/games/", s.handleGameSubroutes)
@@ -46,9 +48,10 @@ func (s *Server) Handler() http.Handler {
 }
 
 type Store struct {
-	mu     sync.Mutex
-	nextID int
-	games  map[string]*Game
+	mu           sync.Mutex
+	nextID       int
+	nextPlayerID int
+	games        map[string]*Game
 }
 
 type Game struct {
@@ -56,17 +59,24 @@ type Game struct {
 	DBID     uint
 	JoinCode string
 	Phase    string
-	Players  []string
+	Players  []Player
 	Prompts  []string
 	Drawings []string
 	Guesses  []string
 	Votes    []string
 }
 
+type Player struct {
+	ID   int
+	Name string
+	DBID uint
+}
+
 func NewStore() *Store {
 	return &Store{
-		nextID: 1,
-		games:  make(map[string]*Game),
+		nextID:       1,
+		nextPlayerID: 1,
+		games:        make(map[string]*Game),
 	}
 }
 
@@ -114,6 +124,49 @@ func (s *Store) FindGameByJoinCode(code string) (*Game, bool) {
 		}
 	}
 	return nil, false
+}
+
+func (s *Store) AddPlayer(gameIDOrCode, name string) (*Game, *Player, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	game, ok := s.games[gameIDOrCode]
+	if !ok {
+		for _, candidate := range s.games {
+			if candidate.JoinCode == gameIDOrCode {
+				game = candidate
+				ok = true
+				break
+			}
+		}
+	}
+	if !ok {
+		return nil, nil, errors.New("game not found")
+	}
+
+	player := Player{
+		ID:   s.nextPlayerID,
+		Name: name,
+	}
+	s.nextPlayerID++
+	game.Players = append(game.Players, player)
+	return game, &game.Players[len(game.Players)-1], nil
+}
+
+func (s *Store) GetPlayer(gameID string, playerID int) (*Game, *Player, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	game, ok := s.games[gameID]
+	if !ok {
+		return nil, nil, false
+	}
+	for i := range game.Players {
+		if game.Players[i].ID == playerID {
+			return game, &game.Players[i], true
+		}
+	}
+	return game, nil, false
 }
 
 func newJoinCode() string {
@@ -166,6 +219,20 @@ func (s *Server) handleJoinView(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	templ.Handler(web.JoinView(code)).ServeHTTP(w, r)
+}
+
+func (s *Server) handlePlayerView(w http.ResponseWriter, r *http.Request) {
+	gameID, playerID, ok := parsePlayerPath(r.URL.Path)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	game, player, ok := s.store.GetPlayer(gameID, playerID)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	templ.Handler(web.PlayerView(game.ID, player.ID, player.Name)).ServeHTTP(w, r)
 }
 
 func (s *Server) handleGameSubroutes(w http.ResponseWriter, r *http.Request) {
@@ -229,24 +296,13 @@ func (s *Server) handleJoinGame(w http.ResponseWriter, r *http.Request, gameID s
 		return
 	}
 
-	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
-		game.Players = append(game.Players, req.Name)
-		return nil
-	})
+	game, player, err := s.store.AddPlayer(gameID, req.Name)
 	if err != nil {
-		if matched, ok := s.store.FindGameByJoinCode(gameID); ok {
-			game, err = s.store.UpdateGame(matched.ID, func(game *Game) error {
-				game.Players = append(game.Players, req.Name)
-				return nil
-			})
-		}
-		if err != nil {
-			http.NotFound(w, r)
-			return
-		}
+		http.NotFound(w, r)
+		return
 	}
 
-	playerID, persistErr := s.persistPlayer(game, req.Name)
+	playerID, persistErr := s.persistPlayer(game, player)
 	if persistErr != nil {
 		writeError(w, http.StatusInternalServerError, "failed to join game")
 		return
@@ -255,10 +311,9 @@ func (s *Server) handleJoinGame(w http.ResponseWriter, r *http.Request, gameID s
 	resp := map[string]any{
 		"game_id": game.ID,
 		"player":  req.Name,
+		"join_code": game.JoinCode,
 	}
-	if playerID != 0 {
-		resp["player_id"] = playerID
-	}
+	resp["player_id"] = playerID
 	writeJSON(w, http.StatusOK, resp)
 }
 
@@ -460,12 +515,33 @@ func parseWebsocketPath(path string) (string, bool) {
 	return rest, true
 }
 
+func parsePlayerPath(path string) (string, int, bool) {
+	const prefix = "/play/"
+	if !strings.HasPrefix(path, prefix) {
+		return "", 0, false
+	}
+	rest := strings.TrimPrefix(path, prefix)
+	parts := strings.Split(strings.Trim(rest, "/"), "/")
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return "", 0, false
+	}
+	playerID, err := strconv.Atoi(parts[1])
+	if err != nil || playerID <= 0 {
+		return "", 0, false
+	}
+	return parts[0], playerID, true
+}
+
 func snapshot(game *Game) map[string]any {
+	players := make([]string, 0, len(game.Players))
+	for _, player := range game.Players {
+		players = append(players, player.Name)
+	}
 	return map[string]any{
 		"game_id":   game.ID,
 		"join_code": game.JoinCode,
 		"phase":     game.Phase,
-		"players":   game.Players,
+		"players":   players,
 		"counts": map[string]int{
 			"prompts":  len(game.Prompts),
 			"drawings": len(game.Drawings),
@@ -511,9 +587,9 @@ func (s *Server) persistGame(game *Game) error {
 	})
 }
 
-func (s *Server) persistPlayer(game *Game, name string) (uint, error) {
+func (s *Server) persistPlayer(game *Game, player *Player) (int, error) {
 	if s.db == nil {
-		return 0, nil
+		return player.ID, nil
 	}
 	if game.DBID == 0 {
 		if err := s.ensureGameDBID(game); err != nil {
@@ -523,15 +599,16 @@ func (s *Server) persistPlayer(game *Game, name string) (uint, error) {
 			return 0, errors.New("game not found")
 		}
 	}
-	player := db.Player{
+	record := db.Player{
 		GameID:   game.DBID,
-		Name:     name,
+		Name:     player.Name,
 		JoinedAt: time.Now().UTC(),
 	}
-	if err := s.db.Create(&player).Error; err != nil {
+	if err := s.db.Create(&record).Error; err != nil {
 		return 0, err
 	}
-	if err := s.persistEvent(game, "player_joined", map[string]any{"player": name}); err != nil {
+	player.DBID = record.ID
+	if err := s.persistEvent(game, "player_joined", map[string]any{"player": player.Name}); err != nil {
 		return player.ID, err
 	}
 	return player.ID, nil

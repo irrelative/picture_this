@@ -33,6 +33,6 @@ if (joinForm) {
       joinResult.textContent = data.error || "Failed to join game.";
       return;
     }
-    joinResult.textContent = "Joined game " + data.game_id + " as " + data.player + ".";
+    window.location.href = "/play/" + encodeURIComponent(data.game_id) + "/" + encodeURIComponent(data.player_id);
   });
 }
