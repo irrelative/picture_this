@@ -46,6 +46,22 @@ func TestGameView(t *testing.T) {
 	}
 }
 
+func TestJoinView(t *testing.T) {
+	srv := New(nil)
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	resp := doRequest(t, ts, http.MethodGet, "/join", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+
+	resp = doRequest(t, ts, http.MethodGet, "/join/ABCD12", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+}
+
 func TestGetGame(t *testing.T) {
 	srv := New(nil)
 	ts := httptest.NewServer(srv.Handler())

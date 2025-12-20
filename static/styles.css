@@ -74,6 +74,10 @@ p {
   box-shadow: 0 10px 30px var(--shadow);
 }
 
+.join-panel {
+  align-items: stretch;
+}
+
 .primary,
 .secondary {
   font: inherit;
@@ -102,6 +106,10 @@ p {
 .join-form {
   display: grid;
   gap: 12px;
+}
+
+.join-only {
+  grid-template-columns: 1fr;
 }
 
 input {
@@ -150,7 +158,15 @@ input {
     align-items: center;
   }
 
+  .join-panel {
+    grid-template-columns: 1fr;
+  }
+
   .join-form {
+    grid-template-columns: 1fr 1fr auto;
+  }
+
+  .join-only {
     grid-template-columns: 1fr 1fr auto;
   }
 }

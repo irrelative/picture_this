@@ -1,0 +1,24 @@
+package web
+
+templ JoinView(code string) {
+	@Layout("Picture This | Join", "/static/join.js") {
+		<header class="hero">
+			<span class="tag">Join Game</span>
+			<h1>Jump in from your phone</h1>
+			<p>Enter the join code and your display name to get started.</p>
+		</header>
+
+		<section class="panel join-panel">
+			<form id="joinForm" class="join-form join-only">
+				if code != "" {
+					<input name="code" placeholder="Join code" value={ code } autocomplete="off" required/>
+				} else {
+					<input name="code" placeholder="Join code" autocomplete="off" required/>
+				}
+				<input name="name" placeholder="Display name" autocomplete="name" required/>
+				<button type="submit" class="primary">Join game</button>
+			</form>
+			<div id="joinResult" class="result"></div>
+		</section>
+	}
+}
