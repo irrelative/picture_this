@@ -116,6 +116,12 @@ def main():
         {"player_id": alice["player_id"], "guess": "wild guess"},
     )
     assert status == 200, f"vote failed: {vote}"
+    status, vote = request_json(
+        "POST",
+        f"{base_url}/api/games/{game_id}/votes",
+        {"player_id": bob["player_id"], "guess": "another guess"},
+    )
+    assert status == 200, f"vote failed: {vote}"
     print("Votes submitted")
 
     status, results = request_json("GET", f"{base_url}/api/games/{game_id}/results")

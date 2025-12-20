@@ -789,15 +789,26 @@ func (s *Server) handleResults(w http.ResponseWriter, r *http.Request, gameID st
 		http.NotFound(w, r)
 		return
 	}
+	round := currentRound(game)
+	promptsCount := 0
+	drawingsCount := 0
+	guessesCount := 0
+	votesCount := 0
+	if round != nil {
+		promptsCount = len(round.Prompts)
+		drawingsCount = len(round.Drawings)
+		guessesCount = len(round.Guesses)
+		votesCount = len(round.Votes)
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"game_id": game.ID,
 		"phase":   game.Phase,
 		"players": extractPlayerNames(game.Players),
 		"counts": map[string]int{
-			"prompts":  len(game.Prompts),
-			"drawings": len(game.Drawings),
-			"guesses":  len(game.Guesses),
-			"votes":    len(game.Votes),
+			"prompts":  promptsCount,
+			"drawings": drawingsCount,
+			"guesses":  guessesCount,
+			"votes":    votesCount,
 		},
 	})
 }
