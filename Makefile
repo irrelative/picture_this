@@ -2,7 +2,7 @@
 
 run:
 	templ generate
-	go run ./...
+	go run ./cmd/server
 
 build:
 	templ generate
