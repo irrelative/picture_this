@@ -32,14 +32,14 @@
 - Ensure the game can restart without losing state, per README scope.
 
 ## Roadmap Issues (Drawful Parity)
-- Issue: Implement scoring rules and score display (correct guesses, fooled players, edge cases).
-- Issue: Add timers and auto-advance per phase; support pause/resume by host.
-- Issue: Reveal sequence per drawing (guesses first, then votes) instead of bulk results.
-- Issue: Host controls for rounds/player limits/prompt packs and lobby readiness UX.
-- Issue: Prompt packs, filtering, and no-repeat rules for a session.
-- Issue: Player management (kick/rename) and join gating when a lobby is locked.
-- Issue: Audience mode for non-players with voting.
-- Issue: Replay view using events for round-by-round playback.
+- Issue: Implement scoring rules and score display (correct guesses, fooled players, edge cases). (done)
+- Issue: Add timers and auto-advance per phase; support pause/resume by host. (done)
+- Issue: Reveal sequence per drawing (guesses first, then votes) instead of bulk results. (done)
+- Issue: Host controls for rounds/player limits/prompt packs and lobby readiness UX. (done)
+- Issue: Prompt packs, filtering, and no-repeat rules for a session. (done)
+- Issue: Player management (kick/rename) and join gating when a lobby is locked. (done)
+- Issue: Audience mode for non-players with voting. (done)
+- Issue: Replay view using events for round-by-round playback. (done)
 - Issue: Drawing tool upgrades (brush sizes/colors, undo) plus per-player consistent color.
 - Issue: Input validation/moderation and rate limiting.
 - Issue: Accessibility and mobile polish pass.
