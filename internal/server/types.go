@@ -1,0 +1,124 @@
+package server
+
+import "time"
+
+const (
+	phaseLobby      = "lobby"
+	phaseDrawings   = "drawings"
+	phaseGuesses    = "guesses"
+	phaseGuessVotes = "guesses-votes"
+	phaseResults    = "results"
+	phaseComplete   = "complete"
+)
+
+const (
+	revealStageGuesses = "guesses"
+	revealStageVotes   = "votes"
+)
+
+var phaseOrder = []string{
+	phaseLobby,
+	phaseDrawings,
+	phaseGuesses,
+	phaseGuessVotes,
+	phaseResults,
+	phaseComplete,
+}
+
+type GameSummary struct {
+	ID       string
+	JoinCode string
+	Phase    string
+	Players  int
+}
+
+type Game struct {
+	ID               string
+	DBID             uint
+	JoinCode         string
+	Phase            string
+	PhaseStartedAt   time.Time
+	MaxPlayers       int
+	PromptCategory   string
+	LobbyLocked      bool
+	UsedPrompts      map[string]struct{}
+	KickedPlayers    map[string]struct{}
+	HostID           int
+	Players          []Player
+	Audience         []AudienceMember
+	Rounds           []RoundState
+	PromptsPerPlayer int
+}
+
+type Player struct {
+	ID     int
+	Name   string
+	IsHost bool
+	DBID   uint
+	Color  string
+}
+
+type AudienceMember struct {
+	ID   int
+	Name string
+}
+
+type RoundState struct {
+	Number        int
+	DBID          uint
+	Prompts       []PromptEntry
+	Drawings      []DrawingEntry
+	Guesses       []GuessEntry
+	Votes         []VoteEntry
+	GuessTurns    []GuessTurn
+	CurrentGuess  int
+	VoteTurns     []VoteTurn
+	CurrentVote   int
+	RevealIndex   int
+	RevealStage   string
+	AudienceVotes []AudienceVote
+}
+
+type PromptEntry struct {
+	PlayerID int
+	Text     string
+	DBID     uint
+}
+
+type DrawingEntry struct {
+	PlayerID  int
+	ImageData []byte
+	Prompt    string
+	DBID      uint
+}
+
+type GuessEntry struct {
+	PlayerID     int
+	DrawingIndex int
+	Text         string
+	DBID         uint
+}
+
+type GuessTurn struct {
+	DrawingIndex int
+	GuesserID    int
+}
+
+type VoteEntry struct {
+	PlayerID     int
+	DrawingIndex int
+	ChoiceText   string
+	ChoiceType   string
+	DBID         uint
+}
+
+type VoteTurn struct {
+	DrawingIndex int
+	VoterID      int
+}
+
+type AudienceVote struct {
+	AudienceID   int
+	DrawingIndex int
+	ChoiceText   string
+}
