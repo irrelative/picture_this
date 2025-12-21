@@ -57,6 +57,7 @@ When the server starts, it will auto-migrate and load prompts from `prompts.csv`
 - `POST /api/games/{game_id}/audience/votes` — submit audience votes for a drawing.
 - `POST /api/games/{game_id}/advance` — host/admin advances phase if needed.
 - `GET /api/games/{game_id}/results` — fetch round or final results.
+- `GET /api/games/{game_id}/events` — fetch event log for replay.
 - `GET /api/prompts/categories` — list available prompt pack categories.
 - `GET /ws/games/{game_id}` — websocket for realtime state/events.
 

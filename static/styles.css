@@ -264,6 +264,26 @@ input {
   background: #ffffff;
 }
 
+.replay-panel {
+  grid-template-columns: 1fr;
+}
+
+.replay-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.replay-card {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid #e3e3e3;
+  background: #ffffff;
+}
+
 .guess-card,
 .vote-card {
   display: grid;

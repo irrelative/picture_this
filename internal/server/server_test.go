@@ -619,6 +619,18 @@ func TestResults(t *testing.T) {
 	}
 }
 
+func TestEventsUnavailableWithoutDB(t *testing.T) {
+	srv := New(nil, config.Default())
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	gameID := createGame(t, ts)
+	resp := doRequest(t, ts, http.MethodGet, "/api/games/"+gameID+"/events", nil)
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("expected status %d, got %d", http.StatusServiceUnavailable, resp.StatusCode)
+	}
+}
+
 func TestAutoAdvanceFromDrawings(t *testing.T) {
 	srv := New(nil, config.Default())
 	ts := httptest.NewServer(srv.Handler())

@@ -79,6 +79,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /join/", s.handleJoinView)
 	mux.HandleFunc("GET /play/", s.handlePlayerView)
 	mux.HandleFunc("GET /games/", s.handleGameView)
+	mux.HandleFunc("GET /replay/", s.handleReplayView)
 	mux.HandleFunc("GET /audience/", s.handleAudienceView)
 	mux.HandleFunc("POST /api/games", s.handleCreateGame)
 	mux.HandleFunc("GET /api/games/", s.handleGameSubroutes)
@@ -474,6 +475,19 @@ func (s *Server) handleJoinView(w http.ResponseWriter, r *http.Request) {
 	templ.Handler(web.JoinView(code, name)).ServeHTTP(w, r)
 }
 
+func (s *Server) handleReplayView(w http.ResponseWriter, r *http.Request) {
+	gameID, ok := parseReplayPath(r.URL.Path)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	if _, exists := s.store.GetGame(gameID); !exists {
+		http.NotFound(w, r)
+		return
+	}
+	templ.Handler(web.ReplayView(gameID)).ServeHTTP(w, r)
+}
+
 func (s *Server) handleAudienceView(w http.ResponseWriter, r *http.Request) {
 	gameID, audienceID, ok := parseAudienceViewPath(r.URL.Path)
 	if !ok {
@@ -578,6 +592,8 @@ func (s *Server) handleGameSubroutes(w http.ResponseWriter, r *http.Request) {
 		switch action {
 		case "":
 			s.handleGetGame(w, r, gameID)
+		case "events":
+			s.handleEvents(w, r, gameID)
 		case "results":
 			s.handleResults(w, r, gameID)
 		default:
@@ -777,6 +793,44 @@ func (s *Server) handleAudienceVotes(w http.ResponseWriter, r *http.Request, gam
 	log.Printf("audience vote submitted game_id=%s audience_id=%d", game.ID, req.AudienceID)
 	writeJSON(w, http.StatusOK, snapshot(game))
 	s.broadcastGameUpdate(game)
+}
+
+func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request, gameID string) {
+	if s.db == nil {
+		writeError(w, http.StatusServiceUnavailable, "events not available")
+		return
+	}
+	game, ok := s.store.GetGame(gameID)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	if game.DBID == 0 {
+		if err := s.ensureGameDBID(game); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to load game")
+			return
+		}
+	}
+	var records []db.Event
+	if err := s.db.Where("game_id = ?", game.DBID).Order("created_at asc").Find(&records).Error; err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to load events")
+		return
+	}
+	events := make([]map[string]any, 0, len(records))
+	for _, record := range records {
+		events = append(events, map[string]any{
+			"id":         record.ID,
+			"type":       record.Type,
+			"round_id":   record.RoundID,
+			"player_id":  record.PlayerID,
+			"created_at": record.CreatedAt,
+			"payload":    record.Payload,
+		})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"game_id": game.ID,
+		"events":  events,
+	})
 }
 
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request, gameID string) {
@@ -1475,6 +1529,18 @@ func parseAudienceViewPath(path string) (string, int, bool) {
 		return "", 0, false
 	}
 	return gameID, audienceID, true
+}
+
+func parseReplayPath(path string) (string, bool) {
+	const prefix = "/replay/"
+	if !strings.HasPrefix(path, prefix) {
+		return "", false
+	}
+	gameID := strings.Trim(strings.TrimPrefix(path, prefix), "/")
+	if gameID == "" || strings.Contains(gameID, "/") {
+		return "", false
+	}
+	return gameID, true
 }
 
 func parsePlayerPath(path string) (string, int, bool) {

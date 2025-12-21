@@ -1,0 +1,38 @@
+package web
+
+templ ReplayView(gameID string) {
+	@Layout("Picture This | Replay", "/static/replay.js", "") {
+		<header class="hero">
+			<span class="tag">Replay</span>
+			<h1>Round-by-round playback</h1>
+			<p>Step through the game timeline using the event log.</p>
+		</header>
+
+		<section class="panel">
+			<div>
+				<h2>Game</h2>
+				<p id="replayGameId">{ gameID }</p>
+			</div>
+			<div class="status">
+				<span class="label">Status</span>
+				<p id="replayStatus">Loading...</p>
+			</div>
+		</section>
+
+		<section class="panel replay-panel">
+			<div>
+				<h2>Playback</h2>
+				<p>Use the controls to move through rounds and events.</p>
+			</div>
+			<div class="replay-controls">
+				<button id="prevEvent" class="secondary" type="button">Prev</button>
+				<button id="nextEvent" class="secondary" type="button">Next</button>
+				<select id="roundSelect"></select>
+			</div>
+			<div id="eventCard" class="replay-card"></div>
+		</section>
+
+		<p id="replayError" class="result error"></p>
+		<div id="replayMeta" data-game-id={ gameID }></div>
+	}
+}
