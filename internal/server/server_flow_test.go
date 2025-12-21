@@ -136,8 +136,8 @@ func TestSubmitGuesses(t *testing.T) {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
 	}
 	snapshot := fetchSnapshot(t, ts, gameID)
-	if snapshot["phase"] != "drawings" {
-		t.Fatalf("expected drawings phase, got %v", snapshot["phase"])
+	if snapshot["phase"] != "guesses-votes" {
+		t.Fatalf("expected guesses-votes phase, got %v", snapshot["phase"])
 	}
 }
 
@@ -172,6 +172,40 @@ func TestSubmitVotes(t *testing.T) {
 		"player_id": playerID,
 		"guess":     "guess-2",
 	})
+	snapshot := fetchSnapshot(t, ts, gameID)
+	if snapshot["phase"] != "guesses-votes" {
+		t.Fatalf("expected guesses-votes phase, got %v", snapshot["phase"])
+	}
+	for i := 0; i < 2; i++ {
+		snapshot = fetchSnapshot(t, ts, gameID)
+		if snapshot["phase"] != "guesses-votes" {
+			break
+		}
+		turn, ok := snapshot["vote_turn"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected vote turn, got %#v", snapshot["vote_turn"])
+		}
+		voterID := int(turn["voter_id"].(float64))
+		optionsRaw, ok := turn["options"].([]any)
+		if !ok || len(optionsRaw) == 0 {
+			t.Fatalf("expected vote options, got %#v", turn["options"])
+		}
+		choice, ok := optionsRaw[0].(string)
+		if !ok {
+			t.Fatalf("expected option string, got %#v", optionsRaw[0])
+		}
+		resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/votes", map[string]any{
+			"player_id": voterID,
+			"choice":    choice,
+		})
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+		}
+	}
+	snapshot = fetchSnapshot(t, ts, gameID)
+	if snapshot["phase"] != "drawings" {
+		t.Fatalf("expected drawings phase, got %v", snapshot["phase"])
+	}
 	prompt = fetchPrompt(t, ts, gameID, playerID)
 	prompt2 = fetchPrompt(t, ts, gameID, playerID2)
 	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/drawings", map[string]any{
@@ -192,7 +226,7 @@ func TestSubmitVotes(t *testing.T) {
 		"player_id": playerID,
 		"guess":     "guess-4",
 	})
-	snapshot := fetchSnapshot(t, ts, gameID)
+	snapshot = fetchSnapshot(t, ts, gameID)
 	if snapshot["phase"] != "guesses-votes" {
 		t.Fatalf("expected guesses-votes phase, got %v", snapshot["phase"])
 	}

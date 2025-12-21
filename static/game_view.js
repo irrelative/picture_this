@@ -66,7 +66,7 @@ export function updateFromSnapshot(ctx, data) {
     els.lobbyStatus.textContent = `Players: ${players.length}/${maxPlayers}. ${lockedText} lobby. Audience: ${audienceCount}.`;
   }
   if (els.settingsForm) {
-    const disabled = data.phase !== "lobby";
+    const disabled = data.phase !== "lobby" || !state.hostId;
     Array.from(els.settingsForm.elements).forEach((el) => {
       if (el.tagName === "BUTTON") return;
       el.disabled = disabled;

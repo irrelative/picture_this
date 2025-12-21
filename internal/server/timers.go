@@ -69,34 +69,34 @@ func (s *Server) autoAdvancePhase(gameID string, expectedPhase string) {
 			}
 			game.Phase = phaseGuesses
 			game.PhaseStartedAt = now
-		case phaseGuesses:
-			round := currentRound(game)
-			if round == nil {
-				return errors.New("round not started")
-			}
-			round.CurrentGuess = len(round.GuessTurns)
-			if round.Number < game.PromptsPerPlayer {
-				game.Phase = phaseDrawings
-				game.PhaseStartedAt = now
-				game.Rounds = append(game.Rounds, RoundState{
-					Number: len(game.Rounds) + 1,
-				})
-			} else {
-				if err := s.buildVoteTurns(game, round); err != nil {
-					return err
-				}
-				game.Phase = phaseGuessVotes
-				game.PhaseStartedAt = now
-			}
-		case phaseGuessVotes:
-			round := currentRound(game)
-			if round == nil {
-				return errors.New("round not started")
-			}
-			round.CurrentVote = len(round.VoteTurns)
+	case phaseGuesses:
+		round := currentRound(game)
+		if round == nil {
+			return errors.New("round not started")
+		}
+		round.CurrentGuess = len(round.GuessTurns)
+		if err := s.buildVoteTurns(game, round); err != nil {
+			return err
+		}
+		game.Phase = phaseGuessVotes
+		game.PhaseStartedAt = now
+	case phaseGuessVotes:
+		round := currentRound(game)
+		if round == nil {
+			return errors.New("round not started")
+		}
+		round.CurrentVote = len(round.VoteTurns)
+		if round.Number < game.PromptsPerPlayer {
+			game.Phase = phaseDrawings
+			game.PhaseStartedAt = now
+			game.Rounds = append(game.Rounds, RoundState{
+				Number: len(game.Rounds) + 1,
+			})
+		} else {
 			game.Phase = phaseResults
 			game.PhaseStartedAt = now
 			initReveal(round)
+		}
 		case phaseResults:
 			round := currentRound(game)
 			if round == nil {
@@ -128,7 +128,7 @@ func (s *Server) autoAdvancePhase(gameID string, expectedPhase string) {
 	if err != nil {
 		return
 	}
-	if game.Phase == phaseDrawings && expectedPhase == phaseGuesses {
+	if game.Phase == phaseDrawings && (expectedPhase == phaseGuesses || expectedPhase == phaseGuessVotes) {
 		if err := s.persistRound(game); err != nil {
 			log.Printf("auto-advance persist round failed game_id=%s error=%v", game.ID, err)
 			return

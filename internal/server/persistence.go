@@ -308,21 +308,19 @@ func (s *Server) persistGuess(game *Game, playerID int, drawingIndex int, guess 
 	})
 }
 
-func (s *Server) persistVote(game *Game, playerID int, drawingIndex int, choiceText string, choiceType string) error {
+func (s *Server) persistVote(game *Game, playerID int, roundNumber int, drawingIndex int, choiceText string, choiceType string) error {
 	if s.db == nil {
 		return s.persistEvent(game, "votes_submitted", map[string]any{
 			"player_id": playerID,
 			"choice":    choiceText,
 		})
 	}
-	round := currentRound(game)
+	round := roundByNumber(game, roundNumber)
 	if round == nil {
 		return errors.New("round not started")
 	}
 	if round.DBID == 0 {
-		if err := s.persistRound(game); err != nil {
-			return err
-		}
+		return errors.New("round not persisted")
 	}
 	player, ok := s.store.FindPlayer(game, playerID)
 	if !ok || player.DBID == 0 {

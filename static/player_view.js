@@ -8,6 +8,7 @@ function normalizePhase(phase) {
 export function updateFromSnapshot(ctx, data) {
   const { els, state, actions } = ctx;
   const phase = normalizePhase(data.phase);
+  const prevPhase = state.lastPhase || "";
   els.joinCode.textContent = data.join_code || "Unavailable";
   els.gameStatus.textContent = phase || "Unknown";
   els.playerList.innerHTML = "";
@@ -35,14 +36,26 @@ export function updateFromSnapshot(ctx, data) {
     els.playerList.appendChild(item);
   });
 
-  if (data.round_number && data.round_number !== state.currentRound) {
-    state.currentRound = data.round_number;
+  const roundNumber = data.current_round || 0;
+  if (roundNumber && roundNumber !== state.currentRound) {
+    state.currentRound = roundNumber;
     state.drawingSubmitted = false;
     state.assignedPrompt = "";
     if (els.promptText) {
       els.promptText.textContent = "Loading...";
     }
   }
+
+  if (phase === "drawings" && prevPhase === "guesses-votes" && roundNumber > 1) {
+    state.showScoreboard = true;
+  }
+  if (phase !== "drawings") {
+    state.showScoreboard = false;
+  }
+  if (state.drawingSubmitted) {
+    state.showScoreboard = false;
+  }
+  state.lastPhase = phase;
 
   state.hostId = data.host_id || 0;
   const playerId = Number(els.meta?.dataset.playerId || 0);
@@ -100,6 +113,7 @@ export function updateFromSnapshot(ctx, data) {
     }
   }
 
+  updateScoreboard(ctx, data, phase);
   updateGuessPhase(ctx, data, phase);
   updateVotePhase(ctx, data, phase);
   updateResultsPhase(ctx, data, phase);
@@ -116,6 +130,7 @@ function updateGuessPhase(ctx, data, phase) {
   const playerId = Number(els.meta?.dataset.playerId || 0);
   const turn = data.guess_turn || null;
   const isTurn = turn && turn.guesser_id === playerId;
+  const isOwnDrawing = turn && turn.drawing_owner === playerId;
   const drawingImage = turn ? turn.drawing_image : "";
   const guessKey = `${turn ? turn.guesser_id : "none"}-${turn ? turn.drawing_index : "none"}`;
   if (guessKey !== state.lastGuessKey) {
@@ -125,19 +140,25 @@ function updateGuessPhase(ctx, data, phase) {
     state.lastGuessKey = guessKey;
   }
   if (els.guessStatus) {
-    els.guessStatus.textContent = isTurn ? "Your turn to guess." : "Waiting for the next guess.";
+    if (isOwnDrawing) {
+      els.guessStatus.textContent = "This is your drawing, no guessing needed.";
+    } else {
+      els.guessStatus.textContent = isTurn ? "Your turn to guess." : "Waiting for the next guess.";
+    }
   }
   if (els.guessImage) {
     els.guessImage.src = drawingImage || "";
     els.guessImage.style.display = drawingImage ? "block" : "none";
   }
   if (els.guessForm) {
+    const showForm = isTurn && !isOwnDrawing;
+    els.guessForm.style.display = showForm ? "grid" : "none";
     const submitButton = els.guessForm.querySelector("button");
     if (submitButton) {
-      submitButton.disabled = !isTurn;
+      submitButton.disabled = !showForm;
     }
     if (els.guessInput) {
-      els.guessInput.disabled = !isTurn;
+      els.guessInput.disabled = !showForm;
     }
   }
 }
@@ -196,6 +217,44 @@ function updateResultsPhase(ctx, data, phase) {
     }
     state.lastResultsKey = resultsKey;
   }
+}
+
+function updateScoreboard(ctx, data, phase) {
+  const { els, state } = ctx;
+  if (!els.scoreboardSection || !els.scoreboardList) return;
+  const scores = Array.isArray(data.scores) ? data.scores : [];
+  const roundNumber = data.current_round || 0;
+  const shouldShow = state.showScoreboard && phase === "drawings" && scores.length > 0;
+  els.scoreboardSection.style.display = shouldShow ? "grid" : "none";
+  if (!shouldShow) {
+    return;
+  }
+  if (els.scoreboardStatus) {
+    els.scoreboardStatus.textContent =
+      roundNumber > 1
+        ? `Round ${roundNumber} is starting. Here are the scores so far.`
+        : "Here are the scores so far.";
+  }
+  renderScoreList(els.scoreboardList, scores);
+}
+
+function renderScoreList(container, scores) {
+  container.innerHTML = "";
+  if (!Array.isArray(scores) || scores.length === 0) {
+    const note = document.createElement("p");
+    note.className = "hint";
+    note.textContent = "Scores will appear here once the round finishes.";
+    container.appendChild(note);
+    return;
+  }
+  const list = document.createElement("ul");
+  list.className = "score-list";
+  scores.forEach((entry) => {
+    const item = document.createElement("li");
+    item.textContent = `${entry.player_name || "Player"}: ${entry.score}`;
+    list.appendChild(item);
+  });
+  container.appendChild(list);
 }
 
 function renderVoteOptions(ctx, options) {

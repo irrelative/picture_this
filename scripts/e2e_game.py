@@ -121,32 +121,35 @@ def main():
             assert status == 200, "snapshot failed"
 
         phase = normalize_phase(snapshot.get("phase"))
+        phase = normalize_phase(snapshot.get("phase"))
+        assert phase == "guesses-votes", f"expected guesses-votes phase, got {snapshot.get('phase')}"
+
+        guard = 0
+        while normalize_phase(snapshot.get("phase")) == "guesses-votes" and guard < 20:
+            guard += 1
+            turn = snapshot.get("vote_turn")
+            assert turn, "no vote turn found"
+            voter = turn["voter_id"]
+            options = turn.get("options") or []
+            assert options, "no vote options"
+            choice = options[0]
+            status, _ = request_json(
+                "POST",
+                f"{base_url}/api/games/{game_id}/votes",
+                {"player_id": voter, "choice": choice},
+            )
+            if status != 200:
+                _, detail = request_json("GET", f"{base_url}/api/games/{game_id}")
+                raise AssertionError(f"vote failed for player {voter}: status={status} snapshot_phase={detail.get('phase')}")
+            status, snapshot = request_json("GET", f"{base_url}/api/games/{game_id}")
+            assert status == 200, "snapshot failed"
+
+        phase = normalize_phase(snapshot.get("phase"))
         if round_number < total_rounds:
             assert phase == "drawings", f"expected drawings phase, got {snapshot.get('phase')}"
         else:
-            assert phase == "guesses-votes", f"expected guesses-votes phase, got {snapshot.get('phase')}"
-
-    guard = 0
-    while normalize_phase(snapshot.get("phase")) == "guesses-votes" and guard < 20:
-        guard += 1
-        turn = snapshot.get("vote_turn")
-        assert turn, "no vote turn found"
-        voter = turn["voter_id"]
-        options = turn.get("options") or []
-        assert options, "no vote options"
-        choice = options[0]
-        status, _ = request_json(
-            "POST",
-            f"{base_url}/api/games/{game_id}/votes",
-            {"player_id": voter, "choice": choice},
-        )
-        assert status == 200, f"vote failed for player {voter}"
-        status, snapshot = request_json("GET", f"{base_url}/api/games/{game_id}")
-        assert status == 200, "snapshot failed"
-
-    phase = normalize_phase(snapshot.get("phase"))
-    assert phase == "results", f"expected results phase, got {snapshot.get('phase')}"
-    print("Votes submitted")
+            assert phase == "results", f"expected results phase, got {snapshot.get('phase')}"
+            print("Votes submitted")
 
     status, results = request_json("GET", f"{base_url}/api/games/{game_id}/results")
     assert status == 200, f"results failed: {results}"

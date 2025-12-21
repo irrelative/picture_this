@@ -24,6 +24,18 @@ func currentRound(game *Game) *RoundState {
 	return &game.Rounds[len(game.Rounds)-1]
 }
 
+func roundByNumber(game *Game, number int) *RoundState {
+	if game == nil || number <= 0 {
+		return nil
+	}
+	for i := range game.Rounds {
+		if game.Rounds[i].Number == number {
+			return &game.Rounds[i]
+		}
+	}
+	return nil
+}
+
 func setPhase(game *Game, phase string) {
 	game.Phase = phase
 	game.PhaseStartedAt = time.Now().UTC()

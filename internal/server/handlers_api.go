@@ -695,17 +695,10 @@ func (s *Server) handleGuesses(w http.ResponseWriter, r *http.Request, gameID st
 		})
 		round.CurrentGuess++
 		if round.CurrentGuess >= len(round.GuessTurns) {
-			if round.Number < game.PromptsPerPlayer {
-				setPhase(game, phaseDrawings)
-				game.Rounds = append(game.Rounds, RoundState{
-					Number: len(game.Rounds) + 1,
-				})
-			} else {
-				if err := s.buildVoteTurns(game, round); err != nil {
-					return err
-				}
-				setPhase(game, phaseGuessVotes)
+			if err := s.buildVoteTurns(game, round); err != nil {
+				return err
 			}
+			setPhase(game, phaseGuessVotes)
 		}
 		return nil
 	})
@@ -729,17 +722,7 @@ func (s *Server) handleGuesses(w http.ResponseWriter, r *http.Request, gameID st
 		writeError(w, http.StatusInternalServerError, "failed to save guesses")
 		return
 	}
-	if game.Phase == phaseDrawings {
-		if err := s.persistRound(game); err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to create round")
-			return
-		}
-		if err := s.assignPrompts(game); err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to assign prompts")
-			return
-		}
-	}
-	if game.Phase == phaseDrawings || game.Phase == phaseGuessVotes {
+	if game.Phase == phaseGuessVotes {
 		if err := s.persistPhase(game, "game_advanced", map[string]any{"phase": game.Phase}); err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to advance game")
 			return
@@ -774,6 +757,9 @@ func (s *Server) handleVotes(w http.ResponseWriter, r *http.Request, gameID stri
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	voteRoundNumber := 0
+	voteDrawingIndex := -1
+	voteChoiceType := "guess"
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
 		if game.Phase != phaseGuessVotes {
 			return errors.New("votes not accepted in this phase")
@@ -806,6 +792,9 @@ func (s *Server) handleVotes(w http.ResponseWriter, r *http.Request, gameID stri
 		if drawingPrompt(round, turn.DrawingIndex) == choiceText {
 			choiceType = "prompt"
 		}
+		voteRoundNumber = round.Number
+		voteDrawingIndex = turn.DrawingIndex
+		voteChoiceType = choiceType
 		round.Votes = append(round.Votes, VoteEntry{
 			PlayerID:     player.ID,
 			DrawingIndex: turn.DrawingIndex,
@@ -814,8 +803,15 @@ func (s *Server) handleVotes(w http.ResponseWriter, r *http.Request, gameID stri
 		})
 		round.CurrentVote++
 		if round.CurrentVote >= len(round.VoteTurns) {
-			setPhase(game, phaseResults)
-			initReveal(round)
+			if round.Number < game.PromptsPerPlayer {
+				setPhase(game, phaseDrawings)
+				game.Rounds = append(game.Rounds, RoundState{
+					Number: len(game.Rounds) + 1,
+				})
+			} else {
+				setPhase(game, phaseResults)
+				initReveal(round)
+			}
 		}
 		return nil
 	})
@@ -827,23 +823,21 @@ func (s *Server) handleVotes(w http.ResponseWriter, r *http.Request, gameID stri
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
-	turnIndex := 0
-	if round := currentRound(game); round != nil && round.CurrentVote > 0 {
-		turnIndex = round.CurrentVote - 1
-	}
-	drawingIndex := -1
-	if round := currentRound(game); round != nil && turnIndex < len(round.VoteTurns) {
-		drawingIndex = round.VoteTurns[turnIndex].DrawingIndex
-	}
-	choiceType := "guess"
-	if round := currentRound(game); round != nil && drawingPrompt(round, drawingIndex) == choiceText {
-		choiceType = "prompt"
-	}
-	if err := s.persistVote(game, req.PlayerID, drawingIndex, choiceText, choiceType); err != nil {
+	if err := s.persistVote(game, req.PlayerID, voteRoundNumber, voteDrawingIndex, choiceText, voteChoiceType); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to save votes")
 		return
 	}
-	if game.Phase == phaseResults {
+	if game.Phase == phaseDrawings {
+		if err := s.persistRound(game); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to create round")
+			return
+		}
+		if err := s.assignPrompts(game); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to assign prompts")
+			return
+		}
+	}
+	if game.Phase == phaseDrawings || game.Phase == phaseResults {
 		if err := s.persistPhase(game, "game_advanced", map[string]any{"phase": game.Phase}); err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to advance game")
 			return
