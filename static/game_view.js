@@ -29,14 +29,17 @@ export function updateFromSnapshot(ctx, data) {
   const playerIDs = Array.isArray(data.player_ids) ? data.player_ids : [];
   players.forEach((player, index) => {
     const item = document.createElement("li");
-    item.textContent = player;
+    const playerName = player;
+    const isHost = playerIDs[index] === state.hostId;
+    item.textContent = isHost ? `${playerName}*` : playerName;
     els.playerList.appendChild(item);
 
     if (els.playerActions) {
       const row = document.createElement("div");
       row.className = "player-action-row";
       const label = document.createElement("span");
-      label.textContent = player;
+      const isHost = playerIDs[index] === state.hostId;
+      label.textContent = isHost ? `${player}*` : player;
       const kickButton = document.createElement("button");
       kickButton.type = "button";
       kickButton.className = "secondary";
