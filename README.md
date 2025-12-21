@@ -86,10 +86,9 @@ When the server starts, it will auto-migrate and load prompts from `prompts.csv`
 - Audience mode for non-players with voting.
 - Game replay view using event log for round-by-round playback.
 
-### Priority 4: UX & Safety
+### Priority 4: UX
 - Drawing tool enhancements (brush sizes/colors, undo).
 - Assign each player a consistent drawing color across the game.
-- Input validation and moderation (name/profanity filtering, rate limits).
 - Accessibility pass and mobile polish (screen reader labels, touch affordances).
 
 ## Database Schema & ORM Plan (Draft)
@@ -108,3 +107,7 @@ When the server starts, it will auto-migrate and load prompts from `prompts.csv`
 For now, don't include:
 * Sound effects/music
 * Voiceover. Instead, have the instructions printed to the WebUI
+
+
+## Ideas
+* htmx approach, does that work with ws?

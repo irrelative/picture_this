@@ -20,7 +20,7 @@ templ Layout(title string, scriptPath string, flash string) {
 				</main>
 			</div>
 			if scriptPath != "" {
-				<script src={ scriptPath }></script>
+				<script type="module" src={ scriptPath }></script>
 			}
 		</body>
 	</html>

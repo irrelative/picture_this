@@ -1,146 +1,71 @@
-const meta = document.getElementById("gameMeta");
-const joinCode = document.getElementById("joinCode");
-const gameStatus = document.getElementById("gameStatus");
-const playerList = document.getElementById("playerList");
-const playerActions = document.getElementById("playerActions");
-const gameError = document.getElementById("gameError");
-const startGame = document.getElementById("startGame");
-const endGame = document.getElementById("endGame");
-const settingsForm = document.getElementById("settingsForm");
-const roundsInput = document.getElementById("roundsInput");
-const maxPlayersInput = document.getElementById("maxPlayersInput");
-const promptCategory = document.getElementById("promptCategory");
-const lobbyLocked = document.getElementById("lobbyLocked");
-const lobbyStatus = document.getElementById("lobbyStatus");
-const settingsStatus = document.getElementById("settingsStatus");
-let pollTimer = null;
-let hostId = 0;
-let categoriesLoaded = false;
+import {
+  fetchCategories,
+  fetchSnapshot,
+  postEndGame,
+  postKick,
+  postSettings,
+  postStartGame
+} from "./game_api.js";
+import { updateFromSnapshot } from "./game_view.js";
+
+const ctx = {
+  els: {
+    meta: document.getElementById("gameMeta"),
+    joinCode: document.getElementById("joinCode"),
+    gameStatus: document.getElementById("gameStatus"),
+    playerList: document.getElementById("playerList"),
+    playerActions: document.getElementById("playerActions"),
+    gameError: document.getElementById("gameError"),
+    startGame: document.getElementById("startGame"),
+    endGame: document.getElementById("endGame"),
+    settingsForm: document.getElementById("settingsForm"),
+    roundsInput: document.getElementById("roundsInput"),
+    maxPlayersInput: document.getElementById("maxPlayersInput"),
+    promptCategory: document.getElementById("promptCategory"),
+    lobbyLocked: document.getElementById("lobbyLocked"),
+    lobbyStatus: document.getElementById("lobbyStatus"),
+    settingsStatus: document.getElementById("settingsStatus")
+  },
+  state: {
+    pollTimer: null,
+    hostId: 0,
+    categoriesLoaded: false
+  }
+};
 
 async function loadGame() {
-  if (!meta) return;
-  const gameId = meta.dataset.gameId;
-  await fetchSnapshot(gameId);
-}
-
-async function fetchSnapshot(gameId) {
-  const res = await fetch(`/api/games/${encodeURIComponent(gameId)}`);
-  const data = await res.json().catch(() => ({}));
+  if (!ctx.els.meta) return;
+  const gameId = ctx.els.meta.dataset.gameId;
+  const { res, data } = await fetchSnapshot(gameId);
   if (!res.ok) {
-    joinCode.textContent = "Unavailable";
-    gameStatus.textContent = "Unknown";
-    if (gameError) {
-      gameError.textContent = data.error || "Unable to load game status.";
+    ctx.els.joinCode.textContent = "Unavailable";
+    ctx.els.gameStatus.textContent = "Unknown";
+    if (ctx.els.gameError) {
+      ctx.els.gameError.textContent = data.error || "Unable to load game status.";
     }
     return;
   }
-  if (gameError) {
-    gameError.textContent = "";
+  if (ctx.els.gameError) {
+    ctx.els.gameError.textContent = "";
   }
-  updateFromSnapshot(data);
-}
-
-function updateFromSnapshot(data) {
-  joinCode.textContent = data.join_code || "Unavailable";
-  gameStatus.textContent = data.phase || "Unknown";
-  hostId = data.host_id || 0;
-  if (startGame) {
-    startGame.style.display = data.phase === "lobby" ? "inline-flex" : "none";
-    startGame.disabled = data.phase === "lobby" ? (data.players?.length || 0) < 2 : true;
-  }
-  if (endGame) {
-    endGame.style.display = data.phase !== "complete" ? "inline-flex" : "none";
-  }
-
-  playerList.innerHTML = "";
-  if (playerActions) {
-    playerActions.innerHTML = "";
-  }
-  const players = Array.isArray(data.players) ? data.players : [];
-  if (players.length === 0) {
-    const item = document.createElement("li");
-    item.textContent = "No players yet";
-    playerList.appendChild(item);
-    return;
-  }
-  const playerIDs = Array.isArray(data.player_ids) ? data.player_ids : [];
-  players.forEach((player, index) => {
-    const item = document.createElement("li");
-    item.textContent = player;
-    playerList.appendChild(item);
-
-    if (playerActions) {
-      const row = document.createElement("div");
-      row.className = "player-action-row";
-      const label = document.createElement("span");
-      label.textContent = player;
-      const kickButton = document.createElement("button");
-      kickButton.type = "button";
-      kickButton.className = "secondary";
-      kickButton.textContent = "Remove";
-      kickButton.dataset.playerId = String(playerIDs[index] || 0);
-      if (playerIDs[index] === hostId) {
-        kickButton.disabled = true;
-      }
-      row.appendChild(label);
-      row.appendChild(kickButton);
-      playerActions.appendChild(row);
-    }
-  });
-
-  if (roundsInput) {
-    roundsInput.value = data.total_rounds || data.prompts_per_player || 2;
-  }
-  if (maxPlayersInput) {
-    maxPlayersInput.value = data.max_players || 0;
-  }
-  if (promptCategory) {
-    promptCategory.value = data.prompt_category || "";
-  }
-  if (lobbyLocked) {
-    lobbyLocked.checked = Boolean(data.lobby_locked);
-  }
-  if (lobbyStatus) {
-    const maxPlayers = data.max_players > 0 ? data.max_players : "∞";
-    const lockedText = data.lobby_locked ? "Locked" : "Open";
-    const audienceCount = data.audience_count != null ? data.audience_count : 0;
-    lobbyStatus.textContent = `Players: ${players.length}/${maxPlayers}. ${lockedText} lobby. Audience: ${audienceCount}.`;
-  }
-  if (settingsForm) {
-    const disabled = data.phase !== "lobby";
-    Array.from(settingsForm.elements).forEach((el) => {
-      if (el.tagName === "BUTTON") return;
-      el.disabled = disabled;
-    });
-    if (settingsForm.querySelector("button")) {
-      settingsForm.querySelector("button").disabled = disabled;
-    }
-  }
-
-
-  if (playerActions) {
-    const disabled = data.phase !== "lobby";
-    Array.from(playerActions.querySelectorAll("button")).forEach((button) => {
-      button.disabled = disabled;
-    });
-  }
+  updateFromSnapshot(ctx, data);
 }
 
 function startPolling() {
-  if (pollTimer) return;
-  pollTimer = setInterval(loadGame, 3000);
+  if (ctx.state.pollTimer) return;
+  ctx.state.pollTimer = setInterval(loadGame, 3000);
 }
 
 function connectWS() {
-  if (!meta) return;
-  const gameId = meta.dataset.gameId;
+  if (!ctx.els.meta) return;
+  const gameId = ctx.els.meta.dataset.gameId;
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
   const socket = new WebSocket(`${protocol}://${window.location.host}/ws/games/${encodeURIComponent(gameId)}?role=host`);
 
   socket.addEventListener("message", (event) => {
     try {
       const data = JSON.parse(event.data);
-      updateFromSnapshot(data);
+      updateFromSnapshot(ctx, data);
     } catch {
       // ignore invalid payloads
     }
@@ -155,112 +80,95 @@ function connectWS() {
   });
 }
 
-if (startGame) {
-  startGame.addEventListener("click", async () => {
-    if (!meta) return;
-    const gameId = meta.dataset.gameId;
-    const res = await fetch(`/api/games/${encodeURIComponent(gameId)}/start`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ player_id: hostId || 0 })
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      if (gameError) {
-        gameError.textContent = data.error || "Unable to start game.";
-      }
-      return;
-    }
-    if (gameError) {
-      gameError.textContent = "";
-    }
-    updateFromSnapshot(data);
-  });
-}
-
-if (endGame) {
-  endGame.addEventListener("click", async () => {
-    if (!meta) return;
-    const gameId = meta.dataset.gameId;
-    const res = await fetch(`/api/games/${encodeURIComponent(gameId)}/end`, {
-      method: "POST"
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      if (gameError) {
-        gameError.textContent = data.error || "Unable to end game.";
-      }
-      return;
-    }
-    if (gameError) {
-      gameError.textContent = "";
-    }
-    updateFromSnapshot(data);
-  });
-}
-
-loadGame();
-connectWS();
-
 async function loadCategories() {
-  if (categoriesLoaded || !promptCategory) return;
-  categoriesLoaded = true;
-  const res = await fetch("/api/prompts/categories");
-  const data = await res.json().catch(() => ({}));
+  if (ctx.state.categoriesLoaded || !ctx.els.promptCategory) return;
+  ctx.state.categoriesLoaded = true;
+  const { data } = await fetchCategories();
   const categories = Array.isArray(data.categories) ? data.categories : [];
-  promptCategory.innerHTML = "";
+  ctx.els.promptCategory.innerHTML = "";
   const allOption = document.createElement("option");
   allOption.value = "";
   allOption.textContent = "All prompts";
-  promptCategory.appendChild(allOption);
+  ctx.els.promptCategory.appendChild(allOption);
   categories.forEach((category) => {
     const option = document.createElement("option");
     option.value = category;
     option.textContent = category;
-    promptCategory.appendChild(option);
+    ctx.els.promptCategory.appendChild(option);
   });
 }
 
-if (settingsForm) {
-  settingsForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    if (!meta) return;
-    const gameId = meta.dataset.gameId;
-    const rounds = Number(roundsInput?.value || 0);
-    const maxPlayers = Number(maxPlayersInput?.value || 0);
-    const category = promptCategory ? promptCategory.value : "";
-    const locked = Boolean(lobbyLocked?.checked);
-    if (settingsStatus) {
-      settingsStatus.textContent = "Saving...";
-    }
-    const res = await fetch(`/api/games/${encodeURIComponent(gameId)}/settings`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        player_id: hostId || 0,
-        rounds,
-        max_players: maxPlayers,
-        prompt_category: category,
-        lobby_locked: locked
-      })
-    });
-    const data = await res.json().catch(() => ({}));
+if (ctx.els.startGame) {
+  ctx.els.startGame.addEventListener("click", async () => {
+    if (!ctx.els.meta) return;
+    const gameId = ctx.els.meta.dataset.gameId;
+    const { res, data } = await postStartGame(gameId, ctx.state.hostId || 0);
     if (!res.ok) {
-      if (settingsStatus) {
-        settingsStatus.textContent = data.error || "Unable to save settings.";
+      if (ctx.els.gameError) {
+        ctx.els.gameError.textContent = data.error || "Unable to start game.";
       }
       return;
     }
-    if (settingsStatus) {
-      settingsStatus.textContent = "Settings saved.";
+    if (ctx.els.gameError) {
+      ctx.els.gameError.textContent = "";
     }
-    updateFromSnapshot(data);
+    updateFromSnapshot(ctx, data);
+  });
+}
+
+if (ctx.els.endGame) {
+  ctx.els.endGame.addEventListener("click", async () => {
+    if (!ctx.els.meta) return;
+    const gameId = ctx.els.meta.dataset.gameId;
+    const { res, data } = await postEndGame(gameId);
+    if (!res.ok) {
+      if (ctx.els.gameError) {
+        ctx.els.gameError.textContent = data.error || "Unable to end game.";
+      }
+      return;
+    }
+    if (ctx.els.gameError) {
+      ctx.els.gameError.textContent = "";
+    }
+    updateFromSnapshot(ctx, data);
+  });
+}
+
+if (ctx.els.settingsForm) {
+  ctx.els.settingsForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!ctx.els.meta) return;
+    const gameId = ctx.els.meta.dataset.gameId;
+    const rounds = Number(ctx.els.roundsInput?.value || 0);
+    const maxPlayers = Number(ctx.els.maxPlayersInput?.value || 0);
+    const category = ctx.els.promptCategory ? ctx.els.promptCategory.value : "";
+    const locked = Boolean(ctx.els.lobbyLocked?.checked);
+    if (ctx.els.settingsStatus) {
+      ctx.els.settingsStatus.textContent = "Saving...";
+    }
+    const { res, data } = await postSettings(gameId, {
+      player_id: ctx.state.hostId || 0,
+      rounds,
+      max_players: maxPlayers,
+      prompt_category: category,
+      lobby_locked: locked
+    });
+    if (!res.ok) {
+      if (ctx.els.settingsStatus) {
+        ctx.els.settingsStatus.textContent = data.error || "Unable to save settings.";
+      }
+      return;
+    }
+    if (ctx.els.settingsStatus) {
+      ctx.els.settingsStatus.textContent = "Settings saved.";
+    }
+    updateFromSnapshot(ctx, data);
   });
   loadCategories();
 }
 
-if (playerActions) {
-  playerActions.addEventListener("click", async (event) => {
+if (ctx.els.playerActions) {
+  ctx.els.playerActions.addEventListener("click", async (event) => {
     const target = event.target;
     if (!target || target.tagName !== "BUTTON") {
       return;
@@ -268,33 +176,31 @@ if (playerActions) {
     if (target.disabled) {
       return;
     }
-    if (!meta) return;
-    const gameId = meta.dataset.gameId;
+    if (!ctx.els.meta) return;
+    const gameId = ctx.els.meta.dataset.gameId;
     const playerId = Number(target.dataset.playerId || 0);
     if (!playerId) {
-      if (gameError) {
-        gameError.textContent = "Unable to resolve player.";
+      if (ctx.els.gameError) {
+        ctx.els.gameError.textContent = "Unable to resolve player.";
       }
       return;
     }
-    const kickRes = await fetch(`/api/games/${encodeURIComponent(gameId)}/kick`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        player_id: hostId || 0,
-        target_id: playerId
-      })
+    const { res, data } = await postKick(gameId, {
+      player_id: ctx.state.hostId || 0,
+      target_id: playerId
     });
-    const data = await kickRes.json().catch(() => ({}));
-    if (!kickRes.ok) {
-      if (gameError) {
-        gameError.textContent = data.error || "Unable to remove player.";
+    if (!res.ok) {
+      if (ctx.els.gameError) {
+        ctx.els.gameError.textContent = data.error || "Unable to remove player.";
       }
       return;
     }
-    if (gameError) {
-      gameError.textContent = "";
+    if (ctx.els.gameError) {
+      ctx.els.gameError.textContent = "";
     }
-    updateFromSnapshot(data);
+    updateFromSnapshot(ctx, data);
   });
 }
+
+loadGame();
+connectWS();
