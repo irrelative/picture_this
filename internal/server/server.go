@@ -51,6 +51,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/prompts/categories", s.handlePromptCategories)
 	mux.HandleFunc("GET /ws/games/", s.handleWebsocket)
 	mux.HandleFunc("GET /ws/home", s.handleHomeWebsocket)
+	mux.HandleFunc("GET /admin/", s.handleAdminView)
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	return mux
 }
