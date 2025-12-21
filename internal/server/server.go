@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"sort"
 	"strconv"
@@ -33,6 +34,7 @@ type Server struct {
 	homeWS   *homeHub
 	cfg      config.Config
 	sessions *sessionStore
+	limiter  *rateLimiter
 	timersMu sync.Mutex
 	timers   map[string]*time.Timer
 }
@@ -60,6 +62,18 @@ var phaseOrder = []string{
 	phaseComplete,
 }
 
+const (
+	maxNameLength     = 20
+	maxGuessLength    = 60
+	maxPromptLength   = 140
+	maxChoiceLength   = 140
+	maxCategoryLength = 32
+	maxDrawingBytes   = 250 * 1024
+	maxRoundsPerGame  = 10
+	maxLobbyPlayers   = 12
+	rateLimitExceeded = "rate limit exceeded"
+)
+
 func New(conn *gorm.DB, cfg config.Config) *Server {
 	return &Server{
 		store:    NewStore(),
@@ -68,6 +82,7 @@ func New(conn *gorm.DB, cfg config.Config) *Server {
 		homeWS:   newHomeHub(),
 		cfg:      cfg,
 		sessions: newSessionStore(conn),
+		limiter:  newRateLimiter(),
 		timers:   make(map[string]*time.Timer),
 	}
 }
@@ -421,6 +436,9 @@ func newJoinCode() string {
 }
 
 func (s *Server) handleCreateGame(w http.ResponseWriter, r *http.Request) {
+	if !s.enforceRateLimit(w, r, "create") {
+		return
+	}
 	game := s.store.CreateGame(s.cfg.PromptsPerPlayer)
 	if err := s.persistGame(game); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to create game")
@@ -677,13 +695,21 @@ type audienceVoteRequest struct {
 }
 
 func (s *Server) handleJoinGame(w http.ResponseWriter, r *http.Request, gameID string) {
+	if !s.enforceRateLimit(w, r, "join") {
+		return
+	}
 	var req joinRequest
-	if err := readJSON(r.Body, &req); err != nil || strings.TrimSpace(req.Name) == "" {
+	if err := readJSON(r.Body, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "name is required")
 		return
 	}
+	name, err := validateName(req.Name)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
-	game, player, err := s.store.AddPlayer(gameID, req.Name)
+	game, player, err := s.store.AddPlayer(gameID, name)
 	if err != nil {
 		if err.Error() == "game not found" {
 			http.NotFound(w, r)
@@ -701,27 +727,35 @@ func (s *Server) handleJoinGame(w http.ResponseWriter, r *http.Request, gameID s
 
 	resp := map[string]any{
 		"game_id":   game.ID,
-		"player":    req.Name,
+		"player":    name,
 		"join_code": game.JoinCode,
 	}
 	resp["player_id"] = playerID
 	writeJSON(w, http.StatusOK, resp)
-	log.Printf("player joined game_id=%s player_id=%d player_name=%s", game.ID, playerID, req.Name)
+	log.Printf("player joined game_id=%s player_id=%d player_name=%s", game.ID, playerID, name)
 
 	if s.sessions != nil {
-		s.sessions.SetName(w, r, req.Name)
+		s.sessions.SetName(w, r, name)
 	}
 
 	s.broadcastGameUpdate(game)
 }
 
 func (s *Server) handleAudienceJoin(w http.ResponseWriter, r *http.Request, gameID string) {
+	if !s.enforceRateLimit(w, r, "audience_join") {
+		return
+	}
 	var req audienceJoinRequest
-	if err := readJSON(r.Body, &req); err != nil || strings.TrimSpace(req.Name) == "" {
+	if err := readJSON(r.Body, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "name is required")
 		return
 	}
-	game, audience, err := s.store.AddAudience(gameID, req.Name)
+	name, err := validateName(req.Name)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	game, audience, err := s.store.AddAudience(gameID, name)
 	if err != nil {
 		if err.Error() == "game not found" {
 			http.NotFound(w, r)
@@ -741,12 +775,19 @@ func (s *Server) handleAudienceJoin(w http.ResponseWriter, r *http.Request, game
 }
 
 func (s *Server) handleAudienceVotes(w http.ResponseWriter, r *http.Request, gameID string) {
+	if !s.enforceRateLimit(w, r, "audience_vote") {
+		return
+	}
 	var req audienceVoteRequest
 	if err := readJSON(r.Body, &req); err != nil || req.AudienceID <= 0 || req.DrawingIndex < 0 || strings.TrimSpace(req.Choice) == "" {
 		writeError(w, http.StatusBadRequest, "audience vote is required")
 		return
 	}
-	choiceText := strings.TrimSpace(req.Choice)
+	choiceText, err := validateChoice(req.Choice)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
 		if game.Phase != phaseGuessVotes {
 			return errors.New("audience votes not accepted in this phase")
@@ -836,9 +877,29 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request, gameID str
 }
 
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request, gameID string) {
+	if !s.enforceRateLimit(w, r, "settings") {
+		return
+	}
 	var req settingsRequest
 	if err := readJSON(r.Body, &req); err != nil || req.PlayerID <= 0 {
 		writeError(w, http.StatusBadRequest, "player_id is required")
+		return
+	}
+	if req.Rounds > maxRoundsPerGame {
+		writeError(w, http.StatusBadRequest, "rounds exceeds maximum")
+		return
+	}
+	if req.MaxPlayers > maxLobbyPlayers {
+		writeError(w, http.StatusBadRequest, "max players exceeds maximum")
+		return
+	}
+	if req.MaxPlayers < 0 || req.Rounds < 0 {
+		writeError(w, http.StatusBadRequest, "invalid settings")
+		return
+	}
+	category, err := validateCategory(req.PromptCategory)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
@@ -857,7 +918,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request, gameID s
 			}
 			game.MaxPlayers = req.MaxPlayers
 		}
-		game.PromptCategory = strings.TrimSpace(req.PromptCategory)
+		game.PromptCategory = category
 		game.LobbyLocked = req.LobbyLocked
 		return nil
 	})
@@ -879,6 +940,9 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request, gameID s
 }
 
 func (s *Server) handleKick(w http.ResponseWriter, r *http.Request, gameID string) {
+	if !s.enforceRateLimit(w, r, "kick") {
+		return
+	}
 	var req kickRequest
 	if err := readJSON(r.Body, &req); err != nil || req.PlayerID <= 0 || req.TargetID <= 0 {
 		writeError(w, http.StatusBadRequest, "player_id and target_id are required")
@@ -925,12 +989,19 @@ func (s *Server) handleKick(w http.ResponseWriter, r *http.Request, gameID strin
 }
 
 func (s *Server) handleRename(w http.ResponseWriter, r *http.Request, gameID string) {
+	if !s.enforceRateLimit(w, r, "rename") {
+		return
+	}
 	var req renameRequest
-	if err := readJSON(r.Body, &req); err != nil || req.PlayerID <= 0 || strings.TrimSpace(req.Name) == "" {
+	if err := readJSON(r.Body, &req); err != nil || req.PlayerID <= 0 {
 		writeError(w, http.StatusBadRequest, "player_id and name are required")
 		return
 	}
-	newName := strings.TrimSpace(req.Name)
+	newName, err := validateName(req.Name)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
 		if game.Phase != phaseLobby {
 			return errors.New("rename only available in lobby")
@@ -965,6 +1036,9 @@ func (s *Server) handleRename(w http.ResponseWriter, r *http.Request, gameID str
 }
 
 func (s *Server) handleStartGame(w http.ResponseWriter, r *http.Request, gameID string) {
+	if !s.enforceRateLimit(w, r, "start") {
+		return
+	}
 	var req startRequest
 	_ = readJSON(r.Body, &req)
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
@@ -1016,14 +1090,26 @@ type drawingsRequest struct {
 }
 
 func (s *Server) handleDrawings(w http.ResponseWriter, r *http.Request, gameID string) {
+	if !s.enforceRateLimit(w, r, "drawings") {
+		return
+	}
 	var req drawingsRequest
 	if err := readJSON(r.Body, &req); err != nil || req.PlayerID <= 0 || req.ImageData == "" {
 		writeError(w, http.StatusBadRequest, "drawings are required")
 		return
 	}
+	promptText, err := validatePrompt(req.Prompt)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	image, err := decodeImageData(req.ImageData)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid image data")
+		return
+	}
+	if len(image) > maxDrawingBytes {
+		writeError(w, http.StatusBadRequest, "drawing exceeds size limit")
 		return
 	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
@@ -1043,7 +1129,7 @@ func (s *Server) handleDrawings(w http.ResponseWriter, r *http.Request, gameID s
 				return errors.New("drawing already submitted")
 			}
 		}
-		promptEntry, ok := findPromptForPlayer(round, player.ID, req.Prompt)
+		promptEntry, ok := findPromptForPlayer(round, player.ID, promptText)
 		if !ok {
 			return errors.New("prompt not assigned")
 		}
@@ -1062,7 +1148,7 @@ func (s *Server) handleDrawings(w http.ResponseWriter, r *http.Request, gameID s
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
-	if err := s.persistDrawing(game, req.PlayerID, image, req.Prompt); err != nil {
+	if err := s.persistDrawing(game, req.PlayerID, image, promptText); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to save drawings")
 		return
 	}
@@ -1090,9 +1176,17 @@ type guessesRequest struct {
 }
 
 func (s *Server) handleGuesses(w http.ResponseWriter, r *http.Request, gameID string) {
+	if !s.enforceRateLimit(w, r, "guesses") {
+		return
+	}
 	var req guessesRequest
-	if err := readJSON(r.Body, &req); err != nil || req.PlayerID <= 0 || strings.TrimSpace(req.Guess) == "" {
+	if err := readJSON(r.Body, &req); err != nil || req.PlayerID <= 0 {
 		writeError(w, http.StatusBadRequest, "guesses are required")
+		return
+	}
+	guessText, err := validateGuess(req.Guess)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
@@ -1117,7 +1211,7 @@ func (s *Server) handleGuesses(w http.ResponseWriter, r *http.Request, gameID st
 		round.Guesses = append(round.Guesses, GuessEntry{
 			PlayerID:     player.ID,
 			DrawingIndex: turn.DrawingIndex,
-			Text:         req.Guess,
+			Text:         guessText,
 		})
 		round.CurrentGuess++
 		if round.CurrentGuess >= len(round.GuessTurns) {
@@ -1151,7 +1245,7 @@ func (s *Server) handleGuesses(w http.ResponseWriter, r *http.Request, gameID st
 	if round := currentRound(game); round != nil && turnIndex < len(round.GuessTurns) {
 		drawingIndex = round.GuessTurns[turnIndex].DrawingIndex
 	}
-	if err := s.persistGuess(game, req.PlayerID, drawingIndex, req.Guess); err != nil {
+	if err := s.persistGuess(game, req.PlayerID, drawingIndex, guessText); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to save guesses")
 		return
 	}
@@ -1185,6 +1279,9 @@ type votesRequest struct {
 }
 
 func (s *Server) handleVotes(w http.ResponseWriter, r *http.Request, gameID string) {
+	if !s.enforceRateLimit(w, r, "votes") {
+		return
+	}
 	var req votesRequest
 	if err := readJSON(r.Body, &req); err != nil || req.PlayerID <= 0 {
 		writeError(w, http.StatusBadRequest, "votes are required")
@@ -1196,6 +1293,11 @@ func (s *Server) handleVotes(w http.ResponseWriter, r *http.Request, gameID stri
 	}
 	if choiceText == "" {
 		writeError(w, http.StatusBadRequest, "votes are required")
+		return
+	}
+	choiceText, err := validateChoice(choiceText)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
@@ -1281,6 +1383,9 @@ func (s *Server) handleVotes(w http.ResponseWriter, r *http.Request, gameID stri
 }
 
 func (s *Server) handleAdvance(w http.ResponseWriter, r *http.Request, gameID string) {
+	if !s.enforceRateLimit(w, r, "advance") {
+		return
+	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
 		next, ok := nextPhase(game.Phase)
 		if !ok {
@@ -1324,6 +1429,9 @@ func (s *Server) handleAdvance(w http.ResponseWriter, r *http.Request, gameID st
 }
 
 func (s *Server) handleEndGame(w http.ResponseWriter, r *http.Request, gameID string) {
+	if !s.enforceRateLimit(w, r, "end") {
+		return
+	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
 		if game.Phase == phaseComplete {
 			return errors.New("game already ended")
@@ -2245,6 +2353,209 @@ func (s *Server) tryAdvanceToGuesses(gameID string) (bool, *Game, error) {
 	}
 	s.schedulePhaseTimer(game)
 	return true, game, nil
+}
+
+type rateLimitRule struct {
+	Capacity int
+	Window   time.Duration
+}
+
+var rateLimitRules = map[string]rateLimitRule{
+	"create":        {Capacity: 5, Window: time.Minute},
+	"join":          {Capacity: 10, Window: time.Minute},
+	"audience_join": {Capacity: 10, Window: time.Minute},
+	"audience_vote": {Capacity: 30, Window: time.Minute},
+	"settings":      {Capacity: 10, Window: time.Minute},
+	"kick":          {Capacity: 10, Window: time.Minute},
+	"rename":        {Capacity: 10, Window: time.Minute},
+	"start":         {Capacity: 5, Window: time.Minute},
+	"advance":       {Capacity: 10, Window: time.Minute},
+	"end":           {Capacity: 5, Window: time.Minute},
+	"drawings":      {Capacity: 30, Window: time.Minute},
+	"guesses":       {Capacity: 30, Window: time.Minute},
+	"votes":         {Capacity: 30, Window: time.Minute},
+}
+
+type rateLimiter struct {
+	mu      sync.Mutex
+	buckets map[string]*tokenBucket
+	now     func() time.Time
+}
+
+type tokenBucket struct {
+	tokens float64
+	last   time.Time
+}
+
+func newRateLimiter() *rateLimiter {
+	return &rateLimiter{
+		buckets: make(map[string]*tokenBucket),
+		now:     time.Now,
+	}
+}
+
+func (r *rateLimiter) allow(key string, capacity int, window time.Duration) bool {
+	if capacity <= 0 || window <= 0 {
+		return true
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	now := r.now()
+	bucket, ok := r.buckets[key]
+	if !ok {
+		r.buckets[key] = &tokenBucket{
+			tokens: float64(capacity - 1),
+			last:   now,
+		}
+		return true
+	}
+	elapsed := now.Sub(bucket.last).Seconds()
+	refill := (float64(capacity) / window.Seconds()) * elapsed
+	bucket.tokens = minFloat(float64(capacity), bucket.tokens+refill)
+	bucket.last = now
+	if bucket.tokens < 1 {
+		return false
+	}
+	bucket.tokens--
+	return true
+}
+
+func (s *Server) enforceRateLimit(w http.ResponseWriter, r *http.Request, action string) bool {
+	if s.limiter == nil {
+		return true
+	}
+	rule, ok := rateLimitRules[action]
+	if !ok {
+		return true
+	}
+	key := action + ":" + clientKey(r)
+	if s.limiter.allow(key, rule.Capacity, rule.Window) {
+		return true
+	}
+	writeError(w, http.StatusTooManyRequests, rateLimitExceeded)
+	return false
+}
+
+func clientKey(r *http.Request) string {
+	if cookie, err := r.Cookie("pt_session"); err == nil && cookie.Value != "" {
+		return "session:" + cookie.Value
+	}
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		parts := strings.Split(forwarded, ",")
+		if len(parts) > 0 && strings.TrimSpace(parts[0]) != "" {
+			return strings.TrimSpace(parts[0])
+		}
+	}
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil && host != "" {
+		return host
+	}
+	return r.RemoteAddr
+}
+
+func validateName(name string) (string, error) {
+	return validateText("name", name, maxNameLength)
+}
+
+func validateGuess(text string) (string, error) {
+	return validateText("guess", text, maxGuessLength)
+}
+
+func validatePrompt(text string) (string, error) {
+	trimmed := strings.TrimSpace(text)
+	if trimmed == "" {
+		return "", errors.New("prompt is required")
+	}
+	if len(trimmed) > maxPromptLength {
+		return "", fmt.Errorf("prompt must be %d characters or fewer", maxPromptLength)
+	}
+	if !isSafeText(trimmed) {
+		return "", errors.New("prompt contains unsupported characters")
+	}
+	return trimmed, nil
+}
+
+func validateChoice(text string) (string, error) {
+	return validateText("choice", text, maxChoiceLength)
+}
+
+func validateCategory(text string) (string, error) {
+	trimmed := strings.TrimSpace(text)
+	if trimmed == "" {
+		return "", nil
+	}
+	if len(trimmed) > maxCategoryLength {
+		return "", fmt.Errorf("prompt category must be %d characters or fewer", maxCategoryLength)
+	}
+	for _, r := range trimmed {
+		if r > 127 {
+			return "", errors.New("prompt category contains unsupported characters")
+		}
+		if r >= 'a' && r <= 'z' {
+			continue
+		}
+		if r >= 'A' && r <= 'Z' {
+			continue
+		}
+		if r >= '0' && r <= '9' {
+			continue
+		}
+		if r == '-' || r == '_' {
+			continue
+		}
+		return "", errors.New("prompt category contains unsupported characters")
+	}
+	return trimmed, nil
+}
+
+func validateText(label, text string, maxLen int) (string, error) {
+	trimmed := normalizeText(text)
+	if trimmed == "" {
+		return "", fmt.Errorf("%s is required", label)
+	}
+	if len(trimmed) > maxLen {
+		return "", fmt.Errorf("%s must be %d characters or fewer", label, maxLen)
+	}
+	if !isSafeText(trimmed) {
+		return "", fmt.Errorf("%s contains unsupported characters", label)
+	}
+	return trimmed, nil
+}
+
+func normalizeText(text string) string {
+	fields := strings.Fields(strings.TrimSpace(text))
+	return strings.Join(fields, " ")
+}
+
+func isSafeText(text string) bool {
+	for _, r := range text {
+		if r > 127 {
+			return false
+		}
+		if r >= 'a' && r <= 'z' {
+			continue
+		}
+		if r >= 'A' && r <= 'Z' {
+			continue
+		}
+		if r >= '0' && r <= '9' {
+			continue
+		}
+		switch r {
+		case ' ', '-', '_', '\'', '"', '.', ',', '!', '?', ':', ';', '&', '(', ')', '/':
+			continue
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func minFloat(a, b float64) float64 {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func readJSON(body io.Reader, dest any) error {

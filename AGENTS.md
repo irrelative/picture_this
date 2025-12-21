@@ -40,6 +40,6 @@
 - Issue: Player management (kick/rename) and join gating when a lobby is locked. (done)
 - Issue: Audience mode for non-players with voting. (done)
 - Issue: Replay view using events for round-by-round playback. (done)
-- Issue: Implement per-player consistent color.
-- Issue: Input validation/moderation and rate limiting.
+- Issue: Implement per-player consistent color. (done)
+- Issue: Input validation/moderation and rate limiting. (done)
 - Issue: Accessibility and mobile polish pass.
