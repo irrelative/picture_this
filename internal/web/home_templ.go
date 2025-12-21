@@ -41,7 +41,7 @@ func Home(flash string, playerName string, games []GameSummary) templ.Component 
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<header class=\"hero\"><span class=\"tag\">Picture This</span><h1>Draw together. Guess boldly.</h1><p>Host a game in seconds or jump into a session with your code.</p></header><section class=\"panel\"><div><h2>Create a game</h2><p>Generate a new lobby and share the join code with your players.</p></div><button id=\"createGame\" class=\"primary\">Create game</button><div id=\"createResult\" class=\"result\"></div></section><section class=\"panel\"><div><h2>Join a game</h2><p>Enter the join code from the host and your display name.</p></div><form id=\"joinForm\" class=\"join-form\"><input name=\"code\" placeholder=\"Join code\" autocomplete=\"off\" required> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<header class=\"hero\"><span class=\"tag\">Picture This</span><h1>Draw together. Guess boldly.</h1><p>Host a game in seconds or jump into a session with your code.</p></header><section class=\"panel\"><div><h2>Create a game</h2><p>Generate a new lobby and share the join code with your players.</p></div><button id=\"createGame\" class=\"primary\">Create game</button><div id=\"createResult\" class=\"result\" role=\"status\" aria-live=\"polite\"></div></section><section class=\"panel\"><div><h2>Join a game</h2><p>Enter the join code from the host and your display name.</p></div><form id=\"joinForm\" class=\"join-form\"><label class=\"field\"><span class=\"label\">Join code</span> <input name=\"code\" placeholder=\"Join code\" autocomplete=\"off\" required></label> <label class=\"field\"><span class=\"label\">Display name</span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -53,23 +53,23 @@ func Home(flash string, playerName string, games []GameSummary) templ.Component 
 				var templ_7745c5c3_Var3 string
 				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(playerName)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/home.templ`, Line: 28, Col: 89}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/home.templ`, Line: 33, Col: 90}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" required> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" required>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<input name=\"name\" placeholder=\"Display name\" autocomplete=\"name\" required> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<input name=\"name\" placeholder=\"Display name\" autocomplete=\"name\" required>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<button type=\"submit\" class=\"secondary\">Join game</button></form><div id=\"joinResult\" class=\"result\"></div></section><section class=\"panel\"><div><h2>Join as audience</h2><p>Follow along and vote without drawing.</p></div><form id=\"audienceForm\" class=\"join-form\"><input name=\"code\" placeholder=\"Join code\" autocomplete=\"off\" required> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</label> <button type=\"submit\" class=\"secondary\">Join game</button></form><div id=\"joinResult\" class=\"result\" role=\"status\" aria-live=\"polite\"></div></section><section class=\"panel\"><div><h2>Join as audience</h2><p>Follow along and vote without drawing.</p></div><form id=\"audienceForm\" class=\"join-form\"><label class=\"field\"><span class=\"label\">Join code</span> <input name=\"code\" placeholder=\"Join code\" autocomplete=\"off\" required></label> <label class=\"field\"><span class=\"label\">Display name</span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -81,30 +81,30 @@ func Home(flash string, playerName string, games []GameSummary) templ.Component 
 				var templ_7745c5c3_Var4 string
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(playerName)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/home.templ`, Line: 45, Col: 89}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/home.templ`, Line: 56, Col: 90}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\" required> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\" required>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<input name=\"name\" placeholder=\"Display name\" autocomplete=\"name\" required> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<input name=\"name\" placeholder=\"Display name\" autocomplete=\"name\" required>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<button type=\"submit\" class=\"secondary\">Join audience</button></form><div id=\"audienceResult\" class=\"result\"></div></section><section class=\"panel active-panel\" id=\"activeGames\" data-player-name=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</label> <button type=\"submit\" class=\"secondary\">Join audience</button></form><div id=\"audienceResult\" class=\"result\" role=\"status\" aria-live=\"polite\"></div></section><section class=\"panel active-panel\" id=\"activeGames\" data-player-name=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(playerName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/home.templ`, Line: 54, Col: 84}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/home.templ`, Line: 66, Col: 84}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -137,7 +137,7 @@ func Home(flash string, playerName string, games []GameSummary) templ.Component 
 				var templ_7745c5c3_Var6 string
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(game.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/home.templ`, Line: 68, Col: 20}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/home.templ`, Line: 80, Col: 20}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 				if templ_7745c5c3_Err != nil {
@@ -150,7 +150,7 @@ func Home(flash string, playerName string, games []GameSummary) templ.Component 
 				var templ_7745c5c3_Var7 string
 				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(game.Phase)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/home.templ`, Line: 69, Col: 42}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/home.templ`, Line: 81, Col: 42}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 				if templ_7745c5c3_Err != nil {
@@ -163,7 +163,7 @@ func Home(flash string, playerName string, games []GameSummary) templ.Component 
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(game.Players)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/home.templ`, Line: 69, Col: 71}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/home.templ`, Line: 81, Col: 71}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 				if templ_7745c5c3_Err != nil {
@@ -181,7 +181,7 @@ func Home(flash string, playerName string, games []GameSummary) templ.Component 
 					var templ_7745c5c3_Var9 string
 					templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(game.JoinCode)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/home.templ`, Line: 75, Col: 39}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/home.templ`, Line: 87, Col: 39}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 					if templ_7745c5c3_Err != nil {
@@ -194,7 +194,7 @@ func Home(flash string, playerName string, games []GameSummary) templ.Component 
 					var templ_7745c5c3_Var10 string
 					templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(game.ID)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/home.templ`, Line: 76, Col: 31}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/home.templ`, Line: 88, Col: 31}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 					if templ_7745c5c3_Err != nil {
@@ -207,7 +207,7 @@ func Home(flash string, playerName string, games []GameSummary) templ.Component 
 					var templ_7745c5c3_Var11 string
 					templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs("joinResult-" + game.ID)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/home.templ`, Line: 77, Col: 49}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/home.templ`, Line: 89, Col: 49}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 					if templ_7745c5c3_Err != nil {
@@ -230,13 +230,13 @@ func Home(flash string, playerName string, games []GameSummary) templ.Component 
 				var templ_7745c5c3_Var12 string
 				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs("joinResult-" + game.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/home.templ`, Line: 83, Col: 38}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/home.templ`, Line: 95, Col: 38}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "\" class=\"result\"></p></div></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "\" class=\"result\" role=\"status\" aria-live=\"polite\"></p></div></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

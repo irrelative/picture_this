@@ -15,7 +15,7 @@ templ AudienceView(gameID string, audienceID int, audienceName string) {
 			</div>
 			<div class="status">
 				<span class="label">Status</span>
-				<p id="audienceStatus">Loading...</p>
+				<p id="audienceStatus" role="status" aria-live="polite">Loading...</p>
 			</div>
 		</section>
 
@@ -24,7 +24,7 @@ templ AudienceView(gameID string, audienceID int, audienceName string) {
 				<h2>Audience</h2>
 				<p>Signed in as <strong>{ audienceName }</strong>.</p>
 			</div>
-			<p id="audienceCount" class="hint">Loading...</p>
+			<p id="audienceCount" class="hint" role="status" aria-live="polite">Loading...</p>
 		</section>
 
 		<section id="audienceVoteSection" class="panel vote-panel">
@@ -35,7 +35,7 @@ templ AudienceView(gameID string, audienceID int, audienceName string) {
 			<div id="audienceVoteList" class="audience-vote-list"></div>
 		</section>
 
-		<p id="audienceError" class="result error"></p>
+		<p id="audienceError" class="result error" role="alert"></p>
 		<div id="audienceMeta" data-game-id={ gameID } data-audience-id={ audienceID } data-audience-name={ audienceName }></div>
 	}
 }

@@ -15,7 +15,7 @@ templ GameView(gameID string) {
 			</div>
 			<div class="status">
 				<span class="label">Status</span>
-				<p id="gameStatus">Loading...</p>
+				<p id="gameStatus" role="status" aria-live="polite">Loading...</p>
 				<button type="button" id="startGame" class="primary">Start game</button>
 				<button type="button" id="endGame" class="secondary">End game</button>
 			</div>
@@ -33,7 +33,7 @@ templ GameView(gameID string) {
 		<section class="panel settings-panel">
 			<div>
 				<h2>Lobby settings</h2>
-				<p id="lobbyStatus">Loading lobby settings...</p>
+				<p id="lobbyStatus" role="status" aria-live="polite">Loading lobby settings...</p>
 			</div>
 			<form id="settingsForm" class="settings-form">
 				<label>
@@ -54,12 +54,12 @@ templ GameView(gameID string) {
 				</label>
 				<div class="settings-actions">
 					<button type="submit" class="secondary">Save settings</button>
-					<span id="settingsStatus" class="result"></span>
+					<span id="settingsStatus" class="result" role="status" aria-live="polite"></span>
 				</div>
 			</form>
 		</section>
 
-		<p id="gameError" class="result error"></p>
+		<p id="gameError" class="result error" role="alert"></p>
 		<div id="gameMeta" data-game-id={ gameID }></div>
 	}
 }

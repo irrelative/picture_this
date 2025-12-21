@@ -11,9 +11,10 @@ templ Layout(title string, scriptPath string, flash string) {
 		</head>
 		<body>
 			<div class="page">
-				<main class="shell">
+				<a class="skip-link" href="#content">Skip to content</a>
+				<main class="shell" id="content">
 					if flash != "" {
-						<div class="flash">{ flash }</div>
+						<div class="flash" role="status" aria-live="polite">{ flash }</div>
 					}
 					{ children... }
 				</main>

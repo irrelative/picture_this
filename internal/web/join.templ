@@ -10,19 +10,25 @@ templ JoinView(code string, playerName string) {
 
 		<section class="panel join-panel">
 			<form id="joinForm" class="join-form join-only">
-				if code != "" {
-					<input name="code" placeholder="Join code" value={ code } autocomplete="off" required/>
-				} else {
-					<input name="code" placeholder="Join code" autocomplete="off" required/>
-				}
-				if playerName != "" {
-					<input name="name" placeholder="Display name" autocomplete="name" value={ playerName } required/>
-				} else {
-					<input name="name" placeholder="Display name" autocomplete="name" required/>
-				}
+				<label class="field">
+					<span class="label">Join code</span>
+					if code != "" {
+						<input name="code" placeholder="Join code" value={ code } autocomplete="off" required/>
+					} else {
+						<input name="code" placeholder="Join code" autocomplete="off" required/>
+					}
+				</label>
+				<label class="field">
+					<span class="label">Display name</span>
+					if playerName != "" {
+						<input name="name" placeholder="Display name" autocomplete="name" value={ playerName } required/>
+					} else {
+						<input name="name" placeholder="Display name" autocomplete="name" required/>
+					}
+				</label>
 				<button type="submit" class="primary">Join game</button>
 			</form>
-			<div id="joinResult" class="result"></div>
+			<div id="joinResult" class="result" role="status" aria-live="polite"></div>
 		</section>
 	}
 }

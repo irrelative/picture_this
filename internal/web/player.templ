@@ -15,7 +15,7 @@ templ PlayerView(gameID string, playerID int, playerName string) {
 			</div>
 			<div class="status">
 				<span class="label">Status</span>
-				<p id="gameStatus">Loading...</p>
+				<p id="gameStatus" role="status" aria-live="polite">Loading...</p>
 			</div>
 		</section>
 
@@ -26,7 +26,10 @@ templ PlayerView(gameID string, playerID int, playerName string) {
 			</div>
 			<ul id="playerList" class="player-list"></ul>
 			<form id="renameForm" class="rename-form">
-				<input id="renameInput" name="name" placeholder="Update display name" autocomplete="name"/>
+				<label class="field">
+					<span class="label">Update display name</span>
+					<input id="renameInput" name="name" placeholder="Update display name" autocomplete="name"/>
+				</label>
 				<button type="submit" class="secondary">Update name</button>
 			</form>
 		</section>
@@ -41,7 +44,7 @@ templ PlayerView(gameID string, playerID int, playerName string) {
 				<p id="promptText" class="prompt-text">Loading...</p>
 			</div>
 			<div class="canvas-wrap">
-				<canvas id="drawCanvas" width="800" height="600"></canvas>
+				<canvas id="drawCanvas" width="800" height="600" aria-label="Drawing canvas"></canvas>
 				<div class="canvas-actions">
 					<button type="button" id="saveCanvas" class="primary">Save drawing</button>
 				</div>
@@ -51,12 +54,15 @@ templ PlayerView(gameID string, playerID int, playerName string) {
 		<section id="guessSection" class="panel guess-panel">
 			<div>
 				<h2>Guess the prompt</h2>
-				<p id="guessStatus">Waiting for your turn to guess.</p>
+				<p id="guessStatus" role="status" aria-live="polite">Waiting for your turn to guess.</p>
 			</div>
 			<div class="guess-card">
 				<img id="guessImage" class="guess-image" alt="Drawing to guess"/>
 				<form id="guessForm" class="guess-form">
-					<input id="guessInput" name="guess" placeholder="Type your guess" autocomplete="off" required/>
+					<label class="field">
+						<span class="label">Your guess</span>
+						<input id="guessInput" name="guess" placeholder="Type your guess" autocomplete="off" required/>
+					</label>
 					<button type="submit" class="primary">Submit guess</button>
 				</form>
 			</div>
@@ -65,7 +71,7 @@ templ PlayerView(gameID string, playerID int, playerName string) {
 		<section id="voteSection" class="panel vote-panel">
 			<div>
 				<h2>Pick the real prompt</h2>
-				<p id="voteStatus">Waiting for your turn to vote.</p>
+				<p id="voteStatus" role="status" aria-live="polite">Waiting for your turn to vote.</p>
 			</div>
 			<div class="vote-card">
 				<img id="voteImage" class="guess-image" alt="Drawing to vote on"/>
@@ -93,11 +99,11 @@ templ PlayerView(gameID string, playerID int, playerName string) {
 			</div>
 			<div class="host-actions">
 				<button type="button" id="hostStartGame" class="primary">Start game</button>
-				<p id="hostHelp" class="hint">Waiting for the host.</p>
+				<p id="hostHelp" class="hint" role="status" aria-live="polite">Waiting for the host.</p>
 			</div>
 		</section>
 
-		<p id="playerError" class="result error"></p>
+		<p id="playerError" class="result error" role="alert"></p>
 		<div id="playerMeta" data-game-id={ gameID } data-player-id={ playerID } data-player-name={ playerName }></div>
 	}
 }

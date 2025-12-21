@@ -15,7 +15,7 @@ templ ReplayView(gameID string) {
 			</div>
 			<div class="status">
 				<span class="label">Status</span>
-				<p id="replayStatus">Loading...</p>
+				<p id="replayStatus" role="status" aria-live="polite">Loading...</p>
 			</div>
 		</section>
 
@@ -32,7 +32,7 @@ templ ReplayView(gameID string) {
 			<div id="eventCard" class="replay-card"></div>
 		</section>
 
-		<p id="replayError" class="result error"></p>
+		<p id="replayError" class="result error" role="alert"></p>
 		<div id="replayMeta" data-game-id={ gameID }></div>
 	}
 }

@@ -41,7 +41,7 @@ func JoinView(code string, playerName string) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<header class=\"hero\"><span class=\"tag\">Join Game</span><h1>Jump in from your phone</h1><p>Enter the join code and your display name to get started.</p></header><section class=\"panel join-panel\"><form id=\"joinForm\" class=\"join-form join-only\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<header class=\"hero\"><span class=\"tag\">Join Game</span><h1>Jump in from your phone</h1><p>Enter the join code and your display name to get started.</p></header><section class=\"panel join-panel\"><form id=\"joinForm\" class=\"join-form join-only\"><label class=\"field\"><span class=\"label\">Join code</span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -53,47 +53,51 @@ func JoinView(code string, playerName string) templ.Component {
 				var templ_7745c5c3_Var3 string
 				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(code)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/join.templ`, Line: 14, Col: 60}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/join.templ`, Line: 16, Col: 61}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" autocomplete=\"off\" required> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" autocomplete=\"off\" required>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<input name=\"code\" placeholder=\"Join code\" autocomplete=\"off\" required> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<input name=\"code\" placeholder=\"Join code\" autocomplete=\"off\" required>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</label> <label class=\"field\"><span class=\"label\">Display name</span> ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 			if playerName != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<input name=\"name\" placeholder=\"Display name\" autocomplete=\"name\" value=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<input name=\"name\" placeholder=\"Display name\" autocomplete=\"name\" value=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var4 string
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(playerName)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/join.templ`, Line: 19, Col: 89}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/join.templ`, Line: 24, Col: 90}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\" required> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\" required>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<input name=\"name\" placeholder=\"Display name\" autocomplete=\"name\" required> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<input name=\"name\" placeholder=\"Display name\" autocomplete=\"name\" required>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<button type=\"submit\" class=\"primary\">Join game</button></form><div id=\"joinResult\" class=\"result\"></div></section>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</label> <button type=\"submit\" class=\"primary\">Join game</button></form><div id=\"joinResult\" class=\"result\" role=\"status\" aria-live=\"polite\"></div></section>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

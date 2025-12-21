@@ -42,4 +42,4 @@
 - Issue: Replay view using events for round-by-round playback. (done)
 - Issue: Implement per-player consistent color. (done)
 - Issue: Input validation/moderation and rate limiting. (done)
-- Issue: Accessibility and mobile polish pass.
+- Issue: Accessibility and mobile polish pass. (done)

@@ -41,7 +41,7 @@ func AudienceView(gameID string, audienceID int, audienceName string) templ.Comp
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<header class=\"hero\"><span class=\"tag\">Audience View</span><h1>Vote along</h1><p>Pick the prompt you think is real for each drawing.</p></header><section class=\"panel\"><div><h2>Join code</h2><p id=\"audienceJoinCode\" class=\"join-code\">Loading...</p></div><div class=\"status\"><span class=\"label\">Status</span><p id=\"audienceStatus\">Loading...</p></div></section><section class=\"panel\"><div><h2>Audience</h2><p>Signed in as <strong>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<header class=\"hero\"><span class=\"tag\">Audience View</span><h1>Vote along</h1><p>Pick the prompt you think is real for each drawing.</p></header><section class=\"panel\"><div><h2>Join code</h2><p id=\"audienceJoinCode\" class=\"join-code\">Loading...</p></div><div class=\"status\"><span class=\"label\">Status</span><p id=\"audienceStatus\" role=\"status\" aria-live=\"polite\">Loading...</p></div></section><section class=\"panel\"><div><h2>Audience</h2><p>Signed in as <strong>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -54,7 +54,7 @@ func AudienceView(gameID string, audienceID int, audienceName string) templ.Comp
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</strong>.</p></div><p id=\"audienceCount\" class=\"hint\">Loading...</p></section><section id=\"audienceVoteSection\" class=\"panel vote-panel\"><div><h2>Audience voting</h2><p>Vote once per drawing while the round is active.</p></div><div id=\"audienceVoteList\" class=\"audience-vote-list\"></div></section><p id=\"audienceError\" class=\"result error\"></p><div id=\"audienceMeta\" data-game-id=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</strong>.</p></div><p id=\"audienceCount\" class=\"hint\" role=\"status\" aria-live=\"polite\">Loading...</p></section><section id=\"audienceVoteSection\" class=\"panel vote-panel\"><div><h2>Audience voting</h2><p>Vote once per drawing while the round is active.</p></div><div id=\"audienceVoteList\" class=\"audience-vote-list\"></div></section><p id=\"audienceError\" class=\"result error\" role=\"alert\"></p><div id=\"audienceMeta\" data-game-id=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
