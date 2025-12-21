@@ -38,6 +38,8 @@ let drawingSubmitted = false;
 let lastVoteKey = "";
 let lastGuessKey = "";
 let lastResultsKey = "";
+let brushColor = "#1a1a1a";
+let canvasCtx = null;
 
 async function loadPlayerView() {
   if (!meta) return;
@@ -74,9 +76,20 @@ function updateFromSnapshot(data) {
     playerList.appendChild(item);
     return;
   }
-  players.forEach((player) => {
+  const colorMap = data.player_colors || {};
+  const playerIDs = Array.isArray(data.player_ids) ? data.player_ids : [];
+  players.forEach((player, index) => {
     const item = document.createElement("li");
-    item.textContent = player;
+    const dot = document.createElement("span");
+    dot.className = "player-dot";
+    const colorKey = String(playerIDs[index] || "");
+    if (colorMap && colorMap[colorKey]) {
+      dot.style.backgroundColor = colorMap[colorKey];
+    }
+    const name = document.createElement("span");
+    name.textContent = player;
+    item.appendChild(dot);
+    item.appendChild(name);
     playerList.appendChild(item);
   });
 
@@ -130,6 +143,14 @@ function updateFromSnapshot(data) {
       fetchPrompt();
     } else {
       drawSection.style.display = "none";
+    }
+  }
+
+  if (colorMap && meta) {
+    const playerId = meta.dataset.playerId;
+    if (playerId && colorMap[playerId]) {
+      brushColor = colorMap[playerId];
+      applyBrushColor();
     }
   }
 
@@ -295,11 +316,12 @@ function setupCanvas() {
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
+  canvasCtx = ctx;
 
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.lineWidth = 4;
-  ctx.strokeStyle = "#1a1a1a";
+  ctx.strokeStyle = brushColor;
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
@@ -393,6 +415,11 @@ function setupCanvas() {
 }
 
 setupCanvas();
+
+function applyBrushColor() {
+  if (!canvasCtx) return;
+  canvasCtx.strokeStyle = brushColor;
+}
 
 function renderVoteOptions(options) {
   if (!voteOptions) return;

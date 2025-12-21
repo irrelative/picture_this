@@ -164,6 +164,15 @@ input {
   font-weight: 600;
 }
 
+.player-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #1a1a1a;
+  display: inline-block;
+  margin-right: 8px;
+}
+
 .draw-panel {
   grid-template-columns: 1fr;
 }

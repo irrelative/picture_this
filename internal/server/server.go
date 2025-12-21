@@ -129,6 +129,7 @@ type Player struct {
 	Name   string
 	IsHost bool
 	DBID   uint
+	Color  string
 }
 
 type AudienceMember struct {
@@ -311,6 +312,7 @@ func (s *Store) AddPlayer(gameIDOrCode, name string) (*Game, *Player, error) {
 		ID:     s.nextPlayerID,
 		Name:   name,
 		IsHost: len(game.Players) == 0,
+		Color:  pickPlayerColor(len(game.Players)),
 	}
 	s.nextPlayerID++
 	game.Players = append(game.Players, player)
@@ -1693,6 +1695,26 @@ func guessOwner(round *RoundState, drawingIndex int, text string) int {
 	return 0
 }
 
+func pickPlayerColor(index int) string {
+	palette := []string{
+		"#ff6b6b",
+		"#4dabf7",
+		"#51cf66",
+		"#ffa94d",
+		"#ffd43b",
+		"#845ef7",
+		"#20c997",
+		"#e64980",
+	}
+	if len(palette) == 0 {
+		return "#1a1a1a"
+	}
+	if index < 0 {
+		index = 0
+	}
+	return palette[index%len(palette)]
+}
+
 type wsHub struct {
 	mu     sync.Mutex
 	groups map[string]map[*websocket.Conn]struct{}
@@ -1888,6 +1910,7 @@ func snapshot(game *Game) map[string]any {
 		"can_join":           game.Phase == phaseLobby && !game.LobbyLocked && (game.MaxPlayers == 0 || len(game.Players) < game.MaxPlayers),
 		"players":            extractPlayerNames(game.Players),
 		"player_ids":         extractPlayerIDs(game.Players),
+		"player_colors":      extractPlayerColors(game.Players),
 		"audience_count":     len(game.Audience),
 		"round_number":       roundNumber,
 		"total_rounds":       game.PromptsPerPlayer,
@@ -1913,6 +1936,17 @@ func extractPlayerNames(players []Player) []string {
 		names = append(names, player.Name)
 	}
 	return names
+}
+
+func extractPlayerColors(players []Player) map[int]string {
+	colors := make(map[int]string, len(players))
+	for _, player := range players {
+		if player.Color == "" {
+			continue
+		}
+		colors[player.ID] = player.Color
+	}
+	return colors
 }
 
 func extractPlayerIDs(players []Player) []int {
