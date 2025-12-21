@@ -2,9 +2,12 @@ package server
 
 import (
 	"sort"
+	"time"
+
+	"picture-this/internal/config"
 )
 
-func snapshot(game *Game) map[string]any {
+func snapshotWithConfig(game *Game, cfg config.Config) map[string]any {
 	players := extractPlayerNames(game.Players)
 	playerIDs := extractPlayerIDs(game.Players)
 	scores := buildScores(game)
@@ -49,11 +52,18 @@ func snapshot(game *Game) map[string]any {
 			}
 		}
 	}
+	phaseDuration := phaseDurationSeconds(cfg, game.Phase)
+	phaseEndsAt := ""
+	if !game.PhaseStartedAt.IsZero() && phaseDuration > 0 {
+		phaseEndsAt = game.PhaseStartedAt.Add(time.Duration(phaseDuration) * time.Second).UTC().Format(time.RFC3339)
+	}
 	return map[string]any{
 		"game_id":            game.ID,
 		"join_code":          game.JoinCode,
 		"phase":              game.Phase,
 		"phase_started_at":   game.PhaseStartedAt,
+		"phase_duration":     phaseDuration,
+		"phase_ends_at":      phaseEndsAt,
 		"players":            players,
 		"player_ids":         playerIDs,
 		"player_colors":      playerColors,
@@ -78,6 +88,21 @@ func snapshot(game *Game) map[string]any {
 			"votes":    votesCount,
 		},
 		"can_join": game.Phase == phaseLobby && !game.LobbyLocked && (game.MaxPlayers == 0 || len(game.Players) < game.MaxPlayers),
+	}
+}
+
+func phaseDurationSeconds(cfg config.Config, phase string) int {
+	switch phase {
+	case phaseDrawings:
+		return cfg.DrawDurationSeconds
+	case phaseGuesses:
+		return cfg.GuessDurationSeconds
+	case phaseGuessVotes:
+		return cfg.VoteDurationSeconds
+	case phaseResults:
+		return cfg.RevealDurationSeconds
+	default:
+		return 0
 	}
 }
 

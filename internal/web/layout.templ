@@ -25,3 +25,23 @@ templ Layout(title string, scriptPath string, flash string) {
 		</body>
 	</html>
 }
+
+templ DisplayLayout(title string, scriptPath string) {
+	<!doctype html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>{ title }</title>
+			<link rel="stylesheet" href="/static/styles.css"/>
+		</head>
+		<body class="display-body">
+			<div class="display-shell">
+				{ children... }
+			</div>
+			if scriptPath != "" {
+				<script type="module" src={ scriptPath }></script>
+			}
+		</body>
+	</html>
+}

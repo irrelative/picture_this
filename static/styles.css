@@ -460,6 +460,156 @@ select:focus {
   color: #5b6770;
 }
 
+.display-body {
+  background: radial-gradient(circle at top, #fff1cc, #f6ebd8);
+}
+
+.display-shell {
+  min-height: 100vh;
+  padding: 48px 56px;
+  display: grid;
+  gap: 32px;
+}
+
+.display-header {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 1.1fr 1.3fr;
+  align-items: start;
+}
+
+.display-brand h1 {
+  font-size: clamp(2.8rem, 4vw, 3.6rem);
+  margin: 0;
+}
+
+.display-brand p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1.1rem;
+}
+
+.display-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.display-meta-block {
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: 0 10px 30px var(--shadow);
+}
+
+.display-code {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 8px 0 0;
+}
+
+.display-phase,
+.display-timer,
+.display-round {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin: 8px 0 0;
+}
+
+.display-grid {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  grid-auto-rows: minmax(160px, auto);
+}
+
+.display-panel {
+  padding: 20px;
+  border-radius: 20px;
+  background: var(--card);
+  box-shadow: 0 10px 30px var(--shadow);
+  display: grid;
+  gap: 12px;
+}
+
+.display-stage {
+  min-height: 420px;
+}
+
+.display-status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1.05rem;
+}
+
+.display-image {
+  width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+  border-radius: 16px;
+  border: 1px solid #e3e3e3;
+  background: #fff;
+}
+
+.display-options {
+  display: grid;
+  gap: 8px;
+}
+
+.display-option-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.display-option-list li {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #e3e3e3;
+  background: #fffdf6;
+}
+
+.display-player-list {
+  font-size: 1.1rem;
+}
+
+.display-scoreboard {
+  grid-column: 1 / -1;
+}
+
+.display-host {
+  grid-column: 1 / -1;
+}
+
+.display-host-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.display-settings h3 {
+  margin: 12px 0 6px;
+}
+
+@media (max-width: 900px) {
+  .display-shell {
+    padding: 32px 20px;
+  }
+
+  .display-header {
+    grid-template-columns: 1fr;
+  }
+
+  .display-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .game-actions {
   display: grid;
   gap: 8px;

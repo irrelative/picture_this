@@ -53,3 +53,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	return mux
 }
+
+func (s *Server) snapshot(game *Game) map[string]any {
+	return snapshotWithConfig(game, s.cfg)
+}

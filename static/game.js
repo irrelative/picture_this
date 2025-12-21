@@ -18,6 +18,20 @@ const ctx = {
     gameError: document.getElementById("gameError"),
     startGame: document.getElementById("startGame"),
     endGame: document.getElementById("endGame"),
+    displayTimer: document.getElementById("displayTimer"),
+    displayRound: document.getElementById("displayRound"),
+    displayStageTitle: document.getElementById("displayStageTitle"),
+    displayStageStatus: document.getElementById("displayStageStatus"),
+    displayStageImage: document.getElementById("displayStageImage"),
+    displayOptions: document.getElementById("displayOptions"),
+    displayScoreboard: document.getElementById("displayScoreboard"),
+    displayScoreTitle: document.getElementById("displayScoreTitle"),
+    displayScoreStatus: document.getElementById("displayScoreStatus"),
+    displayScoreList: document.getElementById("displayScoreList"),
+    displayFinalScores: document.getElementById("displayFinalScores"),
+    displayFinalList: document.getElementById("displayFinalList"),
+    hostPanel: document.getElementById("hostPanel"),
+    hostStatus: document.getElementById("hostStatus"),
     settingsForm: document.getElementById("settingsForm"),
     roundsInput: document.getElementById("roundsInput"),
     maxPlayersInput: document.getElementById("maxPlayersInput"),
@@ -30,7 +44,10 @@ const ctx = {
     pollTimer: null,
     hostId: 0,
     categoriesLoaded: false,
-    currentPhase: ""
+    currentPhase: "",
+    timerEndsAt: 0,
+    timerPhase: "",
+    timerHandle: null
   }
 };
 
@@ -58,6 +75,32 @@ function enableAudioOnInteraction() {
   syncLobbyAudio(ctx.state.currentPhase);
 }
 
+function formatTime(seconds) {
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
+}
+
+function renderTimer() {
+  if (!ctx.els.displayTimer) return;
+  if (ctx.state.timerPhase !== "drawings" || !ctx.state.timerEndsAt) {
+    ctx.els.displayTimer.textContent = "--:--";
+    return;
+  }
+  const remaining = Math.max(0, Math.round((ctx.state.timerEndsAt - Date.now()) / 1000));
+  ctx.els.displayTimer.textContent = formatTime(remaining);
+}
+
+function syncTimer(data) {
+  const endsAt = data.phase_ends_at ? Date.parse(data.phase_ends_at) : 0;
+  ctx.state.timerEndsAt = Number.isNaN(endsAt) ? 0 : endsAt;
+  ctx.state.timerPhase = data.phase || "";
+  renderTimer();
+  if (!ctx.state.timerHandle) {
+    ctx.state.timerHandle = setInterval(renderTimer, 1000);
+  }
+}
+
 async function loadGame() {
   if (!ctx.els.meta) return;
   const gameId = ctx.els.meta.dataset.gameId;
@@ -76,6 +119,7 @@ async function loadGame() {
   ctx.state.currentPhase = data.phase || "";
   updateFromSnapshot(ctx, data);
   syncLobbyAudio(ctx.state.currentPhase);
+  syncTimer(data);
 }
 
 function startPolling() {
@@ -95,6 +139,7 @@ function connectWS() {
       ctx.state.currentPhase = data.phase || "";
       updateFromSnapshot(ctx, data);
       syncLobbyAudio(ctx.state.currentPhase);
+      syncTimer(data);
     } catch {
       // ignore invalid payloads
     }

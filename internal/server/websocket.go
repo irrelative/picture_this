@@ -169,7 +169,7 @@ func (s *Server) handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	log.Printf("ws connected game_id=%s remote=%s", gameID, r.RemoteAddr)
 	s.ws.Add(gameID, conn, isHost)
 	if game, ok := s.store.GetGame(gameID); ok {
-		s.ws.Send(conn, snapshot(game))
+		s.ws.Send(conn, s.snapshot(game))
 	}
 	go s.readWS(gameID, conn, isHost)
 }
@@ -238,7 +238,7 @@ func (s *Server) broadcastGameUpdate(game *Game) {
 	if s.ws == nil {
 		return
 	}
-	s.ws.Broadcast(game.ID, snapshot(game))
+	s.ws.Broadcast(game.ID, s.snapshot(game))
 	s.broadcastHomeUpdate()
 }
 

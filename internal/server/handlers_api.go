@@ -182,7 +182,7 @@ func (s *Server) handleGetGame(w http.ResponseWriter, r *http.Request, gameID st
 		http.NotFound(w, r)
 		return
 	}
-	writeJSON(w, http.StatusOK, snapshot(game))
+	writeJSON(w, http.StatusOK, s.snapshot(game))
 }
 
 func (s *Server) handleJoinGame(w http.ResponseWriter, r *http.Request, gameID string) {
@@ -325,7 +325,7 @@ func (s *Server) handleAudienceVotes(w http.ResponseWriter, r *http.Request, gam
 		return
 	}
 	log.Printf("audience vote submitted game_id=%s audience_id=%d", game.ID, req.AudienceID)
-	writeJSON(w, http.StatusOK, snapshot(game))
+	writeJSON(w, http.StatusOK, s.snapshot(game))
 	s.broadcastGameUpdate(game)
 }
 
@@ -426,7 +426,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request, gameID s
 		return
 	}
 	log.Printf("settings updated game_id=%s rounds=%d max_players=%d category=%s locked=%t", game.ID, game.PromptsPerPlayer, game.MaxPlayers, game.PromptCategory, game.LobbyLocked)
-	writeJSON(w, http.StatusOK, snapshot(game))
+	writeJSON(w, http.StatusOK, s.snapshot(game))
 	s.broadcastGameUpdate(game)
 }
 
@@ -475,7 +475,7 @@ func (s *Server) handleKick(w http.ResponseWriter, r *http.Request, gameID strin
 		return
 	}
 	log.Printf("player removed game_id=%s target_id=%d", game.ID, req.TargetID)
-	writeJSON(w, http.StatusOK, snapshot(game))
+	writeJSON(w, http.StatusOK, s.snapshot(game))
 	s.broadcastGameUpdate(game)
 }
 
@@ -522,7 +522,7 @@ func (s *Server) handleRename(w http.ResponseWriter, r *http.Request, gameID str
 		s.sessions.SetName(w, r, newName)
 	}
 	log.Printf("player renamed game_id=%s player_id=%d", game.ID, req.PlayerID)
-	writeJSON(w, http.StatusOK, snapshot(game))
+	writeJSON(w, http.StatusOK, s.snapshot(game))
 	s.broadcastGameUpdate(game)
 }
 
@@ -569,7 +569,7 @@ func (s *Server) handleStartGame(w http.ResponseWriter, r *http.Request, gameID 
 		return
 	}
 	log.Printf("game started game_id=%s phase=%s", game.ID, game.Phase)
-	writeJSON(w, http.StatusOK, snapshot(game))
+	writeJSON(w, http.StatusOK, s.snapshot(game))
 	s.broadcastGameUpdate(game)
 	s.schedulePhaseTimer(game)
 }
@@ -651,7 +651,7 @@ func (s *Server) handleDrawings(w http.ResponseWriter, r *http.Request, gameID s
 		log.Printf("game advanced game_id=%s phase=%s", game.ID, game.Phase)
 	}
 	log.Printf("drawing submitted game_id=%s player_id=%d", game.ID, req.PlayerID)
-	writeJSON(w, http.StatusOK, snapshot(game))
+	writeJSON(w, http.StatusOK, s.snapshot(game))
 	s.broadcastGameUpdate(game)
 }
 
@@ -730,7 +730,7 @@ func (s *Server) handleGuesses(w http.ResponseWriter, r *http.Request, gameID st
 		log.Printf("game advanced game_id=%s phase=%s", game.ID, game.Phase)
 	}
 	log.Printf("guess submitted game_id=%s player_id=%d", game.ID, req.PlayerID)
-	writeJSON(w, http.StatusOK, snapshot(game))
+	writeJSON(w, http.StatusOK, s.snapshot(game))
 	s.broadcastGameUpdate(game)
 	s.schedulePhaseTimer(game)
 }
@@ -845,7 +845,7 @@ func (s *Server) handleVotes(w http.ResponseWriter, r *http.Request, gameID stri
 		log.Printf("game advanced game_id=%s phase=%s", game.ID, game.Phase)
 	}
 	log.Printf("vote submitted game_id=%s player_id=%d", game.ID, req.PlayerID)
-	writeJSON(w, http.StatusOK, snapshot(game))
+	writeJSON(w, http.StatusOK, s.snapshot(game))
 	s.broadcastGameUpdate(game)
 	s.schedulePhaseTimer(game)
 }
@@ -891,7 +891,7 @@ func (s *Server) handleAdvance(w http.ResponseWriter, r *http.Request, gameID st
 		return
 	}
 	log.Printf("game advanced game_id=%s phase=%s", game.ID, game.Phase)
-	writeJSON(w, http.StatusOK, snapshot(game))
+	writeJSON(w, http.StatusOK, s.snapshot(game))
 	s.broadcastGameUpdate(game)
 	s.schedulePhaseTimer(game)
 }
@@ -920,7 +920,7 @@ func (s *Server) handleEndGame(w http.ResponseWriter, r *http.Request, gameID st
 		return
 	}
 	log.Printf("game ended game_id=%s", game.ID)
-	writeJSON(w, http.StatusOK, snapshot(game))
+	writeJSON(w, http.StatusOK, s.snapshot(game))
 	s.broadcastGameUpdate(game)
 }
 

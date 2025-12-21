@@ -43,3 +43,11 @@
 - Issue: Implement per-player consistent color. (done)
 - Issue: Input validation/moderation and rate limiting. (done)
 - Issue: Accessibility and mobile polish pass. (done)
+
+## Lobby TV View Tasks
+- [ ] Create a dedicated lobby/TV route (e.g., `/display/game-{id}`) with full-screen layout and minimal chrome.
+- [ ] Build a display snapshot payload (server-side) that includes phase, timer remaining, current prompt/guess/vote focus, scores, and reveal data.
+- [ ] Add a WS client for the display view to auto-update players list, timers, and phase transitions.
+- [ ] Render display states by phase: lobby join list, drawings countdown, guess image display, vote options, between-round scores, and final totals.
+- [ ] Add styling for large-format screens (TV/Projector), ensuring legibility at distance.
+- [ ] Add tests/fixtures to validate display snapshot shape and phase transitions.
