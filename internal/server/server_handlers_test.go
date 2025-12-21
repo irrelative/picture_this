@@ -48,6 +48,18 @@ func TestGameView(t *testing.T) {
 	}
 }
 
+func TestDisplayView(t *testing.T) {
+	srv := New(nil, config.Default())
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	gameID := createGame(t, ts)
+	resp := doRequest(t, ts, http.MethodGet, "/display/"+gameID, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+}
+
 func TestJoinView(t *testing.T) {
 	srv := New(nil, config.Default())
 	ts := httptest.NewServer(srv.Handler())

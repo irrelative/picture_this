@@ -1,0 +1,61 @@
+package web
+
+templ DisplayView(gameID string) {
+	@DisplayLayout("Picture This | Game Display", "/static/game.js") {
+		<header class="display-header">
+			<div class="display-brand">
+				<span class="tag">Live Game Display</span>
+				<h1>Picture This</h1>
+				<p>Keep this screen on the TV so everyone can follow along.</p>
+			</div>
+			<div class="display-meta">
+				<div class="display-meta-block">
+					<span class="label">Join code</span>
+					<p id="joinCode" class="display-code">Loading...</p>
+				</div>
+				<div class="display-meta-block">
+					<span class="label">Phase</span>
+					<p id="gameStatus" class="display-phase" role="status" aria-live="polite">Loading...</p>
+				</div>
+				<div class="display-meta-block">
+					<span class="label">Time left</span>
+					<p id="displayTimer" class="display-timer">--:--</p>
+				</div>
+				<div class="display-meta-block">
+					<span class="label">Round</span>
+					<p id="displayRound" class="display-round">--</p>
+				</div>
+			</div>
+		</header>
+
+		<section class="display-grid">
+			<div class="display-panel display-stage" id="displayStage">
+				<h2 id="displayStageTitle">Waiting for the game to start</h2>
+				<p id="displayStageStatus" class="display-status">Share the join code with everyone.</p>
+				<img id="displayStageImage" class="display-image" alt="Current drawing"/>
+				<div id="displayOptions" class="display-options"></div>
+			</div>
+
+			<div class="display-panel display-players">
+				<h2>Players</h2>
+				<ul id="playerList" class="player-list display-player-list"></ul>
+			</div>
+
+			<div class="display-panel display-scoreboard" id="displayScoreboard">
+				<h2 id="displayScoreTitle">Scoreboard</h2>
+				<p id="displayScoreStatus" class="display-status">Scores will appear after the round ends.</p>
+				<div id="displayScoreList" class="results-scores"></div>
+			</div>
+
+			<div class="display-panel display-scoreboard" id="displayFinalScores">
+				<h2>Final scores</h2>
+				<p class="display-status">Final standings for the game.</p>
+				<div id="displayFinalList" class="results-scores"></div>
+			</div>
+		</section>
+
+		<p id="gameError" class="result error" role="alert"></p>
+		<audio id="lobbyAudio" src="/static/sounds/MainBkgMusicLoop.ogg" loop preload="auto"></audio>
+		<div id="gameMeta" data-game-id={ gameID }></div>
+	}
+}

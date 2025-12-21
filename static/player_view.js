@@ -174,13 +174,19 @@ function updateVotePhase(ctx, data, phase) {
   const playerId = Number(els.meta?.dataset.playerId || 0);
   const turn = data.vote_turn || null;
   const isTurn = turn && turn.voter_id === playerId;
+  const isOwnDrawing = turn && turn.drawing_owner === playerId;
   const voteKey = `${turn ? turn.voter_id : "none"}-${turn ? turn.drawing_index : "none"}`;
   if (voteKey !== state.lastVoteKey) {
-    renderVoteOptions(ctx, turn ? turn.options : []);
+    const note = isOwnDrawing ? "This is your drawing, no voting needed." : "";
+    renderVoteOptions(ctx, turn ? turn.options : [], note);
     state.lastVoteKey = voteKey;
   }
   if (els.voteStatus) {
-    els.voteStatus.textContent = isTurn ? "Your turn to vote." : "Waiting for the next vote.";
+    if (isOwnDrawing) {
+      els.voteStatus.textContent = "This is your drawing, no voting needed.";
+    } else {
+      els.voteStatus.textContent = isTurn ? "Your turn to vote." : "Waiting for the next vote.";
+    }
   }
   if (els.voteImage) {
     const drawingImage = turn ? turn.drawing_image : "";
@@ -188,9 +194,11 @@ function updateVotePhase(ctx, data, phase) {
     els.voteImage.style.display = drawingImage ? "block" : "none";
   }
   if (els.voteForm) {
+    const showForm = isTurn && !isOwnDrawing;
+    els.voteForm.style.display = showForm ? "grid" : "none";
     const submitButton = els.voteForm.querySelector("button");
     if (submitButton) {
-      submitButton.disabled = !isTurn;
+      submitButton.disabled = !showForm;
     }
   }
 }
@@ -257,10 +265,17 @@ function renderScoreList(container, scores) {
   container.appendChild(list);
 }
 
-function renderVoteOptions(ctx, options) {
+function renderVoteOptions(ctx, options, noteText) {
   const { els } = ctx;
   if (!els.voteOptions) return;
   els.voteOptions.innerHTML = "";
+  if (noteText) {
+    const note = document.createElement("p");
+    note.className = "hint";
+    note.textContent = noteText;
+    els.voteOptions.appendChild(note);
+    return;
+  }
   if (!Array.isArray(options) || options.length === 0) {
     const note = document.createElement("p");
     note.className = "hint";

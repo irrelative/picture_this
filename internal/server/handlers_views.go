@@ -25,6 +25,21 @@ func (s *Server) handleGameView(w http.ResponseWriter, r *http.Request) {
 	templ.Handler(web.GameView(gameID)).ServeHTTP(w, r)
 }
 
+func (s *Server) handleDisplayView(w http.ResponseWriter, r *http.Request) {
+	gameID := strings.TrimPrefix(r.URL.Path, "/display/")
+	gameID = strings.Trim(gameID, "/")
+	if gameID == "" || strings.Contains(gameID, "/") {
+		http.NotFound(w, r)
+		return
+	}
+	if _, ok := s.store.GetGame(gameID); !ok {
+		log.Printf("display view missing game_id=%s", gameID)
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
+	templ.Handler(web.DisplayView(gameID)).ServeHTTP(w, r)
+}
+
 func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 	flash := ""
 	name := ""

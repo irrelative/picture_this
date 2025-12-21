@@ -42,6 +42,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /join/", s.handleJoinView)
 	mux.HandleFunc("GET /play/", s.handlePlayerView)
 	mux.HandleFunc("GET /games/", s.handleGameView)
+	mux.HandleFunc("GET /display/", s.handleDisplayView)
 	mux.HandleFunc("GET /replay/", s.handleReplayView)
 	mux.HandleFunc("GET /audience/", s.handleAudienceView)
 	mux.HandleFunc("POST /api/games", s.handleCreateGame)

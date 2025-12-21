@@ -69,7 +69,7 @@ if (createBtn) {
         return;
       }
     createResult.textContent = "Game created. Join code: " + data.join_code;
-    window.location.href = "/games/" + encodeURIComponent(data.game_id);
+    window.location.href = "/display/" + encodeURIComponent(data.game_id);
   });
 }
 
