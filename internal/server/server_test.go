@@ -209,6 +209,172 @@ func TestJoinGameLocked(t *testing.T) {
 	}
 }
 
+func TestAssignPromptsNoRepeat(t *testing.T) {
+	srv := New(nil, config.Default())
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	gameID := createGame(t, ts)
+	hostID := joinPlayer(t, ts, gameID, "Ada")
+	joinPlayer(t, ts, gameID, "Ben")
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/settings", map[string]any{
+		"player_id": hostID,
+		"rounds":    2,
+	})
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/start", map[string]any{
+		"player_id": hostID,
+	})
+
+	game, ok := srv.store.GetGame(gameID)
+	if !ok {
+		t.Fatalf("game not found")
+	}
+	firstRound := currentRound(game)
+	if firstRound == nil || len(firstRound.Prompts) != 2 {
+		t.Fatalf("expected prompts in first round")
+	}
+	firstPrompts := map[string]struct{}{}
+	for _, prompt := range firstRound.Prompts {
+		firstPrompts[prompt.Text] = struct{}{}
+	}
+
+	_, err := srv.store.UpdateGame(gameID, func(game *Game) error {
+		game.Rounds = append(game.Rounds, RoundState{Number: 2})
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("update game: %v", err)
+	}
+
+	if err := srv.assignPrompts(game); err != nil {
+		t.Fatalf("assign prompts: %v", err)
+	}
+	secondRound := currentRound(game)
+	if secondRound == nil || len(secondRound.Prompts) != 2 {
+		t.Fatalf("expected prompts in second round")
+	}
+	for _, prompt := range secondRound.Prompts {
+		if _, found := firstPrompts[prompt.Text]; found {
+			t.Fatalf("prompt repeated across rounds: %s", prompt.Text)
+		}
+	}
+}
+
+func TestKickPlayerBlocksRejoin(t *testing.T) {
+	srv := New(nil, config.Default())
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	gameID := createGame(t, ts)
+	hostID := joinPlayer(t, ts, gameID, "Ada")
+	playerID := joinPlayer(t, ts, gameID, "Ben")
+
+	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/kick", map[string]any{
+		"player_id": hostID,
+		"target_id": playerID,
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+
+	resp = doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/join", map[string]string{
+		"name": "Ben",
+	})
+	if resp.StatusCode != http.StatusConflict {
+		t.Fatalf("expected status %d, got %d", http.StatusConflict, resp.StatusCode)
+	}
+}
+
+func TestRenamePlayer(t *testing.T) {
+	srv := New(nil, config.Default())
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	gameID := createGame(t, ts)
+	playerID := joinPlayer(t, ts, gameID, "Ada")
+
+	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/rename", map[string]any{
+		"player_id": playerID,
+		"name":      "Ada Prime",
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+
+	snapshot := fetchSnapshot(t, ts, gameID)
+	players, ok := snapshot["players"].([]any)
+	if !ok || len(players) != 1 {
+		t.Fatalf("expected one player, got %#v", snapshot["players"])
+	}
+	if players[0].(string) != "Ada Prime" {
+		t.Fatalf("expected renamed player, got %#v", players[0])
+	}
+}
+
+func TestAudienceJoinAndVote(t *testing.T) {
+	srv := New(nil, config.Default())
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	gameID := createGame(t, ts)
+	hostID := joinPlayer(t, ts, gameID, "Ada")
+	playerID2 := joinPlayer(t, ts, gameID, "Ben")
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/settings", map[string]any{
+		"player_id": hostID,
+		"rounds":    1,
+	})
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/start", map[string]any{
+		"player_id": hostID,
+	})
+	prompt1 := fetchPrompt(t, ts, gameID, hostID)
+	prompt2 := fetchPrompt(t, ts, gameID, playerID2)
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/drawings", map[string]any{
+		"player_id":  hostID,
+		"image_data": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMBAp4pWZkAAAAASUVORK5CYII=",
+		"prompt":     prompt1,
+	})
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/drawings", map[string]any{
+		"player_id":  playerID2,
+		"image_data": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMBAp4pWZkAAAAASUVORK5CYII=",
+		"prompt":     prompt2,
+	})
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/guesses", map[string]any{
+		"player_id": playerID2,
+		"guess":     "guess-1",
+	})
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/guesses", map[string]any{
+		"player_id": hostID,
+		"guess":     "guess-2",
+	})
+
+	snapshot := fetchSnapshot(t, ts, gameID)
+	if snapshot["phase"] != "guesses-votes" {
+		t.Fatalf("expected guesses-votes phase, got %v", snapshot["phase"])
+	}
+
+	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/audience", map[string]any{
+		"name": "Viewer",
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+	body := decodeBody(t, resp)
+	audienceID := int(body["audience_id"].(float64))
+
+	options := snapshot["audience_options"].([]any)
+	first := options[0].(map[string]any)
+	choices := first["options"].([]any)
+	choice := choices[0].(string)
+	resp = doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/audience/votes", map[string]any{
+		"audience_id":   audienceID,
+		"drawing_index": int(first["drawing_index"].(float64)),
+		"choice":        choice,
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+}
+
 func TestJoinSameNameReturnsSamePlayer(t *testing.T) {
 	srv := New(nil, config.Default())
 	ts := httptest.NewServer(srv.Handler())

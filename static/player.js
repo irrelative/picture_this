@@ -5,6 +5,8 @@ const playerList = document.getElementById("playerList");
 const playerName = document.getElementById("playerName");
 const playerError = document.getElementById("playerError");
 const drawSection = document.getElementById("drawSection");
+const renameForm = document.getElementById("renameForm");
+const renameInput = document.getElementById("renameInput");
 const promptText = document.getElementById("promptText");
 const canvas = document.getElementById("drawCanvas");
 const saveCanvas = document.getElementById("saveCanvas");
@@ -98,6 +100,9 @@ function updateFromSnapshot(data) {
       playerName.textContent = `Signed in as ${playerNameValue}. Waiting for the host to begin.`;
     }
   }
+  if (renameInput && playerNameValue && !renameInput.value) {
+    renameInput.value = playerNameValue;
+  }
   if (hostSection) {
     hostSection.style.display = "grid";
   }
@@ -131,6 +136,37 @@ function updateFromSnapshot(data) {
   updateGuessPhase(data);
   updateVotePhase(data);
   updateResultsPhase(data);
+}
+
+if (renameForm) {
+  renameForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!meta || !renameInput) return;
+    const name = renameInput.value.trim();
+    if (!name) return;
+    const gameId = meta.dataset.gameId;
+    const playerId = meta.dataset.playerId;
+    const res = await fetch(`/api/games/${encodeURIComponent(gameId)}/rename`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        player_id: Number(playerId),
+        name
+      })
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (playerError) {
+        playerError.textContent = payload.error || "Unable to update name.";
+      }
+      return;
+    }
+    if (playerError) {
+      playerError.textContent = "";
+    }
+    meta.dataset.playerName = name;
+    updateFromSnapshot(payload);
+  });
 }
 
 function startPolling() {

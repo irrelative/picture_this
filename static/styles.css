@@ -228,6 +228,42 @@ input {
   font-weight: 600;
 }
 
+.player-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.player-action-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #e3e3e3;
+  background: #ffffff;
+}
+
+.rename-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.audience-vote-list {
+  display: grid;
+  gap: 16px;
+}
+
+.audience-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid #e3e3e3;
+  background: #ffffff;
+}
+
 .guess-card,
 .vote-card {
   display: grid;

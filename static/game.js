@@ -2,6 +2,7 @@ const meta = document.getElementById("gameMeta");
 const joinCode = document.getElementById("joinCode");
 const gameStatus = document.getElementById("gameStatus");
 const playerList = document.getElementById("playerList");
+const playerActions = document.getElementById("playerActions");
 const gameError = document.getElementById("gameError");
 const startGame = document.getElementById("startGame");
 const endGame = document.getElementById("endGame");
@@ -52,6 +53,9 @@ function updateFromSnapshot(data) {
   }
 
   playerList.innerHTML = "";
+  if (playerActions) {
+    playerActions.innerHTML = "";
+  }
   const players = Array.isArray(data.players) ? data.players : [];
   if (players.length === 0) {
     const item = document.createElement("li");
@@ -59,10 +63,29 @@ function updateFromSnapshot(data) {
     playerList.appendChild(item);
     return;
   }
-  players.forEach((player) => {
+  const playerIDs = Array.isArray(data.player_ids) ? data.player_ids : [];
+  players.forEach((player, index) => {
     const item = document.createElement("li");
     item.textContent = player;
     playerList.appendChild(item);
+
+    if (playerActions) {
+      const row = document.createElement("div");
+      row.className = "player-action-row";
+      const label = document.createElement("span");
+      label.textContent = player;
+      const kickButton = document.createElement("button");
+      kickButton.type = "button";
+      kickButton.className = "secondary";
+      kickButton.textContent = "Remove";
+      kickButton.dataset.playerId = String(playerIDs[index] || 0);
+      if (playerIDs[index] === hostId) {
+        kickButton.disabled = true;
+      }
+      row.appendChild(label);
+      row.appendChild(kickButton);
+      playerActions.appendChild(row);
+    }
   });
 
   if (roundsInput) {
@@ -80,7 +103,8 @@ function updateFromSnapshot(data) {
   if (lobbyStatus) {
     const maxPlayers = data.max_players > 0 ? data.max_players : "∞";
     const lockedText = data.lobby_locked ? "Locked" : "Open";
-    lobbyStatus.textContent = `Players: ${players.length}/${maxPlayers}. ${lockedText} lobby.`;
+    const audienceCount = data.audience_count != null ? data.audience_count : 0;
+    lobbyStatus.textContent = `Players: ${players.length}/${maxPlayers}. ${lockedText} lobby. Audience: ${audienceCount}.`;
   }
   if (settingsForm) {
     const disabled = data.phase !== "lobby";
@@ -91,6 +115,14 @@ function updateFromSnapshot(data) {
     if (settingsForm.querySelector("button")) {
       settingsForm.querySelector("button").disabled = disabled;
     }
+  }
+
+
+  if (playerActions) {
+    const disabled = data.phase !== "lobby";
+    Array.from(playerActions.querySelectorAll("button")).forEach((button) => {
+      button.disabled = disabled;
+    });
   }
 }
 
@@ -225,4 +257,44 @@ if (settingsForm) {
     updateFromSnapshot(data);
   });
   loadCategories();
+}
+
+if (playerActions) {
+  playerActions.addEventListener("click", async (event) => {
+    const target = event.target;
+    if (!target || target.tagName !== "BUTTON") {
+      return;
+    }
+    if (target.disabled) {
+      return;
+    }
+    if (!meta) return;
+    const gameId = meta.dataset.gameId;
+    const playerId = Number(target.dataset.playerId || 0);
+    if (!playerId) {
+      if (gameError) {
+        gameError.textContent = "Unable to resolve player.";
+      }
+      return;
+    }
+    const kickRes = await fetch(`/api/games/${encodeURIComponent(gameId)}/kick`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        player_id: hostId || 0,
+        target_id: playerId
+      })
+    });
+    const data = await kickRes.json().catch(() => ({}));
+    if (!kickRes.ok) {
+      if (gameError) {
+        gameError.textContent = data.error || "Unable to remove player.";
+      }
+      return;
+    }
+    if (gameError) {
+      gameError.textContent = "";
+    }
+    updateFromSnapshot(data);
+  });
 }

@@ -79,6 +79,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /join/", s.handleJoinView)
 	mux.HandleFunc("GET /play/", s.handlePlayerView)
 	mux.HandleFunc("GET /games/", s.handleGameView)
+	mux.HandleFunc("GET /audience/", s.handleAudienceView)
 	mux.HandleFunc("POST /api/games", s.handleCreateGame)
 	mux.HandleFunc("GET /api/games/", s.handleGameSubroutes)
 	mux.HandleFunc("POST /api/games/", s.handleGameSubroutes)
@@ -90,10 +91,11 @@ func (s *Server) Handler() http.Handler {
 }
 
 type Store struct {
-	mu           sync.Mutex
-	nextID       int
-	nextPlayerID int
-	games        map[string]*Game
+	mu             sync.Mutex
+	nextID         int
+	nextPlayerID   int
+	nextAudienceID int
+	games          map[string]*Game
 }
 
 type GameSummary struct {
@@ -112,8 +114,11 @@ type Game struct {
 	MaxPlayers       int
 	PromptCategory   string
 	LobbyLocked      bool
+	UsedPrompts      map[string]struct{}
+	KickedPlayers    map[string]struct{}
 	HostID           int
 	Players          []Player
+	Audience         []AudienceMember
 	Rounds           []RoundState
 	PromptsPerPlayer int
 }
@@ -125,19 +130,25 @@ type Player struct {
 	DBID   uint
 }
 
+type AudienceMember struct {
+	ID   int
+	Name string
+}
+
 type RoundState struct {
-	Number       int
-	DBID         uint
-	Prompts      []PromptEntry
-	Drawings     []DrawingEntry
-	Guesses      []GuessEntry
-	Votes        []VoteEntry
-	GuessTurns   []GuessTurn
-	CurrentGuess int
-	VoteTurns    []VoteTurn
-	CurrentVote  int
-	RevealIndex  int
-	RevealStage  string
+	Number        int
+	DBID          uint
+	Prompts       []PromptEntry
+	Drawings      []DrawingEntry
+	Guesses       []GuessEntry
+	Votes         []VoteEntry
+	GuessTurns    []GuessTurn
+	CurrentGuess  int
+	VoteTurns     []VoteTurn
+	CurrentVote   int
+	RevealIndex   int
+	RevealStage   string
+	AudienceVotes []AudienceVote
 }
 
 type PromptEntry struct {
@@ -178,11 +189,18 @@ type VoteTurn struct {
 	VoterID      int
 }
 
+type AudienceVote struct {
+	AudienceID   int
+	DrawingIndex int
+	ChoiceText   string
+}
+
 func NewStore() *Store {
 	return &Store{
-		nextID:       1,
-		nextPlayerID: 1,
-		games:        make(map[string]*Game),
+		nextID:         1,
+		nextPlayerID:   1,
+		nextAudienceID: 1,
+		games:          make(map[string]*Game),
 	}
 }
 
@@ -200,6 +218,8 @@ func (s *Store) CreateGame(promptsPerPlayer int) *Game {
 		MaxPlayers:       0,
 		PromptCategory:   "",
 		LobbyLocked:      false,
+		UsedPrompts:      make(map[string]struct{}),
+		KickedPlayers:    make(map[string]struct{}),
 		PromptsPerPlayer: promptsPerPlayer,
 	}
 	s.games[id] = game
@@ -280,6 +300,11 @@ func (s *Store) AddPlayer(gameIDOrCode, name string) (*Game, *Player, error) {
 	if game.MaxPlayers > 0 && len(game.Players) >= game.MaxPlayers {
 		return nil, nil, errors.New("lobby full")
 	}
+	if game.KickedPlayers != nil {
+		if _, kicked := game.KickedPlayers[strings.ToLower(name)]; kicked {
+			return nil, nil, errors.New("player removed")
+		}
+	}
 
 	player := Player{
 		ID:     s.nextPlayerID,
@@ -292,6 +317,40 @@ func (s *Store) AddPlayer(gameIDOrCode, name string) (*Game, *Player, error) {
 		game.HostID = player.ID
 	}
 	return game, &game.Players[len(game.Players)-1], nil
+}
+
+func (s *Store) AddAudience(gameIDOrCode, name string) (*Game, *AudienceMember, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	game, ok := s.games[gameIDOrCode]
+	if !ok {
+		for _, candidate := range s.games {
+			if candidate.JoinCode == gameIDOrCode {
+				game = candidate
+				ok = true
+				break
+			}
+		}
+	}
+	if !ok {
+		return nil, nil, errors.New("game not found")
+	}
+	if game.Phase == phaseComplete {
+		return nil, nil, errors.New("game already ended")
+	}
+	for i := range game.Audience {
+		if strings.EqualFold(game.Audience[i].Name, name) {
+			return game, &game.Audience[i], nil
+		}
+	}
+	member := AudienceMember{
+		ID:   s.nextAudienceID,
+		Name: name,
+	}
+	s.nextAudienceID++
+	game.Audience = append(game.Audience, member)
+	return game, &game.Audience[len(game.Audience)-1], nil
 }
 
 func (s *Store) ListGameSummaries() []GameSummary {
@@ -415,6 +474,31 @@ func (s *Server) handleJoinView(w http.ResponseWriter, r *http.Request) {
 	templ.Handler(web.JoinView(code, name)).ServeHTTP(w, r)
 }
 
+func (s *Server) handleAudienceView(w http.ResponseWriter, r *http.Request) {
+	gameID, audienceID, ok := parseAudienceViewPath(r.URL.Path)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	game, ok := s.store.GetGame(gameID)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	name := ""
+	for _, member := range game.Audience {
+		if member.ID == audienceID {
+			name = member.Name
+			break
+		}
+	}
+	if name == "" {
+		http.NotFound(w, r)
+		return
+	}
+	templ.Handler(web.AudienceView(gameID, audienceID, name)).ServeHTTP(w, r)
+}
+
 func (s *Server) handlePlayerView(w http.ResponseWriter, r *http.Request) {
 	gameID, playerID, ok := parsePlayerPath(r.URL.Path)
 	if !ok {
@@ -469,6 +553,19 @@ func (s *Server) handleGameSubroutes(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if r.Method == http.MethodPost {
+		if audienceGameID, action, ok := parseAudiencePath(r.URL.Path); ok {
+			switch action {
+			case "":
+				s.handleAudienceJoin(w, r, audienceGameID)
+			case "votes":
+				s.handleAudienceVotes(w, r, audienceGameID)
+			default:
+				http.NotFound(w, r)
+			}
+			return
+		}
+	}
 
 	gameID, action, ok := parseGamePath(r.URL.Path)
 	if !ok {
@@ -500,6 +597,10 @@ func (s *Server) handleGameSubroutes(w http.ResponseWriter, r *http.Request) {
 			s.handleVotes(w, r, gameID)
 		case "settings":
 			s.handleSettings(w, r, gameID)
+		case "kick":
+			s.handleKick(w, r, gameID)
+		case "rename":
+			s.handleRename(w, r, gameID)
 		case "advance":
 			s.handleAdvance(w, r, gameID)
 		case "end":
@@ -529,12 +630,32 @@ type settingsRequest struct {
 	LobbyLocked    bool   `json:"lobby_locked"`
 }
 
+type kickRequest struct {
+	PlayerID int `json:"player_id"`
+	TargetID int `json:"target_id"`
+}
+
+type renameRequest struct {
+	PlayerID int    `json:"player_id"`
+	Name     string `json:"name"`
+}
+
 type joinRequest struct {
 	Name string `json:"name"`
 }
 
 type startRequest struct {
 	PlayerID int `json:"player_id"`
+}
+
+type audienceJoinRequest struct {
+	Name string `json:"name"`
+}
+
+type audienceVoteRequest struct {
+	AudienceID   int    `json:"audience_id"`
+	DrawingIndex int    `json:"drawing_index"`
+	Choice       string `json:"choice"`
 }
 
 func (s *Server) handleJoinGame(w http.ResponseWriter, r *http.Request, gameID string) {
@@ -573,6 +694,88 @@ func (s *Server) handleJoinGame(w http.ResponseWriter, r *http.Request, gameID s
 		s.sessions.SetName(w, r, req.Name)
 	}
 
+	s.broadcastGameUpdate(game)
+}
+
+func (s *Server) handleAudienceJoin(w http.ResponseWriter, r *http.Request, gameID string) {
+	var req audienceJoinRequest
+	if err := readJSON(r.Body, &req); err != nil || strings.TrimSpace(req.Name) == "" {
+		writeError(w, http.StatusBadRequest, "name is required")
+		return
+	}
+	game, audience, err := s.store.AddAudience(gameID, req.Name)
+	if err != nil {
+		if err.Error() == "game not found" {
+			http.NotFound(w, r)
+			return
+		}
+		writeError(w, http.StatusConflict, err.Error())
+		return
+	}
+	resp := map[string]any{
+		"game_id":     game.ID,
+		"audience_id": audience.ID,
+		"join_code":   game.JoinCode,
+	}
+	writeJSON(w, http.StatusOK, resp)
+	log.Printf("audience joined game_id=%s audience_id=%d", game.ID, audience.ID)
+	s.broadcastGameUpdate(game)
+}
+
+func (s *Server) handleAudienceVotes(w http.ResponseWriter, r *http.Request, gameID string) {
+	var req audienceVoteRequest
+	if err := readJSON(r.Body, &req); err != nil || req.AudienceID <= 0 || req.DrawingIndex < 0 || strings.TrimSpace(req.Choice) == "" {
+		writeError(w, http.StatusBadRequest, "audience vote is required")
+		return
+	}
+	choiceText := strings.TrimSpace(req.Choice)
+	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+		if game.Phase != phaseGuessVotes {
+			return errors.New("audience votes not accepted in this phase")
+		}
+		found := false
+		for _, member := range game.Audience {
+			if member.ID == req.AudienceID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return errors.New("audience member not found")
+		}
+		round := currentRound(game)
+		if round == nil {
+			return errors.New("round not started")
+		}
+		if req.DrawingIndex >= len(round.Drawings) {
+			return errors.New("invalid drawing")
+		}
+		for _, vote := range round.AudienceVotes {
+			if vote.AudienceID == req.AudienceID && vote.DrawingIndex == req.DrawingIndex {
+				return errors.New("vote already submitted")
+			}
+		}
+		options := voteOptionsForDrawing(round, req.DrawingIndex)
+		if !containsOption(options, choiceText) {
+			return errors.New("invalid vote option")
+		}
+		round.AudienceVotes = append(round.AudienceVotes, AudienceVote{
+			AudienceID:   req.AudienceID,
+			DrawingIndex: req.DrawingIndex,
+			ChoiceText:   choiceText,
+		})
+		return nil
+	})
+	if err != nil {
+		if err.Error() == "game not found" {
+			http.NotFound(w, r)
+			return
+		}
+		writeError(w, http.StatusConflict, err.Error())
+		return
+	}
+	log.Printf("audience vote submitted game_id=%s audience_id=%d", game.ID, req.AudienceID)
+	writeJSON(w, http.StatusOK, snapshot(game))
 	s.broadcastGameUpdate(game)
 }
 
@@ -615,6 +818,92 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request, gameID s
 		return
 	}
 	log.Printf("settings updated game_id=%s rounds=%d max_players=%d category=%s locked=%t", game.ID, game.PromptsPerPlayer, game.MaxPlayers, game.PromptCategory, game.LobbyLocked)
+	writeJSON(w, http.StatusOK, snapshot(game))
+	s.broadcastGameUpdate(game)
+}
+
+func (s *Server) handleKick(w http.ResponseWriter, r *http.Request, gameID string) {
+	var req kickRequest
+	if err := readJSON(r.Body, &req); err != nil || req.PlayerID <= 0 || req.TargetID <= 0 {
+		writeError(w, http.StatusBadRequest, "player_id and target_id are required")
+		return
+	}
+	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+		if game.Phase != phaseLobby {
+			return errors.New("kick only available in lobby")
+		}
+		if game.HostID != 0 && req.PlayerID != game.HostID {
+			return errors.New("only host can remove players")
+		}
+		if req.TargetID == game.HostID {
+			return errors.New("cannot remove host")
+		}
+		index := -1
+		for i := range game.Players {
+			if game.Players[i].ID == req.TargetID {
+				index = i
+				break
+			}
+		}
+		if index == -1 {
+			return errors.New("player not found")
+		}
+		if game.KickedPlayers == nil {
+			game.KickedPlayers = make(map[string]struct{})
+		}
+		game.KickedPlayers[strings.ToLower(game.Players[index].Name)] = struct{}{}
+		game.Players = append(game.Players[:index], game.Players[index+1:]...)
+		return nil
+	})
+	if err != nil {
+		if err.Error() == "game not found" {
+			http.NotFound(w, r)
+			return
+		}
+		writeError(w, http.StatusConflict, err.Error())
+		return
+	}
+	log.Printf("player removed game_id=%s target_id=%d", game.ID, req.TargetID)
+	writeJSON(w, http.StatusOK, snapshot(game))
+	s.broadcastGameUpdate(game)
+}
+
+func (s *Server) handleRename(w http.ResponseWriter, r *http.Request, gameID string) {
+	var req renameRequest
+	if err := readJSON(r.Body, &req); err != nil || req.PlayerID <= 0 || strings.TrimSpace(req.Name) == "" {
+		writeError(w, http.StatusBadRequest, "player_id and name are required")
+		return
+	}
+	newName := strings.TrimSpace(req.Name)
+	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+		if game.Phase != phaseLobby {
+			return errors.New("rename only available in lobby")
+		}
+		for i := range game.Players {
+			if strings.EqualFold(game.Players[i].Name, newName) {
+				return errors.New("name already taken")
+			}
+		}
+		for i := range game.Players {
+			if game.Players[i].ID == req.PlayerID {
+				game.Players[i].Name = newName
+				return nil
+			}
+		}
+		return errors.New("player not found")
+	})
+	if err != nil {
+		if err.Error() == "game not found" {
+			http.NotFound(w, r)
+			return
+		}
+		writeError(w, http.StatusConflict, err.Error())
+		return
+	}
+	if s.sessions != nil {
+		s.sessions.SetName(w, r, newName)
+	}
+	log.Printf("player renamed game_id=%s player_id=%d", game.ID, req.PlayerID)
 	writeJSON(w, http.StatusOK, snapshot(game))
 	s.broadcastGameUpdate(game)
 }
@@ -1148,6 +1437,46 @@ func parseWebsocketPath(path string) (string, bool) {
 	return rest, true
 }
 
+func parseAudiencePath(path string) (string, string, bool) {
+	const prefix = "/api/games/"
+	if !strings.HasPrefix(path, prefix) {
+		return "", "", false
+	}
+	rest := strings.TrimPrefix(path, prefix)
+	parts := strings.Split(strings.Trim(rest, "/"), "/")
+	if len(parts) < 2 {
+		return "", "", false
+	}
+	if parts[1] != "audience" {
+		return "", "", false
+	}
+	if len(parts) == 2 {
+		return parts[0], "", true
+	}
+	if len(parts) == 3 {
+		return parts[0], parts[2], true
+	}
+	return "", "", false
+}
+
+func parseAudienceViewPath(path string) (string, int, bool) {
+	const prefix = "/audience/"
+	if !strings.HasPrefix(path, prefix) {
+		return "", 0, false
+	}
+	rest := strings.TrimPrefix(path, prefix)
+	parts := strings.Split(strings.Trim(rest, "/"), "/")
+	if len(parts) != 2 {
+		return "", 0, false
+	}
+	gameID := parts[0]
+	audienceID, err := strconv.Atoi(parts[1])
+	if err != nil || audienceID <= 0 {
+		return "", 0, false
+	}
+	return gameID, audienceID, true
+}
+
 func parsePlayerPath(path string) (string, int, bool) {
 	const prefix = "/play/"
 	if !strings.HasPrefix(path, prefix) {
@@ -1490,7 +1819,10 @@ func snapshot(game *Game) map[string]any {
 		"max_players":        game.MaxPlayers,
 		"prompt_category":    game.PromptCategory,
 		"lobby_locked":       game.LobbyLocked,
+		"can_join":           game.Phase == phaseLobby && !game.LobbyLocked && (game.MaxPlayers == 0 || len(game.Players) < game.MaxPlayers),
 		"players":            extractPlayerNames(game.Players),
+		"player_ids":         extractPlayerIDs(game.Players),
+		"audience_count":     len(game.Audience),
 		"round_number":       roundNumber,
 		"total_rounds":       game.PromptsPerPlayer,
 		"guess_turn":         guessTurn,
@@ -1499,6 +1831,7 @@ func snapshot(game *Game) map[string]any {
 		"results":            results,
 		"scores":             scores,
 		"reveal":             reveal,
+		"audience_options":   buildAudienceOptions(game),
 		"counts": map[string]int{
 			"prompts":  promptsCount,
 			"drawings": drawingsCount,
@@ -1514,6 +1847,14 @@ func extractPlayerNames(players []Player) []string {
 		names = append(names, player.Name)
 	}
 	return names
+}
+
+func extractPlayerIDs(players []Player) []int {
+	ids := make([]int, 0, len(players))
+	for _, player := range players {
+		ids = append(ids, player.ID)
+	}
+	return ids
 }
 
 func buildResults(game *Game) []map[string]any {
@@ -1667,6 +2008,26 @@ func buildReveal(game *Game) map[string]any {
 		payload["votes"] = votes
 	}
 	return payload
+}
+
+func buildAudienceOptions(game *Game) []map[string]any {
+	if game.Phase != phaseGuessVotes {
+		return nil
+	}
+	round := currentRound(game)
+	if round == nil {
+		return nil
+	}
+	options := make([]map[string]any, 0, len(round.Drawings))
+	for index, drawing := range round.Drawings {
+		entry := map[string]any{
+			"drawing_index": index,
+			"drawing_image": encodeImageData(drawing.ImageData),
+			"options":       voteOptionsForDrawing(round, index),
+		}
+		options = append(options, entry)
+	}
+	return options
 }
 
 func currentRound(game *Game) *RoundState {
@@ -1987,12 +2348,15 @@ func (s *Server) assignPrompts(game *Game) error {
 	if len(round.Prompts) > 0 {
 		return nil
 	}
+	if game.UsedPrompts == nil {
+		game.UsedPrompts = make(map[string]struct{})
+	}
 	total := len(game.Players)
 	if total == 0 {
 		return errors.New("no players to assign prompts")
 	}
 
-	prompts, err := s.loadPromptLibrary(total, game.PromptCategory)
+	prompts, err := s.loadPromptLibrary(total, game.PromptCategory, game.UsedPrompts)
 	if err != nil {
 		return err
 	}
@@ -2002,10 +2366,12 @@ func (s *Server) assignPrompts(game *Game) error {
 
 	idx := 0
 	for _, player := range game.Players {
+		prompt := prompts[idx]
 		round.Prompts = append(round.Prompts, PromptEntry{
 			PlayerID: player.ID,
-			Text:     prompts[idx],
+			Text:     prompt,
 		})
+		game.UsedPrompts[prompt] = struct{}{}
 		idx++
 	}
 	if err := s.persistAssignedPrompts(game, round); err != nil {
@@ -2020,14 +2386,21 @@ func (s *Server) assignPrompts(game *Game) error {
 	return nil
 }
 
-func (s *Server) loadPromptLibrary(limit int, category string) ([]string, error) {
+func (s *Server) loadPromptLibrary(limit int, category string, used map[string]struct{}) ([]string, error) {
 	if s.db == nil {
-		return fallbackPrompts(limit), nil
+		return selectPrompts(fallbackPromptsList(), limit, used), nil
 	}
 	var records []db.PromptLibrary
 	query := s.db
 	if category = strings.TrimSpace(category); category != "" {
 		query = query.Where("category = ?", category)
+	}
+	if len(used) > 0 {
+		exclusions := make([]string, 0, len(used))
+		for prompt := range used {
+			exclusions = append(exclusions, prompt)
+		}
+		query = query.Where("text NOT IN ?", exclusions)
 	}
 	if err := query.Order("random()").Limit(limit).Find(&records).Error; err != nil {
 		return nil, err
@@ -2039,8 +2412,8 @@ func (s *Server) loadPromptLibrary(limit int, category string) ([]string, error)
 	return prompts, nil
 }
 
-func fallbackPrompts(limit int) []string {
-	fallback := []string{
+func fallbackPromptsList() []string {
+	return []string{
 		"Draw a llama in a suit",
 		"Draw a castle made of pancakes",
 		"Draw a robot learning to dance",
@@ -2050,10 +2423,23 @@ func fallbackPrompts(limit int) []string {
 		"Draw a snowy beach day",
 		"Draw a giant sunflower city",
 	}
-	if limit >= len(fallback) {
-		return fallback
+}
+
+func selectPrompts(pool []string, limit int, used map[string]struct{}) []string {
+	if limit <= 0 {
+		return nil
 	}
-	return fallback[:limit]
+	selected := make([]string, 0, limit)
+	for _, prompt := range pool {
+		if len(selected) >= limit {
+			break
+		}
+		if _, ok := used[prompt]; ok {
+			continue
+		}
+		selected = append(selected, prompt)
+	}
+	return selected
 }
 
 func (s *Server) persistAssignedPrompts(game *Game, round *RoundState) error {

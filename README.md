@@ -5,6 +5,7 @@ Picture This is a Drawful-style party game with a Go backend, templ-rendered UI,
 ## How It Works
 - Host creates a game and shares the join code.
 - Players join from `/join` and receive assigned prompts.
+- Audience can join from the home page to vote during guessing rounds.
 - The game advances through drawing, guessing, guess-voting, and results phases.
 - Results are shown after each round, with state synced via websockets.
 
@@ -50,6 +51,10 @@ When the server starts, it will auto-migrate and load prompts from `prompts.csv`
 - `POST /api/games/{game_id}/guesses` — submit a guess for a drawing.
 - `POST /api/games/{game_id}/votes` — submit a vote for the current drawing prompt.
 - `POST /api/games/{game_id}/settings` — update lobby settings (rounds, max players, prompt pack, lock).
+- `POST /api/games/{game_id}/kick` — host removes a player from the lobby.
+- `POST /api/games/{game_id}/rename` — player updates their display name in the lobby.
+- `POST /api/games/{game_id}/audience` — join as an audience member.
+- `POST /api/games/{game_id}/audience/votes` — submit audience votes for a drawing.
 - `POST /api/games/{game_id}/advance` — host/admin advances phase if needed.
 - `GET /api/games/{game_id}/results` — fetch round or final results.
 - `GET /api/prompts/categories` — list available prompt pack categories.
@@ -59,6 +64,7 @@ When the server starts, it will auto-migrate and load prompts from `prompts.csv`
 - Phases: `lobby` -> `drawings` -> `guesses` -> `guesses-votes` -> `results` -> `complete`.
 - `POST /api/games/{game_id}/start` moves `lobby` to `drawings`.
 - Each round assigns one prompt per player from the prompt library.
+- Prompts do not repeat within a game session.
 - When all drawings are in, the game moves to `guesses` and walks each guess turn sequentially.
 - After guesses complete, either a new round starts (if `PROMPTS_PER_PLAYER` > round count) or the game moves to `guesses-votes`.
 - During `guesses-votes`, each drawing is shown with the prompt plus all guesses as options; players vote on the true prompt.

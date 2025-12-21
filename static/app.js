@@ -2,6 +2,8 @@ const createBtn = document.getElementById("createGame");
 const createResult = document.getElementById("createResult");
 const joinForm = document.getElementById("joinForm");
 const joinResult = document.getElementById("joinResult");
+const audienceForm = document.getElementById("audienceForm");
+const audienceResult = document.getElementById("audienceResult");
 const activeGames = document.getElementById("activeGames");
 const gameList = document.getElementById("gameList");
 const noGames = document.getElementById("noGames");
@@ -89,6 +91,30 @@ if (joinForm) {
       }
       window.location.href = "/play/" + encodeURIComponent(data.game_id) + "/" + encodeURIComponent(data.player_id);
     });
+}
+
+if (audienceForm) {
+  audienceForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (audienceResult) {
+      audienceResult.textContent = "Joining audience...";
+    }
+    const code = audienceForm.elements.code.value.trim();
+    const name = audienceForm.elements.name.value.trim();
+    const res = await fetch("/api/games/" + encodeURIComponent(code) + "/audience", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (audienceResult) {
+        audienceResult.textContent = data.error || "Failed to join audience.";
+      }
+      return;
+    }
+    window.location.href = "/audience/" + encodeURIComponent(data.game_id) + "/" + encodeURIComponent(data.audience_id);
+  });
 }
 
 if (activeGames) {
