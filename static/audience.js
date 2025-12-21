@@ -31,14 +31,15 @@ async function fetchSnapshot(gameId) {
 }
 
 function updateFromSnapshot(data) {
+  const phase = normalizePhase(data.phase);
   joinCode.textContent = data.join_code || "Unavailable";
-  status.textContent = data.phase || "Unknown";
+  status.textContent = phase || "Unknown";
   if (audienceCount) {
     audienceCount.textContent = `Audience members: ${data.audience_count || 0}`;
   }
 
   if (!voteSection || !voteList) return;
-  if (data.phase !== "guesses-votes") {
+  if (phase !== "guesses-votes") {
     voteSection.style.display = "none";
     return;
   }
@@ -164,3 +165,10 @@ function connectWS() {
 
 loadAudience();
 connectWS();
+
+function normalizePhase(phase) {
+  if (phase === "votes") {
+    return "guesses-votes";
+  }
+  return phase;
+}

@@ -35,6 +35,12 @@ def request_json(method, url, payload=None):
         return exc.code, {}
 
 
+def normalize_phase(phase):
+    if phase == "votes":
+        return "guesses-votes"
+    return phase
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", default=os.environ.get("BASE_URL", DEFAULT_BASE_URL))
@@ -100,10 +106,11 @@ def main():
         time.sleep(args.sleep)
         status, snapshot = request_json("GET", f"{base_url}/api/games/{game_id}")
         assert status == 200, "snapshot failed"
-        assert snapshot.get("phase") == "guesses", f"expected guesses phase, got {snapshot.get('phase')}"
+        phase = normalize_phase(snapshot.get("phase"))
+        assert phase == "guesses", f"expected guesses phase, got {snapshot.get('phase')}"
 
         guard = 0
-        while snapshot.get("phase") == "guesses" and guard < 10:
+        while normalize_phase(snapshot.get("phase")) == "guesses" and guard < 10:
             guard += 1
             turn = snapshot.get("guess_turn")
             assert turn, "no guess turn found"
@@ -113,13 +120,14 @@ def main():
             status, snapshot = request_json("GET", f"{base_url}/api/games/{game_id}")
             assert status == 200, "snapshot failed"
 
+        phase = normalize_phase(snapshot.get("phase"))
         if round_number < total_rounds:
-            assert snapshot.get("phase") == "drawings", f"expected drawings phase, got {snapshot.get('phase')}"
+            assert phase == "drawings", f"expected drawings phase, got {snapshot.get('phase')}"
         else:
-            assert snapshot.get("phase") == "guesses-votes", f"expected guesses-votes phase, got {snapshot.get('phase')}"
+            assert phase == "guesses-votes", f"expected guesses-votes phase, got {snapshot.get('phase')}"
 
     guard = 0
-    while snapshot.get("phase") == "guesses-votes" and guard < 20:
+    while normalize_phase(snapshot.get("phase")) == "guesses-votes" and guard < 20:
         guard += 1
         turn = snapshot.get("vote_turn")
         assert turn, "no vote turn found"
@@ -136,7 +144,8 @@ def main():
         status, snapshot = request_json("GET", f"{base_url}/api/games/{game_id}")
         assert status == 200, "snapshot failed"
 
-    assert snapshot.get("phase") == "results", f"expected results phase, got {snapshot.get('phase')}"
+    phase = normalize_phase(snapshot.get("phase"))
+    assert phase == "results", f"expected results phase, got {snapshot.get('phase')}"
     print("Votes submitted")
 
     status, results = request_json("GET", f"{base_url}/api/games/{game_id}/results")

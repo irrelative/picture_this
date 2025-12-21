@@ -66,8 +66,9 @@ async function fetchSnapshot(gameId) {
 }
 
 function updateFromSnapshot(data) {
+  const phase = normalizePhase(data.phase);
   joinCode.textContent = data.join_code || "Unavailable";
-  gameStatus.textContent = data.phase || "Unknown";
+  gameStatus.textContent = phase || "Unknown";
   playerList.innerHTML = "";
   const players = Array.isArray(data.players) ? data.players : [];
   if (players.length === 0) {
@@ -121,11 +122,11 @@ function updateFromSnapshot(data) {
   }
   if (hostStartGame) {
     const enoughPlayers = players.length >= 2;
-    const canStart = data.phase === "lobby" && isHost && enoughPlayers;
+    const canStart = phase === "lobby" && isHost && enoughPlayers;
     hostStartGame.disabled = !canStart;
     hostStartGame.style.display = isHost ? "inline-flex" : "none";
     if (hostHelp) {
-      if (data.phase !== "lobby") {
+      if (phase !== "lobby") {
         hostHelp.textContent = "Game already started.";
       } else if (!isHost) {
         hostHelp.textContent = "Only the host can start the game.";
@@ -138,7 +139,7 @@ function updateFromSnapshot(data) {
   }
 
   if (drawSection) {
-    if (data.phase === "drawings" && !drawingSubmitted) {
+    if (phase === "drawings" && !drawingSubmitted) {
       drawSection.style.display = "grid";
       fetchPrompt();
     } else {
@@ -154,9 +155,9 @@ function updateFromSnapshot(data) {
     }
   }
 
-  updateGuessPhase(data);
-  updateVotePhase(data);
-  updateResultsPhase(data);
+  updateGuessPhase(data, phase);
+  updateVotePhase(data, phase);
+  updateResultsPhase(data, phase);
 }
 
 if (renameForm) {
@@ -222,9 +223,9 @@ function connectWS() {
 loadPlayerView();
 connectWS();
 
-function updateGuessPhase(data) {
+function updateGuessPhase(data, phase) {
   if (!guessSection) return;
-  if (data.phase !== "guesses") {
+  if (phase !== "guesses") {
     guessSection.style.display = "none";
     return;
   }
@@ -258,9 +259,9 @@ function updateGuessPhase(data) {
   }
 }
 
-function updateVotePhase(data) {
+function updateVotePhase(data, phase) {
   if (!voteSection) return;
-  if (data.phase !== "guesses-votes") {
+  if (phase !== "guesses-votes") {
     voteSection.style.display = "none";
     return;
   }
@@ -289,9 +290,9 @@ function updateVotePhase(data) {
   }
 }
 
-function updateResultsPhase(data) {
+function updateResultsPhase(data, phase) {
   if (!resultsSection) return;
-  if (data.phase !== "results" && data.phase !== "complete") {
+  if (phase !== "results" && phase !== "complete") {
     resultsSection.style.display = "none";
     return;
   }
@@ -299,9 +300,9 @@ function updateResultsPhase(data) {
   const results = data.results || [];
   const scores = data.scores || [];
   const reveal = data.reveal || null;
-  const resultsKey = JSON.stringify({ results, scores, reveal, phase: data.phase });
+  const resultsKey = JSON.stringify({ results, scores, reveal, phase });
   if (resultsKey !== lastResultsKey) {
-    if (data.phase === "results") {
+    if (phase === "results") {
       renderReveal(reveal);
       renderResults([], scores);
     } else {
@@ -310,6 +311,13 @@ function updateResultsPhase(data) {
     }
     lastResultsKey = resultsKey;
   }
+}
+
+function normalizePhase(phase) {
+  if (phase === "votes") {
+    return "guesses-votes";
+  }
+  return phase;
 }
 
 function setupCanvas() {

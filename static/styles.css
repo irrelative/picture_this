@@ -270,6 +270,15 @@ select:focus {
   gap: 6px;
 }
 
+.settings-form select {
+  font: inherit;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid #e3e3e3;
+  background: #fff;
+  min-height: 44px;
+}
+
 .settings-actions {
   display: flex;
   gap: 12px;
@@ -522,5 +531,19 @@ button.primary:disabled {
   .status {
     text-align: right;
     justify-items: end;
+  }
+
+  .settings-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .settings-form label {
+    grid-template-columns: 160px 1fr;
+    align-items: center;
+  }
+
+  .settings-form .label {
+    margin: 0;
   }
 }
