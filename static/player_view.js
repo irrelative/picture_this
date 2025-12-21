@@ -44,6 +44,9 @@ export function updateFromSnapshot(ctx, data) {
     if (els.promptText) {
       els.promptText.textContent = "Loading...";
     }
+    if (actions.clearCanvas) {
+      actions.clearCanvas();
+    }
   }
 
   if (phase === "drawings" && prevPhase === "guesses-votes" && roundNumber > 1) {

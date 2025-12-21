@@ -80,3 +80,10 @@ export function applyBrushColor(ctx) {
   if (!ctx.state.canvasCtx) return;
   ctx.state.canvasCtx.strokeStyle = ctx.state.brushColor;
 }
+
+export function clearCanvas(ctx) {
+  const ctx2d = ctx.state.canvasCtx;
+  if (!ctx2d) return;
+  ctx2d.fillStyle = "#ffffff";
+  ctx2d.fillRect(0, 0, ctx.state.canvasWidth, ctx.state.canvasHeight);
+}

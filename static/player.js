@@ -7,7 +7,7 @@ import {
   postStartGame,
   postVote
 } from "./player_api.js";
-import { applyBrushColor, setupCanvas } from "./player_canvas.js";
+import { applyBrushColor, clearCanvas, setupCanvas } from "./player_canvas.js";
 import { updateFromSnapshot } from "./player_view.js";
 
 const ctx = {
@@ -66,6 +66,7 @@ const ctx = {
 
 ctx.actions.applyBrushColor = () => applyBrushColor(ctx);
 ctx.actions.fetchPrompt = () => fetchPromptForPlayer();
+ctx.actions.clearCanvas = () => clearCanvas(ctx);
 
 async function loadPlayerView() {
   if (!ctx.els.meta) return;
