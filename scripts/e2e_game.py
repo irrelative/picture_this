@@ -13,6 +13,18 @@ PNG_1X1 = (
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8"
     "/x8AAwMBAp4pWZkAAAAASUVORK5CYII="
 )
+AVATAR_IMAGES = [
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4n5wMAAQqAcbUp9SsAAAAAElFTkSuQmCC",
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGMIPJ8GAAL7AYdeG79/AAAAAElFTkSuQmCC",
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGPwmvAIAALkAb2JlVB1AAAAAElFTkSuQmCC",
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4elQCAASFAdNllrGDAAAAAElFTkSuQmCC",
+]
+AVATAR_UPDATES = [
+    AVATAR_IMAGES[2],
+    AVATAR_IMAGES[3],
+    AVATAR_IMAGES[0],
+    AVATAR_IMAGES[1],
+]
 
 
 def request_json(method, url, payload=None):
@@ -66,14 +78,22 @@ def main():
 
     player_names = ["Alice", "Bob", "Carol", "Dave"]
     players = []
-    for name in player_names:
+    for idx, name in enumerate(player_names):
+        avatar_data = f"data:image/png;base64,{AVATAR_IMAGES[idx % len(AVATAR_IMAGES)]}"
+        updated_avatar_data = f"data:image/png;base64,{AVATAR_UPDATES[idx % len(AVATAR_UPDATES)]}"
         status, player = request_json(
             "POST",
             f"{base_url}/api/games/{game_id}/join",
-            {"name": name, "avatar_data": f"data:image/png;base64,{PNG_1X1}"},
+            {"name": name, "avatar_data": avatar_data},
         )
         assert status == 200, f"join {name} failed: {status} {player}"
         players.append(player)
+        status, _ = request_json(
+            "POST",
+            f"{base_url}/api/games/{game_id}/join",
+            {"name": name, "avatar_data": updated_avatar_data},
+        )
+        assert status == 200, f"avatar update failed for {name}"
     joined = " ".join(f"{player_names[idx]}={player['player_id']}" for idx, player in enumerate(players))
     print(f"Joined players: {joined}")
 

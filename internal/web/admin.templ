@@ -35,12 +35,17 @@ templ Admin(gameID string, data AdminData) {
 			<h2>Players</h2>
 			<table class="data-table">
 				<thead>
-					<tr><th>ID</th><th>Name</th><th>Host</th><th>Joined</th></tr>
+					<tr><th>ID</th><th>Avatar</th><th>Name</th><th>Host</th><th>Joined</th></tr>
 				</thead>
 				<tbody>
 					for _, player := range data.Players {
 						<tr>
 							<td>{ player.ID }</td>
+							if len(player.AvatarImage) > 0 {
+								<td><img class="player-avatar admin-avatar" src={ encodeImageData(player.AvatarImage) } alt={ "Avatar for " + player.Name }/></td>
+							} else {
+								<td>-</td>
+							}
 							<td>{ player.Name }</td>
 							<td>{ player.IsHost }</td>
 							<td>{ formatTime(player.JoinedAt) }</td>

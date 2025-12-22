@@ -226,6 +226,11 @@ select:focus {
   background: #ffffff;
 }
 
+.admin-avatar {
+  width: 32px;
+  height: 32px;
+}
+
 .player-dot {
   width: 10px;
   height: 10px;
