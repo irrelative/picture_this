@@ -29,19 +29,18 @@ type rateLimitRule struct {
 }
 
 var rateLimitRules = map[string]rateLimitRule{
-	"create":        {Capacity: 5, Window: time.Minute},
-	"join":          {Capacity: 10, Window: time.Minute},
-	"audience_join": {Capacity: 10, Window: time.Minute},
-	"audience_vote": {Capacity: 30, Window: time.Minute},
-	"settings":      {Capacity: 10, Window: time.Minute},
-	"kick":          {Capacity: 10, Window: time.Minute},
-	"rename":        {Capacity: 10, Window: time.Minute},
-	"start":         {Capacity: 5, Window: time.Minute},
-	"advance":       {Capacity: 10, Window: time.Minute},
-	"end":           {Capacity: 5, Window: time.Minute},
-	"drawings":      {Capacity: 30, Window: time.Minute},
-	"guesses":       {Capacity: 30, Window: time.Minute},
-	"votes":         {Capacity: 30, Window: time.Minute},
+	"create":   {Capacity: 5, Window: time.Minute},
+	"join":     {Capacity: 10, Window: time.Minute},
+	"avatar":   {Capacity: 10, Window: time.Minute},
+	"settings": {Capacity: 10, Window: time.Minute},
+	"kick":     {Capacity: 10, Window: time.Minute},
+	"rename":   {Capacity: 10, Window: time.Minute},
+	"start":    {Capacity: 5, Window: time.Minute},
+	"advance":  {Capacity: 10, Window: time.Minute},
+	"end":      {Capacity: 5, Window: time.Minute},
+	"drawings": {Capacity: 30, Window: time.Minute},
+	"guesses":  {Capacity: 30, Window: time.Minute},
+	"votes":    {Capacity: 30, Window: time.Minute},
 }
 
 type rateLimiter struct {

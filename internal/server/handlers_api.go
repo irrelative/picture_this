@@ -41,16 +41,10 @@ type startRequest struct {
 	PlayerID int `json:"player_id"`
 }
 
-type audienceJoinRequest struct {
-	Name string `json:"name"`
+type avatarRequest struct {
+	PlayerID   int    `json:"player_id"`
+	AvatarData string `json:"avatar_data"`
 }
-
-type audienceVoteRequest struct {
-	AudienceID   int    `json:"audience_id"`
-	DrawingIndex int    `json:"drawing_index"`
-	Choice       string `json:"choice"`
-}
-
 type drawingsRequest struct {
 	PlayerID  int    `json:"player_id"`
 	ImageData string `json:"image_data"`
@@ -140,14 +134,18 @@ func (s *Server) handleJoinGame(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	avatar, err := decodeImageData(req.AvatarData)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "avatar image is required"})
-		return
-	}
-	if len(avatar) > maxDrawingBytes {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "avatar exceeds size limit"})
-		return
+	avatar := []byte(nil)
+	if strings.TrimSpace(req.AvatarData) != "" {
+		decoded, err := decodeImageData(req.AvatarData)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "avatar image is required"})
+			return
+		}
+		if len(decoded) > maxDrawingBytes {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "avatar exceeds size limit"})
+			return
+		}
+		avatar = decoded
 	}
 
 	game, player, err := s.store.AddPlayer(gameID, name, avatar)
@@ -182,90 +180,34 @@ func (s *Server) handleJoinGame(c *gin.Context) {
 	s.broadcastGameUpdate(game)
 }
 
-func (s *Server) handleAudienceJoin(c *gin.Context) {
+func (s *Server) handleAvatar(c *gin.Context) {
 	gameID := c.Param("gameID")
-	if !s.enforceRateLimit(c, "audience_join") {
+	if !s.enforceRateLimit(c, "avatar") {
 		return
 	}
-	var req audienceJoinRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "name is required"})
+	var req avatarRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.PlayerID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "player_id is required"})
 		return
 	}
-	name, err := validateName(req.Name)
+	avatar, err := decodeImageData(req.AvatarData)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "avatar image is required"})
 		return
 	}
-	game, audience, err := s.store.AddAudience(gameID, name)
-	if err != nil {
-		if err.Error() == "game not found" {
-			c.Status(http.StatusNotFound)
-			return
-		}
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
-		return
-	}
-	resp := map[string]any{
-		"game_id":     game.ID,
-		"audience_id": audience.ID,
-		"join_code":   game.JoinCode,
-	}
-	c.JSON(http.StatusOK, resp)
-	log.Printf("audience joined game_id=%s audience_id=%d", game.ID, audience.ID)
-	s.broadcastGameUpdate(game)
-}
-
-func (s *Server) handleAudienceVotes(c *gin.Context) {
-	gameID := c.Param("gameID")
-	if !s.enforceRateLimit(c, "audience_vote") {
-		return
-	}
-	var req audienceVoteRequest
-	if err := c.ShouldBindJSON(&req); err != nil || req.AudienceID <= 0 || req.DrawingIndex < 0 || strings.TrimSpace(req.Choice) == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "audience vote is required"})
-		return
-	}
-	choiceText, err := validateChoice(req.Choice)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if len(avatar) > maxDrawingBytes {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "avatar exceeds size limit"})
 		return
 	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
-		if game.Phase != phaseGuessVotes {
-			return errors.New("audience votes not accepted in this phase")
+		if game.Phase != phaseLobby {
+			return errors.New("avatars only available in lobby")
 		}
-		found := false
-		for _, member := range game.Audience {
-			if member.ID == req.AudienceID {
-				found = true
-				break
-			}
+		player, ok := s.store.FindPlayer(game, req.PlayerID)
+		if !ok {
+			return errors.New("player not found")
 		}
-		if !found {
-			return errors.New("audience member not found")
-		}
-		round := currentRound(game)
-		if round == nil {
-			return errors.New("round not started")
-		}
-		if req.DrawingIndex >= len(round.Drawings) {
-			return errors.New("invalid drawing")
-		}
-		for _, vote := range round.AudienceVotes {
-			if vote.AudienceID == req.AudienceID && vote.DrawingIndex == req.DrawingIndex {
-				return errors.New("vote already submitted")
-			}
-		}
-		options := voteOptionsForDrawing(round, req.DrawingIndex)
-		if !containsOption(options, choiceText) {
-			return errors.New("invalid vote option")
-		}
-		round.AudienceVotes = append(round.AudienceVotes, AudienceVote{
-			AudienceID:   req.AudienceID,
-			DrawingIndex: req.DrawingIndex,
-			ChoiceText:   choiceText,
-		})
+		player.Avatar = avatar
 		return nil
 	})
 	if err != nil {
@@ -276,7 +218,16 @@ func (s *Server) handleAudienceVotes(c *gin.Context) {
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	}
-	log.Printf("audience vote submitted game_id=%s audience_id=%d", game.ID, req.AudienceID)
+	player, ok := s.store.FindPlayer(game, req.PlayerID)
+	if !ok {
+		c.JSON(http.StatusConflict, gin.H{"error": "player not found"})
+		return
+	}
+	if err := s.persistPlayerAvatar(game, player); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save avatar"})
+		return
+	}
+	log.Printf("player avatar updated game_id=%s player_id=%d", game.ID, req.PlayerID)
 	c.JSON(http.StatusOK, s.snapshot(game))
 	s.broadcastGameUpdate(game)
 }

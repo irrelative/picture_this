@@ -58,6 +58,7 @@ func (s *Server) persistPlayer(game *Game, player *Player) (int, error) {
 		GameID:      game.DBID,
 		Name:        player.Name,
 		AvatarImage: player.Avatar,
+		Color:       player.Color,
 		IsHost:      player.IsHost,
 		JoinedAt:    time.Now().UTC(),
 	}
@@ -79,6 +80,31 @@ func (s *Server) persistPlayer(game *Game, player *Player) (int, error) {
 		return player.ID, err
 	}
 	return player.ID, nil
+}
+
+func (s *Server) persistPlayerAvatar(game *Game, player *Player) error {
+	if s.db == nil {
+		return nil
+	}
+	if game.DBID == 0 {
+		if err := s.ensureGameDBID(game); err != nil {
+			return err
+		}
+	}
+	if game.DBID == 0 {
+		return errors.New("game not found")
+	}
+	if player.DBID == 0 {
+		if existing, err := s.findPlayerDBID(game.DBID, player.Name); err == nil {
+			player.DBID = existing
+		}
+	}
+	if player.DBID == 0 {
+		return errors.New("player not found")
+	}
+	return s.db.Model(&db.Player{}).
+		Where("id = ?", player.DBID).
+		Update("avatar_image", player.Avatar).Error
 }
 
 func (s *Server) persistPhase(game *Game, eventType string, payload EventPayload) error {

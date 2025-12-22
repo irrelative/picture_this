@@ -11,19 +11,17 @@ import (
 )
 
 type Store struct {
-	mu             sync.Mutex
-	nextID         int
-	nextPlayerID   int
-	nextAudienceID int
-	games          map[string]*Game
+	mu           sync.Mutex
+	nextID       int
+	nextPlayerID int
+	games        map[string]*Game
 }
 
 func NewStore() *Store {
 	return &Store{
-		nextID:         1,
-		nextPlayerID:   1,
-		nextAudienceID: 1,
-		games:          make(map[string]*Game),
+		nextID:       1,
+		nextPlayerID: 1,
+		games:        make(map[string]*Game),
 	}
 }
 
@@ -145,40 +143,6 @@ func (s *Store) AddPlayer(gameIDOrCode, name string, avatar []byte) (*Game, *Pla
 		game.HostID = player.ID
 	}
 	return game, &game.Players[len(game.Players)-1], nil
-}
-
-func (s *Store) AddAudience(gameIDOrCode, name string) (*Game, *AudienceMember, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	game, ok := s.games[gameIDOrCode]
-	if !ok {
-		for _, candidate := range s.games {
-			if candidate.JoinCode == gameIDOrCode {
-				game = candidate
-				ok = true
-				break
-			}
-		}
-	}
-	if !ok {
-		return nil, nil, errors.New("game not found")
-	}
-	if game.Phase == phaseComplete {
-		return nil, nil, errors.New("game already ended")
-	}
-	for i := range game.Audience {
-		if strings.EqualFold(game.Audience[i].Name, name) {
-			return game, &game.Audience[i], nil
-		}
-	}
-	member := AudienceMember{
-		ID:   s.nextAudienceID,
-		Name: name,
-	}
-	s.nextAudienceID++
-	game.Audience = append(game.Audience, member)
-	return game, &game.Audience[len(game.Audience)-1], nil
 }
 
 func (s *Store) ListGameSummaries() []GameSummary {

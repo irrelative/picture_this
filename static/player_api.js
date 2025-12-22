@@ -28,6 +28,14 @@ export async function postRename(gameId, playerId, name) {
   });
 }
 
+export async function postAvatar(gameId, playerId, avatarData) {
+  return requestJSON(`/api/games/${encodeURIComponent(gameId)}/avatar`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ player_id: playerId, avatar_data: avatarData })
+  });
+}
+
 export async function postDrawing(gameId, playerId, imageData, prompt) {
   return requestJSON(`/api/games/${encodeURIComponent(gameId)}/drawings`, {
     method: "POST",

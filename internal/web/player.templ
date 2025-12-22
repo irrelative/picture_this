@@ -34,6 +34,19 @@ templ PlayerView(gameID string, playerID int, playerName string) {
 			</form>
 		</section>
 
+		<section id="avatarSection" class="panel avatar-panel">
+			<div>
+				<h2>Lobby portrait</h2>
+				<p>Draw a quick avatar to represent you while everyone joins.</p>
+			</div>
+			<div class="canvas-wrap">
+				<canvas id="avatarCanvas" class="avatar-canvas" width="800" height="600" aria-label="Avatar canvas"></canvas>
+				<div class="canvas-actions">
+					<button type="button" id="saveAvatar" class="secondary">Save avatar</button>
+				</div>
+			</div>
+		</section>
+
 		<section id="scoreboardSection" class="panel scoreboard-panel">
 			<div>
 				<h2>Scoreboard</h2>

@@ -109,6 +109,10 @@ export function updateFromSnapshot(ctx, data) {
     }
   }
 
+  if (els.avatarSection) {
+    els.avatarSection.style.display = phase === "lobby" ? "grid" : "none";
+  }
+
   if (els.drawSection) {
     if (phase === "drawings" && !state.drawingSubmitted) {
       els.drawSection.style.display = "grid";
@@ -126,6 +130,9 @@ export function updateFromSnapshot(ctx, data) {
       state.brushColor = colorMap[playerIdValue];
       if (actions.applyBrushColor) {
         actions.applyBrushColor();
+      }
+      if (actions.applyAvatarColor) {
+        actions.applyAvatarColor();
       }
     }
   }

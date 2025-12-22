@@ -48,7 +48,6 @@ func (s *Server) Handler() http.Handler {
 	router.GET("/games/:gameID", s.handleGameView)
 	router.GET("/display/:gameID", s.handleDisplayView)
 	router.GET("/replay/:gameID", s.handleReplayView)
-	router.GET("/audience/:gameID/:audienceID", s.handleAudienceView)
 	router.GET("/admin", s.handleAdminHome)
 	router.GET("/admin/:gameID", s.handleAdminView)
 
@@ -60,6 +59,7 @@ func (s *Server) Handler() http.Handler {
 		api.GET("/games/:gameID/results", s.handleResults)
 		api.GET("/games/:gameID/players/:playerID/prompt", s.handlePlayerPrompt)
 		api.POST("/games/:gameID/join", s.handleJoinGame)
+		api.POST("/games/:gameID/avatar", s.handleAvatar)
 		api.POST("/games/:gameID/start", s.handleStartGame)
 		api.POST("/games/:gameID/drawings", s.handleDrawings)
 		api.POST("/games/:gameID/guesses", s.handleGuesses)
@@ -69,8 +69,6 @@ func (s *Server) Handler() http.Handler {
 		api.POST("/games/:gameID/rename", s.handleRename)
 		api.POST("/games/:gameID/advance", s.handleAdvance)
 		api.POST("/games/:gameID/end", s.handleEndGame)
-		api.POST("/games/:gameID/audience", s.handleAudienceJoin)
-		api.POST("/games/:gameID/audience/votes", s.handleAudienceVotes)
 		api.GET("/prompts/categories", s.handlePromptCategories)
 	}
 

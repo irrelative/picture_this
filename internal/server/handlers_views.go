@@ -71,32 +71,6 @@ func (s *Server) handleReplayView(c *gin.Context) {
 	templ.Handler(web.ReplayView(gameID)).ServeHTTP(c.Writer, c.Request)
 }
 
-func (s *Server) handleAudienceView(c *gin.Context) {
-	gameID := c.Param("gameID")
-	audienceID, err := strconv.Atoi(c.Param("audienceID"))
-	if gameID == "" || err != nil || audienceID <= 0 {
-		c.Status(http.StatusNotFound)
-		return
-	}
-	game, ok := s.store.GetGame(gameID)
-	if !ok {
-		c.Status(http.StatusNotFound)
-		return
-	}
-	name := ""
-	for _, member := range game.Audience {
-		if member.ID == audienceID {
-			name = member.Name
-			break
-		}
-	}
-	if name == "" {
-		c.Status(http.StatusNotFound)
-		return
-	}
-	templ.Handler(web.AudienceView(gameID, audienceID, name)).ServeHTTP(c.Writer, c.Request)
-}
-
 func (s *Server) handlePlayerView(c *gin.Context) {
 	gameID := c.Param("gameID")
 	playerID, err := strconv.Atoi(c.Param("playerID"))

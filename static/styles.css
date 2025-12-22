@@ -231,6 +231,16 @@ select:focus {
   height: 32px;
 }
 
+.color-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
 .player-dot {
   width: 10px;
   height: 10px;
@@ -284,6 +294,10 @@ select:focus {
 .host-panel {
   display: grid;
   gap: 12px;
+}
+
+.avatar-panel {
+  grid-template-columns: 1fr;
 }
 
 .settings-panel {
@@ -343,20 +357,6 @@ select:focus {
   display: grid;
   gap: 10px;
   margin-top: 12px;
-}
-
-.audience-vote-list {
-  display: grid;
-  gap: 16px;
-}
-
-.audience-card {
-  display: grid;
-  gap: 12px;
-  padding: 16px;
-  border-radius: 18px;
-  border: 1px solid #e3e3e3;
-  background: #ffffff;
 }
 
 .replay-panel {

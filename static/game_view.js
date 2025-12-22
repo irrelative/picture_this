@@ -82,8 +82,7 @@ export function updateFromSnapshot(ctx, data) {
   if (els.lobbyStatus) {
     const maxPlayers = data.max_players > 0 ? data.max_players : "∞";
     const lockedText = data.lobby_locked ? "Locked" : "Open";
-    const audienceCount = data.audience_count != null ? data.audience_count : 0;
-    els.lobbyStatus.textContent = `Players: ${players.length}/${maxPlayers}. ${lockedText} lobby. Audience: ${audienceCount}.`;
+    els.lobbyStatus.textContent = `Players: ${players.length}/${maxPlayers}. ${lockedText} lobby.`;
   }
   if (els.hostStatus) {
     if (phase !== "lobby") {

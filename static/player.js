@@ -1,6 +1,7 @@
 import {
   fetchSnapshot,
   fetchPrompt,
+  postAvatar,
   postDrawing,
   postGuess,
   postRename,
@@ -24,6 +25,9 @@ const ctx = {
     drawSection: document.getElementById("drawSection"),
     renameForm: document.getElementById("renameForm"),
     renameInput: document.getElementById("renameInput"),
+    avatarSection: document.getElementById("avatarSection"),
+    avatarCanvas: document.getElementById("avatarCanvas"),
+    saveAvatar: document.getElementById("saveAvatar"),
     promptText: document.getElementById("promptText"),
     canvas: document.getElementById("drawCanvas"),
     saveCanvas: document.getElementById("saveCanvas"),
@@ -59,12 +63,18 @@ const ctx = {
     brushColor: "#1a1a1a",
     canvasCtx: null,
     canvasWidth: 800,
-    canvasHeight: 600
+    canvasHeight: 600,
+    avatarCtx: null
   },
   actions: {}
 };
 
 ctx.actions.applyBrushColor = () => applyBrushColor(ctx);
+ctx.actions.applyAvatarColor = () => {
+  if (avatarCanvasState && avatarCanvasState.canvasCtx) {
+    avatarCanvasState.canvasCtx.strokeStyle = ctx.state.brushColor;
+  }
+};
 ctx.actions.fetchPrompt = () => fetchPromptForPlayer();
 ctx.actions.clearCanvas = () => clearCanvas(ctx);
 
@@ -160,6 +170,43 @@ if (ctx.els.renameForm) {
       ctx.els.playerError.textContent = "";
     }
     ctx.els.meta.dataset.playerName = name;
+    updateFromSnapshot(ctx, data);
+  });
+}
+
+let avatarCanvasState = null;
+if (ctx.els.avatarCanvas) {
+  avatarCanvasState = {
+    canvasCtx: null,
+    canvasWidth: 800,
+    canvasHeight: 600,
+    brushColor: "#1a1a1a"
+  };
+  setupCanvas(
+    {
+      els: { canvas: ctx.els.avatarCanvas },
+      state: avatarCanvasState
+    },
+    () => {}
+  );
+}
+
+if (ctx.els.saveAvatar) {
+  ctx.els.saveAvatar.addEventListener("click", async () => {
+    if (!ctx.els.meta || !ctx.els.avatarCanvas) return;
+    const gameId = ctx.els.meta.dataset.gameId;
+    const playerId = Number(ctx.els.meta.dataset.playerId);
+    const avatarData = ctx.els.avatarCanvas.toDataURL("image/png");
+    const { res, data } = await postAvatar(gameId, playerId, avatarData);
+    if (!res.ok) {
+      if (ctx.els.playerError) {
+        ctx.els.playerError.textContent = data.error || "Unable to save avatar.";
+      }
+      return;
+    }
+    if (ctx.els.playerError) {
+      ctx.els.playerError.textContent = "";
+    }
     updateFromSnapshot(ctx, data);
   });
 }

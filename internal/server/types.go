@@ -36,7 +36,6 @@ type Game struct {
 	KickedPlayers    map[string]struct{}
 	HostID           int
 	Players          []Player
-	Audience         []AudienceMember
 	Rounds           []RoundState
 	PromptsPerPlayer int
 }
@@ -50,25 +49,19 @@ type Player struct {
 	Color  string
 }
 
-type AudienceMember struct {
-	ID   int
-	Name string
-}
-
 type RoundState struct {
-	Number        int
-	DBID          uint
-	Prompts       []PromptEntry
-	Drawings      []DrawingEntry
-	Guesses       []GuessEntry
-	Votes         []VoteEntry
-	GuessTurns    []GuessTurn
-	CurrentGuess  int
-	VoteTurns     []VoteTurn
-	CurrentVote   int
-	RevealIndex   int
-	RevealStage   string
-	AudienceVotes []AudienceVote
+	Number       int
+	DBID         uint
+	Prompts      []PromptEntry
+	Drawings     []DrawingEntry
+	Guesses      []GuessEntry
+	Votes        []VoteEntry
+	GuessTurns   []GuessTurn
+	CurrentGuess int
+	VoteTurns    []VoteTurn
+	CurrentVote  int
+	RevealIndex  int
+	RevealStage  string
 }
 
 type PromptEntry struct {
@@ -107,10 +100,4 @@ type VoteEntry struct {
 type VoteTurn struct {
 	DrawingIndex int
 	VoterID      int
-}
-
-type AudienceVote struct {
-	AudienceID   int
-	DrawingIndex int
-	ChoiceText   string
 }

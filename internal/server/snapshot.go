@@ -81,8 +81,6 @@ func snapshotWithConfig(game *Game, cfg config.Config) map[string]any {
 		"guess_turn":         guessTurn,
 		"vote_turn":          voteTurn,
 		"prompts_per_player": game.PromptsPerPlayer,
-		"audience_count":     len(game.Audience),
-		"audience_options":   buildAudienceOptions(game),
 		"counts": map[string]int{
 			"prompts":  promptsCount,
 			"drawings": drawingsCount,
@@ -284,24 +282,4 @@ func buildReveal(game *Game) map[string]any {
 		payload["votes"] = votes
 	}
 	return payload
-}
-
-func buildAudienceOptions(game *Game) []map[string]any {
-	if game.Phase != phaseGuessVotes {
-		return nil
-	}
-	round := currentRound(game)
-	if round == nil {
-		return nil
-	}
-	options := make([]map[string]any, 0, len(round.Drawings))
-	for index, drawing := range round.Drawings {
-		entry := map[string]any{
-			"drawing_index": index,
-			"drawing_image": encodeImageData(drawing.ImageData),
-			"options":       voteOptionsForDrawing(round, index),
-		}
-		options = append(options, entry)
-	}
-	return options
 }

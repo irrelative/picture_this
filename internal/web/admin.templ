@@ -35,7 +35,7 @@ templ Admin(gameID string, data AdminData) {
 			<h2>Players</h2>
 			<table class="data-table">
 				<thead>
-					<tr><th>ID</th><th>Avatar</th><th>Name</th><th>Host</th><th>Joined</th></tr>
+					<tr><th>ID</th><th>Avatar</th><th>Name</th><th>Color</th><th>Host</th><th>Joined</th></tr>
 				</thead>
 				<tbody>
 					for _, player := range data.Players {
@@ -47,6 +47,10 @@ templ Admin(gameID string, data AdminData) {
 								<td>-</td>
 							}
 							<td>{ player.Name }</td>
+							<td>
+								<span class="color-swatch" style={ "background-color: " + player.Color }></span>
+								{ player.Color }
+							</td>
 							<td>{ player.IsHost }</td>
 							<td>{ formatTime(player.JoinedAt) }</td>
 						</tr>
