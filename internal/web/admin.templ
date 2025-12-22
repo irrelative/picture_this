@@ -97,7 +97,7 @@ templ Admin(gameID string, data AdminData) {
 			<h2>Drawings</h2>
 			<table class="data-table">
 				<thead>
-					<tr><th>ID</th><th>Round</th><th>Player</th><th>Prompt</th><th>Bytes</th></tr>
+					<tr><th>ID</th><th>Round</th><th>Player</th><th>Prompt</th><th>Preview</th><th>Bytes</th></tr>
 				</thead>
 				<tbody>
 					for _, drawing := range data.Drawings {
@@ -106,6 +106,11 @@ templ Admin(gameID string, data AdminData) {
 							<td>{ drawing.RoundID }</td>
 							<td>{ drawing.PlayerID }</td>
 							<td>{ drawing.PromptID }</td>
+							if len(drawing.ImageData) > 0 {
+								<td><img class="player-avatar admin-avatar" src={ encodeImageData(drawing.ImageData) } alt="Drawing preview"/></td>
+							} else {
+								<td>-</td>
+							}
 							<td>{ len(drawing.ImageData) }</td>
 						</tr>
 					}
