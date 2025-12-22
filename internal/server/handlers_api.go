@@ -506,7 +506,7 @@ func (s *Server) handleStartGame(c *gin.Context) {
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	}
-	if err := s.persistPhase(game, "game_started", map[string]any{"phase": game.Phase}); err != nil {
+	if err := s.persistPhase(game, "game_started", EventPayload{Phase: game.Phase}); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to start game"})
 		return
 	}
@@ -595,7 +595,7 @@ func (s *Server) handleDrawings(c *gin.Context) {
 	}
 	if advanced {
 		game = updated
-		if err := s.persistPhase(game, "game_advanced", map[string]any{"phase": game.Phase}); err != nil {
+		if err := s.persistPhase(game, "game_advanced", EventPayload{Phase: game.Phase}); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to advance game"})
 			return
 		}
@@ -675,7 +675,7 @@ func (s *Server) handleGuesses(c *gin.Context) {
 		return
 	}
 	if game.Phase == phaseGuessVotes {
-		if err := s.persistPhase(game, "game_advanced", map[string]any{"phase": game.Phase}); err != nil {
+		if err := s.persistPhase(game, "game_advanced", EventPayload{Phase: game.Phase}); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to advance game"})
 			return
 		}
@@ -777,6 +777,7 @@ func (s *Server) handleVotes(c *gin.Context) {
 		return
 	}
 	if err := s.persistVote(game, req.PlayerID, voteRoundNumber, voteDrawingIndex, choiceText, voteChoiceType); err != nil {
+		log.Printf("persist vote failed game_id=%s player_id=%d error=%v", game.ID, req.PlayerID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save votes"})
 		return
 	}
@@ -791,7 +792,7 @@ func (s *Server) handleVotes(c *gin.Context) {
 		}
 	}
 	if game.Phase == phaseDrawings || game.Phase == phaseResults {
-		if err := s.persistPhase(game, "game_advanced", map[string]any{"phase": game.Phase}); err != nil {
+		if err := s.persistPhase(game, "game_advanced", EventPayload{Phase: game.Phase}); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to advance game"})
 			return
 		}
@@ -820,7 +821,7 @@ func (s *Server) handleAdvance(c *gin.Context) {
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	}
-	if err := s.persistPhase(game, "game_advanced", map[string]any{"phase": game.Phase}); err != nil {
+	if err := s.persistPhase(game, "game_advanced", EventPayload{Phase: game.Phase}); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to advance game"})
 		return
 	}
@@ -850,7 +851,7 @@ func (s *Server) handleEndGame(c *gin.Context) {
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	}
-	if err := s.persistPhase(game, "game_ended", map[string]any{"phase": game.Phase}); err != nil {
+	if err := s.persistPhase(game, "game_ended", EventPayload{Phase: game.Phase}); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to end game"})
 		return
 	}

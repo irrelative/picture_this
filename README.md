@@ -110,10 +110,9 @@ For now, don't include:
 
 
 ## Ideas
-* server/server.go phaseOrder doesn't capture the multiple rounds approach very well, might want a better data structure
-* player_id and round_id are never populated on events table. Please populate them when saving events.
 * Have players draw a self-portrait and use as avatar
 * Score calculations aren't working yet
+* Include a results stage between rounds
 * 2 rounds might not be 2 per player
 * Make server/clients resillient to server restarts or page reloads
 

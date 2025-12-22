@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgconn"
 	"gorm.io/datatypes"
+	"gorm.io/gorm/clause"
 )
 
 func (s *Server) persistGame(game *Game) error {
@@ -24,7 +25,7 @@ func (s *Server) persistGame(game *Game) error {
 		PromptCategory:   game.PromptCategory,
 		LobbyLocked:      game.LobbyLocked,
 	}
-	if err := s.db.Create(&record).Error; err != nil {
+	if err := s.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&record).Error; err != nil {
 		return err
 	}
 	game.DBID = record.ID
@@ -32,9 +33,9 @@ func (s *Server) persistGame(game *Game) error {
 	if game.ID != newID {
 		s.store.UpdateGameID(game, newID)
 	}
-	return s.persistEvent(game, "game_created", map[string]any{
-		"game_id":   game.ID,
-		"join_code": game.JoinCode,
+	return s.persistEvent(game, "game_created", EventPayload{
+		GameID:   game.ID,
+		JoinCode: game.JoinCode,
 	})
 }
 
@@ -70,16 +71,16 @@ func (s *Server) persistPlayer(game *Game, player *Player) (int, error) {
 		return 0, err
 	}
 	player.DBID = record.ID
-	if err := s.persistEvent(game, "player_joined", map[string]any{
-		"player":    player.Name,
-		"player_id": player.ID,
+	if err := s.persistEvent(game, "player_joined", EventPayload{
+		PlayerName: player.Name,
+		PlayerID:   player.ID,
 	}); err != nil {
 		return player.ID, err
 	}
 	return player.ID, nil
 }
 
-func (s *Server) persistPhase(game *Game, eventType string, payload map[string]any) error {
+func (s *Server) persistPhase(game *Game, eventType string, payload EventPayload) error {
 	if s.db == nil {
 		return nil
 	}
@@ -123,10 +124,15 @@ func (s *Server) persistSettings(game *Game) error {
 	if err := s.db.Model(&db.Game{}).Where("id = ?", game.DBID).Updates(updates).Error; err != nil {
 		return err
 	}
-	return s.persistEvent(game, "settings_updated", updates)
+	return s.persistEvent(game, "settings_updated", EventPayload{
+		PromptsPerPlayer: game.PromptsPerPlayer,
+		MaxPlayers:       game.MaxPlayers,
+		PromptCategory:   game.PromptCategory,
+		LobbyLocked:      game.LobbyLocked,
+	})
 }
 
-func (s *Server) persistEvent(game *Game, eventType string, payload map[string]any) error {
+func (s *Server) persistEvent(game *Game, eventType string, payload EventPayload) error {
 	if s.db == nil {
 		return nil
 	}
@@ -143,11 +149,42 @@ func (s *Server) persistEvent(game *Game, eventType string, payload map[string]a
 		return err
 	}
 	event := db.Event{
-		GameID:  game.DBID,
-		Type:    eventType,
-		Payload: datatypes.JSON(data),
+		GameID:   game.DBID,
+		RoundID:  s.resolveEventRoundID(game),
+		PlayerID: s.resolveEventPlayerID(game, payload),
+		Type:     eventType,
+		Payload:  datatypes.JSON(data),
 	}
 	return s.db.Create(&event).Error
+}
+
+func (s *Server) resolveEventRoundID(game *Game) *uint {
+	round := currentRound(game)
+	if round == nil {
+		return nil
+	}
+	if round.DBID == 0 {
+		if err := s.persistRound(game); err != nil {
+			return nil
+		}
+	}
+	if round.DBID == 0 {
+		return nil
+	}
+	id := round.DBID
+	return &id
+}
+
+func (s *Server) resolveEventPlayerID(game *Game, payload EventPayload) *uint {
+	if payload.PlayerID <= 0 {
+		return nil
+	}
+	player, found := s.store.FindPlayer(game, payload.PlayerID)
+	if found && player.DBID != 0 {
+		value := player.DBID
+		return &value
+	}
+	return nil
 }
 
 func (s *Server) ensureGameDBID(game *Game) error {
@@ -223,9 +260,9 @@ func (s *Server) persistAssignedPrompts(game *Game, round *RoundState) error {
 
 func (s *Server) persistDrawing(game *Game, playerID int, image []byte, promptText string) error {
 	if s.db == nil {
-		return s.persistEvent(game, "drawings_submitted", map[string]any{
-			"player_id": playerID,
-			"prompt":    promptText,
+		return s.persistEvent(game, "drawings_submitted", EventPayload{
+			PlayerID: playerID,
+			Prompt:   promptText,
 		})
 	}
 	round := currentRound(game)
@@ -267,16 +304,16 @@ func (s *Server) persistDrawing(game *Game, playerID int, image []byte, promptTe
 		}
 		return nil
 	})
-	return s.persistEvent(game, "drawings_submitted", map[string]any{
-		"player_id": playerID,
+	return s.persistEvent(game, "drawings_submitted", EventPayload{
+		PlayerID: playerID,
 	})
 }
 
 func (s *Server) persistGuess(game *Game, playerID int, drawingIndex int, guess string) error {
 	if s.db == nil {
-		return s.persistEvent(game, "guesses_submitted", map[string]any{
-			"player_id": playerID,
-			"guess":     guess,
+		return s.persistEvent(game, "guesses_submitted", EventPayload{
+			PlayerID: playerID,
+			Guess:    guess,
 		})
 	}
 	round := currentRound(game)
@@ -305,17 +342,17 @@ func (s *Server) persistGuess(game *Game, playerID int, drawingIndex int, guess 
 	if err := s.db.Create(&record).Error; err != nil {
 		return err
 	}
-	return s.persistEvent(game, "guesses_submitted", map[string]any{
-		"player_id": playerID,
-		"guess":     guess,
+	return s.persistEvent(game, "guesses_submitted", EventPayload{
+		PlayerID: playerID,
+		Guess:    guess,
 	})
 }
 
 func (s *Server) persistVote(game *Game, playerID int, roundNumber int, drawingIndex int, choiceText string, choiceType string) error {
 	if s.db == nil {
-		return s.persistEvent(game, "votes_submitted", map[string]any{
-			"player_id": playerID,
-			"choice":    choiceText,
+		return s.persistEvent(game, "votes_submitted", EventPayload{
+			PlayerID: playerID,
+			Choice:   choiceText,
 		})
 	}
 	round := roundByNumber(game, roundNumber)
@@ -344,9 +381,9 @@ func (s *Server) persistVote(game *Game, playerID int, roundNumber int, drawingI
 	if err := s.db.Create(&record).Error; err != nil {
 		return err
 	}
-	return s.persistEvent(game, "votes_submitted", map[string]any{
-		"player_id": playerID,
-		"choice":    choiceText,
+	return s.persistEvent(game, "votes_submitted", EventPayload{
+		PlayerID: playerID,
+		Choice:   choiceText,
 	})
 }
 

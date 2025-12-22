@@ -227,7 +227,7 @@ func (s *Server) endGameFromHost(gameID string) {
 	if err != nil {
 		return
 	}
-	if err := s.persistPhase(game, "game_ended", map[string]any{"phase": game.Phase}); err != nil {
+	if err := s.persistPhase(game, "game_ended", EventPayload{Phase: game.Phase}); err != nil {
 		return
 	}
 	log.Printf("game ended game_id=%s reason=host_disconnected", game.ID)

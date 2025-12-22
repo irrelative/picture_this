@@ -35,6 +35,16 @@ def request_json(method, url, payload=None):
         return exc.code, {}
 
 
+def request_json_with_retry(method, url, payload=None, retries=10, delay=0.2):
+    for attempt in range(retries):
+        try:
+            return request_json(method, url, payload)
+        except urllib.error.URLError:
+            if attempt >= retries - 1:
+                raise
+            time.sleep(delay)
+
+
 def normalize_phase(phase):
     if phase == "votes":
         return "guesses-votes"
@@ -49,18 +59,25 @@ def main():
 
     base_url = args.base_url.rstrip("/")
 
-    status, game = request_json("POST", f"{base_url}/api/games")
+    status, game = request_json_with_retry("POST", f"{base_url}/api/games")
     assert status == 201, f"create game failed: {status} {game}"
     game_id = game["game_id"]
     print(f"Created game {game_id} join_code={game['join_code']}")
 
-    status, alice = request_json("POST", f"{base_url}/api/games/{game_id}/join", {"name": "Alice"})
-    assert status == 200, f"join Alice failed: {status} {alice}"
-    status, bob = request_json("POST", f"{base_url}/api/games/{game_id}/join", {"name": "Bob"})
-    assert status == 200, f"join Bob failed: {status} {bob}"
-    print(f"Joined players: Alice={alice['player_id']} Bob={bob['player_id']}")
+    player_names = ["Alice", "Bob", "Carol", "Dave"]
+    players = []
+    for name in player_names:
+        status, player = request_json("POST", f"{base_url}/api/games/{game_id}/join", {"name": name})
+        assert status == 200, f"join {name} failed: {status} {player}"
+        players.append(player)
+    joined = " ".join(f"{player_names[idx]}={player['player_id']}" for idx, player in enumerate(players))
+    print(f"Joined players: {joined}")
 
-    status, started = request_json("POST", f"{base_url}/api/games/{game_id}/start", {"player_id": alice["player_id"]})
+    status, started = request_json(
+        "POST",
+        f"{base_url}/api/games/{game_id}/start",
+        {"player_id": players[0]["player_id"]},
+    )
     assert status == 200, f"start game failed: {status} {started}"
     print(f"Started game phase={started.get('phase')}")
 
@@ -93,14 +110,15 @@ def main():
         )
 
     for round_number in range(1, total_rounds + 1):
-        status, alice_prompt = fetch_prompt(alice["player_id"])
-        status2, bob_prompt = fetch_prompt(bob["player_id"])
-        assert status == 200 and status2 == 200, "failed to fetch prompts"
+        prompts = {}
+        for player in players:
+            status, prompt = fetch_prompt(player["player_id"])
+            assert status == 200, "failed to fetch prompts"
+            prompts[player["player_id"]] = prompt["prompt"]
 
-        status, _ = submit_drawing(alice["player_id"], alice_prompt["prompt"])
-        assert status == 200, "Alice drawing failed"
-        status, _ = submit_drawing(bob["player_id"], bob_prompt["prompt"])
-        assert status == 200, "Bob drawing failed"
+        for player in players:
+            status, _ = submit_drawing(player["player_id"], prompts[player["player_id"]])
+            assert status == 200, f"drawing failed for player {player['player_id']}"
         print(f"Submitted drawings for round {round_number}")
 
         time.sleep(args.sleep)
@@ -110,7 +128,8 @@ def main():
         assert phase == "guesses", f"expected guesses phase, got {snapshot.get('phase')}"
 
         guard = 0
-        while normalize_phase(snapshot.get("phase")) == "guesses" and guard < 10:
+        max_guess_turns = max(10, len(players) * len(players) * 2)
+        while normalize_phase(snapshot.get("phase")) == "guesses" and guard < max_guess_turns:
             guard += 1
             turn = snapshot.get("guess_turn")
             assert turn, "no guess turn found"

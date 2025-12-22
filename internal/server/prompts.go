@@ -125,9 +125,7 @@ func (s *Server) assignPrompts(game *Game) error {
 	if err := s.persistAssignedPrompts(game, round); err != nil {
 		return err
 	}
-	if err := s.persistEvent(game, "prompts_assigned", map[string]any{
-		"count": total,
-	}); err != nil {
+	if err := s.persistEvent(game, "prompts_assigned", EventPayload{Count: total}); err != nil {
 		return err
 	}
 	log.Printf("prompts assigned game_id=%s count=%d", game.ID, total)

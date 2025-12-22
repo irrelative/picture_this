@@ -70,7 +70,7 @@ func (s *Server) autoAdvancePhase(gameID string, expectedPhase string) {
 		}
 	}
 	if game.Phase != expectedPhase {
-		if err := s.persistPhase(game, "game_advanced", map[string]any{"phase": game.Phase, "reason": "timeout"}); err != nil {
+		if err := s.persistPhase(game, "game_advanced", EventPayload{Phase: game.Phase, Reason: "timeout"}); err != nil {
 			log.Printf("auto-advance persist phase failed game_id=%s error=%v", game.ID, err)
 			return
 		}
