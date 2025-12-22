@@ -83,7 +83,8 @@ func TestPlayerView(t *testing.T) {
 
 	gameID := createGame(t, ts)
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/join", map[string]string{
-		"name": "Ada",
+		"name":        "Ada",
+		"avatar_data": testAvatarData,
 	})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
@@ -142,7 +143,8 @@ func TestJoinGameByCode(t *testing.T) {
 
 	_, joinCode := createGameWithCode(t, ts)
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+joinCode+"/join", map[string]string{
-		"name": "Ada",
+		"name":        "Ada",
+		"avatar_data": testAvatarData,
 	})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
@@ -156,7 +158,8 @@ func TestJoinGame(t *testing.T) {
 
 	gameID := createGame(t, ts)
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/join", map[string]string{
-		"name": "Ada",
+		"name":        "Ada",
+		"avatar_data": testAvatarData,
 	})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
@@ -170,7 +173,8 @@ func TestJoinRejectsInvalidName(t *testing.T) {
 
 	gameID := createGame(t, ts)
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/join", map[string]string{
-		"name": "<script>alert(1)</script>",
+		"name":        "<script>alert(1)</script>",
+		"avatar_data": testAvatarData,
 	})
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
@@ -186,7 +190,8 @@ func TestRateLimitJoin(t *testing.T) {
 	var last *http.Response
 	for i := 0; i < 11; i++ {
 		last = doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/join", map[string]string{
-			"name": fmt.Sprintf("Player%d", i),
+			"name":        fmt.Sprintf("Player%d", i),
+			"avatar_data": testAvatarData,
 		})
 	}
 	if last == nil {

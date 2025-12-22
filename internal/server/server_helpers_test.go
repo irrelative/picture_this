@@ -9,6 +9,8 @@ import (
 	"testing"
 )
 
+const testAvatarData = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMBAp4pWZkAAAAASUVORK5CYII="
+
 func createGame(t *testing.T, ts *httptest.Server) string {
 	t.Helper()
 	resp := doRequest(t, ts, http.MethodPost, "/api/games", nil)
@@ -32,7 +34,8 @@ func createGameWithCode(t *testing.T, ts *httptest.Server) (string, string) {
 func joinPlayer(t *testing.T, ts *httptest.Server, gameID, name string) int {
 	t.Helper()
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/join", map[string]string{
-		"name": name,
+		"name":        name,
+		"avatar_data": testAvatarData,
 	})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)

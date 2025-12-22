@@ -27,11 +27,24 @@ export function updateFromSnapshot(ctx, data) {
     return;
   }
   const playerIDs = Array.isArray(data.player_ids) ? data.player_ids : [];
+  const avatarMap = data.player_avatars || {};
   players.forEach((player, index) => {
     const item = document.createElement("li");
+    item.className = "player-entry";
     const playerName = player;
     const isHost = playerIDs[index] === state.hostId;
-    item.textContent = isHost ? `${playerName}*` : playerName;
+    const nameText = isHost ? `${playerName}*` : playerName;
+    const avatarSrc = avatarMap[String(playerIDs[index] || "")] || "";
+    if (avatarSrc) {
+      const avatar = document.createElement("img");
+      avatar.className = "player-avatar";
+      avatar.alt = `${playerName} avatar`;
+      avatar.src = avatarSrc;
+      item.appendChild(avatar);
+    }
+    const name = document.createElement("span");
+    name.textContent = nameText;
+    item.appendChild(name);
     els.playerList.appendChild(item);
 
     if (els.playerActions) {
@@ -39,7 +52,7 @@ export function updateFromSnapshot(ctx, data) {
       row.className = "player-action-row";
       const label = document.createElement("span");
       const isHost = playerIDs[index] === state.hostId;
-      label.textContent = isHost ? `${player}*` : player;
+      label.textContent = nameText;
       const kickButton = document.createElement("button");
       kickButton.type = "button";
       kickButton.className = "secondary";

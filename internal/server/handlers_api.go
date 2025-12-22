@@ -33,7 +33,8 @@ type renameRequest struct {
 }
 
 type joinRequest struct {
-	Name string `json:"name"`
+	Name       string `json:"name"`
+	AvatarData string `json:"avatar_data"`
 }
 
 type startRequest struct {
@@ -139,8 +140,17 @@ func (s *Server) handleJoinGame(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	avatar, err := decodeImageData(req.AvatarData)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "avatar image is required"})
+		return
+	}
+	if len(avatar) > maxDrawingBytes {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "avatar exceeds size limit"})
+		return
+	}
 
-	game, player, err := s.store.AddPlayer(gameID, name)
+	game, player, err := s.store.AddPlayer(gameID, name, avatar)
 	if err != nil {
 		if err.Error() == "game not found" {
 			c.Status(http.StatusNotFound)

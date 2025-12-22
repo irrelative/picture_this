@@ -44,6 +44,7 @@ type Game struct {
 type Player struct {
 	ID     int
 	Name   string
+	Avatar []byte
 	IsHost bool
 	DBID   uint
 	Color  string

@@ -20,18 +20,32 @@ export function updateFromSnapshot(ctx, data) {
     return;
   }
   const colorMap = data.player_colors || {};
+  const avatarMap = data.player_avatars || {};
   const playerIDs = Array.isArray(data.player_ids) ? data.player_ids : [];
   players.forEach((player, index) => {
     const item = document.createElement("li");
+    item.className = "player-entry";
     const dot = document.createElement("span");
     dot.className = "player-dot";
     const colorKey = String(playerIDs[index] || "");
     if (colorMap && colorMap[colorKey]) {
       dot.style.backgroundColor = colorMap[colorKey];
     }
+    const avatarSrc = avatarMap[colorKey] || "";
+    if (avatarSrc) {
+      const avatar = document.createElement("img");
+      avatar.className = "player-avatar";
+      avatar.alt = `${player} avatar`;
+      avatar.src = avatarSrc;
+      if (colorMap && colorMap[colorKey]) {
+        avatar.style.borderColor = colorMap[colorKey];
+      }
+      item.appendChild(avatar);
+    } else {
+      item.appendChild(dot);
+    }
     const name = document.createElement("span");
     name.textContent = player;
-    item.appendChild(dot);
     item.appendChild(name);
     els.playerList.appendChild(item);
   });

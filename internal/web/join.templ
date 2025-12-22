@@ -26,6 +26,13 @@ templ JoinView(code string, playerName string) {
 						<input name="name" placeholder="Display name" autocomplete="name" required/>
 					}
 				</label>
+				<div class="field">
+					<span class="label">Self-portrait avatar</span>
+					<p class="hint">Draw a quick self-portrait to represent you in the lobby.</p>
+					<div class="canvas-wrap">
+						<canvas id="avatarCanvas" class="avatar-canvas" width="800" height="600" aria-label="Avatar canvas"></canvas>
+					</div>
+				</div>
 				<button type="submit" class="primary">Join game</button>
 			</form>
 			<div id="joinResult" class="result" role="status" aria-live="polite"></div>

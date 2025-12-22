@@ -55,10 +55,11 @@ func (s *Server) persistPlayer(game *Game, player *Player) (int, error) {
 		}
 	}
 	record := db.Player{
-		GameID:   game.DBID,
-		Name:     player.Name,
-		IsHost:   player.IsHost,
-		JoinedAt: time.Now().UTC(),
+		GameID:      game.DBID,
+		Name:        player.Name,
+		AvatarImage: player.Avatar,
+		IsHost:      player.IsHost,
+		JoinedAt:    time.Now().UTC(),
 	}
 	if err := s.db.Create(&record).Error; err != nil {
 		if isUniqueViolation(err) {

@@ -23,6 +23,7 @@ func snapshotWithConfig(game *Game, cfg config.Config) map[string]any {
 		votesCount = len(round.Votes)
 	}
 	playerColors := extractPlayerColors(game.Players)
+	playerAvatars := extractPlayerAvatars(game.Players)
 	var guessTurn map[string]any
 	var voteTurn map[string]any
 	if round := currentRound(game); round != nil {
@@ -67,6 +68,7 @@ func snapshotWithConfig(game *Game, cfg config.Config) map[string]any {
 		"players":            players,
 		"player_ids":         playerIDs,
 		"player_colors":      playerColors,
+		"player_avatars":     playerAvatars,
 		"prompt_category":    game.PromptCategory,
 		"max_players":        game.MaxPlayers,
 		"lobby_locked":       game.LobbyLocked,
@@ -120,6 +122,17 @@ func extractPlayerColors(players []Player) map[int]string {
 		colors[player.ID] = player.Color
 	}
 	return colors
+}
+
+func extractPlayerAvatars(players []Player) map[int]string {
+	avatars := make(map[int]string, len(players))
+	for _, player := range players {
+		if len(player.Avatar) == 0 {
+			continue
+		}
+		avatars[player.ID] = encodeImageData(player.Avatar)
+	}
+	return avatars
 }
 
 func extractPlayerIDs(players []Player) []int {

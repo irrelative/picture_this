@@ -91,7 +91,7 @@ func (s *Store) UpdateGameID(game *Game, newID string) {
 	s.games[newID] = game
 }
 
-func (s *Store) AddPlayer(gameIDOrCode, name string) (*Game, *Player, error) {
+func (s *Store) AddPlayer(gameIDOrCode, name string, avatar []byte) (*Game, *Player, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -111,6 +111,9 @@ func (s *Store) AddPlayer(gameIDOrCode, name string) (*Game, *Player, error) {
 
 	for i := range game.Players {
 		if game.Players[i].Name == name {
+			if len(avatar) > 0 {
+				game.Players[i].Avatar = avatar
+			}
 			return game, &game.Players[i], nil
 		}
 	}
@@ -132,6 +135,7 @@ func (s *Store) AddPlayer(gameIDOrCode, name string) (*Game, *Player, error) {
 	player := Player{
 		ID:     s.nextPlayerID,
 		Name:   name,
+		Avatar: avatar,
 		IsHost: len(game.Players) == 0,
 		Color:  pickPlayerColor(len(game.Players)),
 	}

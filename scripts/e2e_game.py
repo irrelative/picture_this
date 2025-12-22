@@ -67,7 +67,11 @@ def main():
     player_names = ["Alice", "Bob", "Carol", "Dave"]
     players = []
     for name in player_names:
-        status, player = request_json("POST", f"{base_url}/api/games/{game_id}/join", {"name": name})
+        status, player = request_json(
+            "POST",
+            f"{base_url}/api/games/{game_id}/join",
+            {"name": name, "avatar_data": f"data:image/png;base64,{PNG_1X1}"},
+        )
         assert status == 200, f"join {name} failed: {status} {player}"
         players.append(player)
     joined = " ".join(f"{player_names[idx]}={player['player_id']}" for idx, player in enumerate(players))
