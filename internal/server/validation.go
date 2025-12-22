@@ -3,11 +3,12 @@ package server
 import (
 	"errors"
 	"fmt"
-	"net"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 const (
@@ -88,7 +89,7 @@ func (r *rateLimiter) allow(key string, capacity int, window time.Duration) bool
 	return true
 }
 
-func (s *Server) enforceRateLimit(w http.ResponseWriter, r *http.Request, action string) bool {
+func (s *Server) enforceRateLimit(c *gin.Context, action string) bool {
 	if s.limiter == nil {
 		return true
 	}
@@ -96,28 +97,19 @@ func (s *Server) enforceRateLimit(w http.ResponseWriter, r *http.Request, action
 	if !ok {
 		return true
 	}
-	key := action + ":" + clientKey(r)
+	key := action + ":" + clientKey(c)
 	if s.limiter.allow(key, rule.Capacity, rule.Window) {
 		return true
 	}
-	writeError(w, http.StatusTooManyRequests, rateLimitExceeded)
+	c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"error": rateLimitExceeded})
 	return false
 }
 
-func clientKey(r *http.Request) string {
-	if cookie, err := r.Cookie("pt_session"); err == nil && cookie.Value != "" {
-		return "session:" + cookie.Value
+func clientKey(c *gin.Context) string {
+	if value, err := c.Cookie("pt_session"); err == nil && value != "" {
+		return "session:" + value
 	}
-	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-		parts := strings.Split(forwarded, ",")
-		if len(parts) > 0 && strings.TrimSpace(parts[0]) != "" {
-			return strings.TrimSpace(parts[0])
-		}
-	}
-	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil && host != "" {
-		return host
-	}
-	return r.RemoteAddr
+	return c.ClientIP()
 }
 
 func validateName(name string) (string, error) {

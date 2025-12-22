@@ -9,6 +9,7 @@ import (
 
 	"picture-this/internal/web"
 
+	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
 
@@ -145,28 +146,28 @@ func (h *wsHub) Broadcast(gameID string, payload any) {
 	}
 }
 
-func (s *Server) handleWebsocket(w http.ResponseWriter, r *http.Request) {
-	gameID, ok := parseWebsocketPath(r.URL.Path)
-	if !ok {
-		http.NotFound(w, r)
+func (s *Server) handleWebsocket(c *gin.Context) {
+	gameID := c.Param("gameID")
+	if gameID == "" {
+		c.Status(http.StatusNotFound)
 		return
 	}
 	if _, exists := s.store.GetGame(gameID); !exists {
-		http.NotFound(w, r)
+		c.Status(http.StatusNotFound)
 		return
 	}
-	role := r.URL.Query().Get("role")
+	role := c.Query("role")
 	isHost := role == "host"
 	upgrader := websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool {
 			return true
 		},
 	}
-	conn, err := upgrader.Upgrade(w, r, nil)
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		return
 	}
-	log.Printf("ws connected game_id=%s remote=%s", gameID, r.RemoteAddr)
+	log.Printf("ws connected game_id=%s remote=%s", gameID, c.Request.RemoteAddr)
 	s.ws.Add(gameID, conn, isHost)
 	if game, ok := s.store.GetGame(gameID); ok {
 		s.ws.Send(conn, s.snapshot(game))
@@ -174,17 +175,17 @@ func (s *Server) handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	go s.readWS(gameID, conn, isHost)
 }
 
-func (s *Server) handleHomeWebsocket(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleHomeWebsocket(c *gin.Context) {
 	upgrader := websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool {
 			return true
 		},
 	}
-	conn, err := upgrader.Upgrade(w, r, nil)
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		return
 	}
-	log.Printf("ws connected home remote=%s", r.RemoteAddr)
+	log.Printf("ws connected home remote=%s", c.Request.RemoteAddr)
 	s.homeWS.Add(conn)
 	s.homeWS.Send(conn, map[string]any{
 		"games": s.homeSummaries(),

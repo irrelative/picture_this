@@ -2,11 +2,15 @@ package server
 
 import (
 	"errors"
+	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"picture-this/internal/db"
+
+	"github.com/gin-gonic/gin"
 )
 
 type settingsRequest struct {
@@ -62,13 +66,13 @@ type votesRequest struct {
 	Guess    string `json:"guess"`
 }
 
-func (s *Server) handleCreateGame(w http.ResponseWriter, r *http.Request) {
-	if !s.enforceRateLimit(w, r, "create") {
+func (s *Server) handleCreateGame(c *gin.Context) {
+	if !s.enforceRateLimit(c, "create") {
 		return
 	}
 	game := s.store.CreateGame(s.cfg.PromptsPerPlayer)
 	if err := s.persistGame(game); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to create game")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create game"})
 		return
 	}
 	log.Printf("game created game_id=%s join_code=%s", game.ID, game.JoinCode)
@@ -76,143 +80,78 @@ func (s *Server) handleCreateGame(w http.ResponseWriter, r *http.Request) {
 		"game_id":   game.ID,
 		"join_code": game.JoinCode,
 	}
-	writeJSON(w, http.StatusCreated, resp)
+	c.JSON(http.StatusCreated, resp)
 	s.broadcastHomeUpdate()
 }
 
-func (s *Server) handlePlayerPrompt(w http.ResponseWriter, r *http.Request, gameID string, playerID int) {
+func (s *Server) handlePlayerPrompt(c *gin.Context) {
+	gameID := c.Param("gameID")
+	playerID, err := strconv.Atoi(c.Param("playerID"))
+	if gameID == "" || err != nil || playerID <= 0 {
+		c.Status(http.StatusNotFound)
+		return
+	}
 	game, player, ok := s.store.GetPlayer(gameID, playerID)
 	if !ok || game == nil || player == nil {
-		http.NotFound(w, r)
+		c.Status(http.StatusNotFound)
 		return
 	}
 	round := currentRound(game)
 	if round == nil {
-		writeError(w, http.StatusConflict, "round not started")
+		c.JSON(http.StatusConflict, gin.H{"error": "round not started"})
 		return
 	}
 	prompt := promptForPlayer(round, player.ID)
 	if prompt == "" {
-		writeError(w, http.StatusNotFound, "prompt not assigned")
+		c.JSON(http.StatusNotFound, gin.H{"error": "prompt not assigned"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
+	c.JSON(http.StatusOK, map[string]any{
 		"game_id":   game.ID,
 		"player_id": player.ID,
 		"prompt":    prompt,
 	})
 }
 
-func (s *Server) handleGameSubroutes(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodGet {
-		if playerGameID, playerID, ok := parsePlayerPromptPath(r.URL.Path); ok {
-			s.handlePlayerPrompt(w, r, playerGameID, playerID)
-			return
-		}
-	}
-	if r.Method == http.MethodPost {
-		if audienceGameID, action, ok := parseAudiencePath(r.URL.Path); ok {
-			switch action {
-			case "":
-				s.handleAudienceJoin(w, r, audienceGameID)
-			case "votes":
-				s.handleAudienceVotes(w, r, audienceGameID)
-			default:
-				http.NotFound(w, r)
-			}
-			return
-		}
-	}
-
-	gameID, action, ok := parseGamePath(r.URL.Path)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
-	if action == "" {
-		s.handleGetGame(w, r, gameID)
-		return
-	}
-	if action == "events" {
-		s.handleEvents(w, r, gameID)
-		return
-	}
-
-	switch r.Method {
-	case http.MethodGet:
-		switch action {
-		case "results":
-			s.handleResults(w, r, gameID)
-		default:
-			http.NotFound(w, r)
-		}
-	case http.MethodPost:
-		switch action {
-		case "join":
-			s.handleJoinGame(w, r, gameID)
-		case "start":
-			s.handleStartGame(w, r, gameID)
-		case "drawings":
-			s.handleDrawings(w, r, gameID)
-		case "guesses":
-			s.handleGuesses(w, r, gameID)
-		case "votes":
-			s.handleVotes(w, r, gameID)
-		case "settings":
-			s.handleSettings(w, r, gameID)
-		case "kick":
-			s.handleKick(w, r, gameID)
-		case "rename":
-			s.handleRename(w, r, gameID)
-		case "advance":
-			s.handleAdvance(w, r, gameID)
-		case "end":
-			s.handleEndGame(w, r, gameID)
-		default:
-			http.NotFound(w, r)
-		}
-	default:
-		w.WriteHeader(http.StatusMethodNotAllowed)
-	}
-}
-
-func (s *Server) handleGetGame(w http.ResponseWriter, r *http.Request, gameID string) {
+func (s *Server) handleGetGame(c *gin.Context) {
+	gameID := c.Param("gameID")
 	game, ok := s.store.GetGame(gameID)
 	if !ok {
-		http.NotFound(w, r)
+		c.Status(http.StatusNotFound)
 		return
 	}
-	writeJSON(w, http.StatusOK, s.snapshot(game))
+	c.JSON(http.StatusOK, s.snapshot(game))
 }
 
-func (s *Server) handleJoinGame(w http.ResponseWriter, r *http.Request, gameID string) {
-	if !s.enforceRateLimit(w, r, "join") {
+func (s *Server) handleJoinGame(c *gin.Context) {
+	gameID := c.Param("gameID")
+	if !s.enforceRateLimit(c, "join") {
 		return
 	}
 	var req joinRequest
-	if err := readJSON(r.Body, &req); err != nil {
-		writeError(w, http.StatusBadRequest, "name is required")
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "name is required"})
 		return
 	}
 	name, err := validateName(req.Name)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	game, player, err := s.store.AddPlayer(gameID, name)
 	if err != nil {
 		if err.Error() == "game not found" {
-			http.NotFound(w, r)
+			c.Status(http.StatusNotFound)
 			return
 		}
-		writeError(w, http.StatusConflict, err.Error())
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	}
 
 	playerID, persistErr := s.persistPlayer(game, player)
 	if persistErr != nil {
-		writeError(w, http.StatusInternalServerError, "failed to join game")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to join game"})
 		return
 	}
 
@@ -222,37 +161,38 @@ func (s *Server) handleJoinGame(w http.ResponseWriter, r *http.Request, gameID s
 		"join_code": game.JoinCode,
 	}
 	resp["player_id"] = playerID
-	writeJSON(w, http.StatusOK, resp)
+	c.JSON(http.StatusOK, resp)
 	log.Printf("player joined game_id=%s player_id=%d player_name=%s", game.ID, playerID, name)
 
 	if s.sessions != nil {
-		s.sessions.SetName(w, r, name)
+		s.sessions.SetName(c.Writer, c.Request, name)
 	}
 
 	s.broadcastGameUpdate(game)
 }
 
-func (s *Server) handleAudienceJoin(w http.ResponseWriter, r *http.Request, gameID string) {
-	if !s.enforceRateLimit(w, r, "audience_join") {
+func (s *Server) handleAudienceJoin(c *gin.Context) {
+	gameID := c.Param("gameID")
+	if !s.enforceRateLimit(c, "audience_join") {
 		return
 	}
 	var req audienceJoinRequest
-	if err := readJSON(r.Body, &req); err != nil {
-		writeError(w, http.StatusBadRequest, "name is required")
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "name is required"})
 		return
 	}
 	name, err := validateName(req.Name)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	game, audience, err := s.store.AddAudience(gameID, name)
 	if err != nil {
 		if err.Error() == "game not found" {
-			http.NotFound(w, r)
+			c.Status(http.StatusNotFound)
 			return
 		}
-		writeError(w, http.StatusConflict, err.Error())
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	}
 	resp := map[string]any{
@@ -260,23 +200,24 @@ func (s *Server) handleAudienceJoin(w http.ResponseWriter, r *http.Request, game
 		"audience_id": audience.ID,
 		"join_code":   game.JoinCode,
 	}
-	writeJSON(w, http.StatusOK, resp)
+	c.JSON(http.StatusOK, resp)
 	log.Printf("audience joined game_id=%s audience_id=%d", game.ID, audience.ID)
 	s.broadcastGameUpdate(game)
 }
 
-func (s *Server) handleAudienceVotes(w http.ResponseWriter, r *http.Request, gameID string) {
-	if !s.enforceRateLimit(w, r, "audience_vote") {
+func (s *Server) handleAudienceVotes(c *gin.Context) {
+	gameID := c.Param("gameID")
+	if !s.enforceRateLimit(c, "audience_vote") {
 		return
 	}
 	var req audienceVoteRequest
-	if err := readJSON(r.Body, &req); err != nil || req.AudienceID <= 0 || req.DrawingIndex < 0 || strings.TrimSpace(req.Choice) == "" {
-		writeError(w, http.StatusBadRequest, "audience vote is required")
+	if err := c.ShouldBindJSON(&req); err != nil || req.AudienceID <= 0 || req.DrawingIndex < 0 || strings.TrimSpace(req.Choice) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "audience vote is required"})
 		return
 	}
 	choiceText, err := validateChoice(req.Choice)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
@@ -318,36 +259,37 @@ func (s *Server) handleAudienceVotes(w http.ResponseWriter, r *http.Request, gam
 	})
 	if err != nil {
 		if err.Error() == "game not found" {
-			http.NotFound(w, r)
+			c.Status(http.StatusNotFound)
 			return
 		}
-		writeError(w, http.StatusConflict, err.Error())
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	}
 	log.Printf("audience vote submitted game_id=%s audience_id=%d", game.ID, req.AudienceID)
-	writeJSON(w, http.StatusOK, s.snapshot(game))
+	c.JSON(http.StatusOK, s.snapshot(game))
 	s.broadcastGameUpdate(game)
 }
 
-func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request, gameID string) {
+func (s *Server) handleEvents(c *gin.Context) {
+	gameID := c.Param("gameID")
 	if s.db == nil {
-		writeError(w, http.StatusServiceUnavailable, "events not available")
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "events not available"})
 		return
 	}
 	game, ok := s.store.GetGame(gameID)
 	if !ok {
-		http.NotFound(w, r)
+		c.Status(http.StatusNotFound)
 		return
 	}
 	if game.DBID == 0 {
 		if err := s.ensureGameDBID(game); err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to load game")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load game"})
 			return
 		}
 	}
 	var records []db.Event
 	if err := s.db.Where("game_id = ?", game.DBID).Order("created_at asc").Find(&records).Error; err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to load events")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load events"})
 		return
 	}
 	events := make([]map[string]any, 0, len(records))
@@ -361,36 +303,37 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request, gameID str
 			"payload":    record.Payload,
 		})
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
+	c.JSON(http.StatusOK, map[string]any{
 		"game_id": game.ID,
 		"events":  events,
 	})
 }
 
-func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request, gameID string) {
-	if !s.enforceRateLimit(w, r, "settings") {
+func (s *Server) handleSettings(c *gin.Context) {
+	gameID := c.Param("gameID")
+	if !s.enforceRateLimit(c, "settings") {
 		return
 	}
 	var req settingsRequest
-	if err := readJSON(r.Body, &req); err != nil || req.PlayerID <= 0 {
-		writeError(w, http.StatusBadRequest, "player_id is required")
+	if err := c.ShouldBindJSON(&req); err != nil || req.PlayerID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "player_id is required"})
 		return
 	}
 	if req.Rounds > maxRoundsPerGame {
-		writeError(w, http.StatusBadRequest, "rounds exceeds maximum")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "rounds exceeds maximum"})
 		return
 	}
 	if req.MaxPlayers > maxLobbyPlayers {
-		writeError(w, http.StatusBadRequest, "max players exceeds maximum")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "max players exceeds maximum"})
 		return
 	}
 	if req.MaxPlayers < 0 || req.Rounds < 0 {
-		writeError(w, http.StatusBadRequest, "invalid settings")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid settings"})
 		return
 	}
 	category, err := validateCategory(req.PromptCategory)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
@@ -415,28 +358,29 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request, gameID s
 	})
 	if err != nil {
 		if err.Error() == "game not found" {
-			http.NotFound(w, r)
+			c.Status(http.StatusNotFound)
 			return
 		}
-		writeError(w, http.StatusConflict, err.Error())
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	}
 	if err := s.persistSettings(game); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to save settings")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save settings"})
 		return
 	}
 	log.Printf("settings updated game_id=%s rounds=%d max_players=%d category=%s locked=%t", game.ID, game.PromptsPerPlayer, game.MaxPlayers, game.PromptCategory, game.LobbyLocked)
-	writeJSON(w, http.StatusOK, s.snapshot(game))
+	c.JSON(http.StatusOK, s.snapshot(game))
 	s.broadcastGameUpdate(game)
 }
 
-func (s *Server) handleKick(w http.ResponseWriter, r *http.Request, gameID string) {
-	if !s.enforceRateLimit(w, r, "kick") {
+func (s *Server) handleKick(c *gin.Context) {
+	gameID := c.Param("gameID")
+	if !s.enforceRateLimit(c, "kick") {
 		return
 	}
 	var req kickRequest
-	if err := readJSON(r.Body, &req); err != nil || req.PlayerID <= 0 || req.TargetID <= 0 {
-		writeError(w, http.StatusBadRequest, "player_id and target_id are required")
+	if err := c.ShouldBindJSON(&req); err != nil || req.PlayerID <= 0 || req.TargetID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "player_id and target_id are required"})
 		return
 	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
@@ -468,29 +412,30 @@ func (s *Server) handleKick(w http.ResponseWriter, r *http.Request, gameID strin
 	})
 	if err != nil {
 		if err.Error() == "game not found" {
-			http.NotFound(w, r)
+			c.Status(http.StatusNotFound)
 			return
 		}
-		writeError(w, http.StatusConflict, err.Error())
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	}
 	log.Printf("player removed game_id=%s target_id=%d", game.ID, req.TargetID)
-	writeJSON(w, http.StatusOK, s.snapshot(game))
+	c.JSON(http.StatusOK, s.snapshot(game))
 	s.broadcastGameUpdate(game)
 }
 
-func (s *Server) handleRename(w http.ResponseWriter, r *http.Request, gameID string) {
-	if !s.enforceRateLimit(w, r, "rename") {
+func (s *Server) handleRename(c *gin.Context) {
+	gameID := c.Param("gameID")
+	if !s.enforceRateLimit(c, "rename") {
 		return
 	}
 	var req renameRequest
-	if err := readJSON(r.Body, &req); err != nil || req.PlayerID <= 0 {
-		writeError(w, http.StatusBadRequest, "player_id and name are required")
+	if err := c.ShouldBindJSON(&req); err != nil || req.PlayerID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "player_id and name are required"})
 		return
 	}
 	newName, err := validateName(req.Name)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
@@ -512,26 +457,30 @@ func (s *Server) handleRename(w http.ResponseWriter, r *http.Request, gameID str
 	})
 	if err != nil {
 		if err.Error() == "game not found" {
-			http.NotFound(w, r)
+			c.Status(http.StatusNotFound)
 			return
 		}
-		writeError(w, http.StatusConflict, err.Error())
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	}
 	if s.sessions != nil {
-		s.sessions.SetName(w, r, newName)
+		s.sessions.SetName(c.Writer, c.Request, newName)
 	}
 	log.Printf("player renamed game_id=%s player_id=%d", game.ID, req.PlayerID)
-	writeJSON(w, http.StatusOK, s.snapshot(game))
+	c.JSON(http.StatusOK, s.snapshot(game))
 	s.broadcastGameUpdate(game)
 }
 
-func (s *Server) handleStartGame(w http.ResponseWriter, r *http.Request, gameID string) {
-	if !s.enforceRateLimit(w, r, "start") {
+func (s *Server) handleStartGame(c *gin.Context) {
+	gameID := c.Param("gameID")
+	if !s.enforceRateLimit(c, "start") {
 		return
 	}
 	var req startRequest
-	_ = readJSON(r.Body, &req)
+	if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
 		if len(game.Players) < 2 {
 			return errors.New("not enough players")
@@ -550,51 +499,52 @@ func (s *Server) handleStartGame(w http.ResponseWriter, r *http.Request, gameID 
 	})
 	if err != nil {
 		if err.Error() == "game not found" {
-			http.NotFound(w, r)
+			c.Status(http.StatusNotFound)
 			return
 		}
-		writeError(w, http.StatusConflict, err.Error())
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	}
 	if err := s.persistPhase(game, "game_started", map[string]any{"phase": game.Phase}); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to start game")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to start game"})
 		return
 	}
 	if err := s.persistRound(game); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to create round")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create round"})
 		return
 	}
 	if err := s.assignPrompts(game); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to assign prompts")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to assign prompts"})
 		return
 	}
 	log.Printf("game started game_id=%s phase=%s", game.ID, game.Phase)
-	writeJSON(w, http.StatusOK, s.snapshot(game))
+	c.JSON(http.StatusOK, s.snapshot(game))
 	s.broadcastGameUpdate(game)
 	s.schedulePhaseTimer(game)
 }
 
-func (s *Server) handleDrawings(w http.ResponseWriter, r *http.Request, gameID string) {
-	if !s.enforceRateLimit(w, r, "drawings") {
+func (s *Server) handleDrawings(c *gin.Context) {
+	gameID := c.Param("gameID")
+	if !s.enforceRateLimit(c, "drawings") {
 		return
 	}
 	var req drawingsRequest
-	if err := readJSON(r.Body, &req); err != nil || req.PlayerID <= 0 || req.ImageData == "" {
-		writeError(w, http.StatusBadRequest, "drawings are required")
+	if err := c.ShouldBindJSON(&req); err != nil || req.PlayerID <= 0 || req.ImageData == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "drawings are required"})
 		return
 	}
 	promptText, err := validatePrompt(req.Prompt)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	image, err := decodeImageData(req.ImageData)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid image data")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid image data"})
 		return
 	}
 	if len(image) > maxDrawingBytes {
-		writeError(w, http.StatusBadRequest, "drawing exceeds size limit")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "drawing exceeds size limit"})
 		return
 	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
@@ -627,46 +577,47 @@ func (s *Server) handleDrawings(w http.ResponseWriter, r *http.Request, gameID s
 	})
 	if err != nil {
 		if err.Error() == "game not found" {
-			http.NotFound(w, r)
+			c.Status(http.StatusNotFound)
 			return
 		}
-		writeError(w, http.StatusConflict, err.Error())
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	}
 	if err := s.persistDrawing(game, req.PlayerID, image, promptText); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to save drawings")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save drawings"})
 		return
 	}
 	advanced, updated, err := s.tryAdvanceToGuesses(gameID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to advance game")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to advance game"})
 		return
 	}
 	if advanced {
 		game = updated
 		if err := s.persistPhase(game, "game_advanced", map[string]any{"phase": game.Phase}); err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to advance game")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to advance game"})
 			return
 		}
 		log.Printf("game advanced game_id=%s phase=%s", game.ID, game.Phase)
 	}
 	log.Printf("drawing submitted game_id=%s player_id=%d", game.ID, req.PlayerID)
-	writeJSON(w, http.StatusOK, s.snapshot(game))
+	c.JSON(http.StatusOK, s.snapshot(game))
 	s.broadcastGameUpdate(game)
 }
 
-func (s *Server) handleGuesses(w http.ResponseWriter, r *http.Request, gameID string) {
-	if !s.enforceRateLimit(w, r, "guesses") {
+func (s *Server) handleGuesses(c *gin.Context) {
+	gameID := c.Param("gameID")
+	if !s.enforceRateLimit(c, "guesses") {
 		return
 	}
 	var req guessesRequest
-	if err := readJSON(r.Body, &req); err != nil || req.PlayerID <= 0 {
-		writeError(w, http.StatusBadRequest, "guesses are required")
+	if err := c.ShouldBindJSON(&req); err != nil || req.PlayerID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "guesses are required"})
 		return
 	}
 	guessText, err := validateGuess(req.Guess)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
@@ -704,10 +655,10 @@ func (s *Server) handleGuesses(w http.ResponseWriter, r *http.Request, gameID st
 	})
 	if err != nil {
 		if err.Error() == "game not found" {
-			http.NotFound(w, r)
+			c.Status(http.StatusNotFound)
 			return
 		}
-		writeError(w, http.StatusConflict, err.Error())
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	}
 	turnIndex := 0
@@ -719,29 +670,30 @@ func (s *Server) handleGuesses(w http.ResponseWriter, r *http.Request, gameID st
 		drawingIndex = round.GuessTurns[turnIndex].DrawingIndex
 	}
 	if err := s.persistGuess(game, req.PlayerID, drawingIndex, guessText); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to save guesses")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save guesses"})
 		return
 	}
 	if game.Phase == phaseGuessVotes {
 		if err := s.persistPhase(game, "game_advanced", map[string]any{"phase": game.Phase}); err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to advance game")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to advance game"})
 			return
 		}
 		log.Printf("game advanced game_id=%s phase=%s", game.ID, game.Phase)
 	}
 	log.Printf("guess submitted game_id=%s player_id=%d", game.ID, req.PlayerID)
-	writeJSON(w, http.StatusOK, s.snapshot(game))
+	c.JSON(http.StatusOK, s.snapshot(game))
 	s.broadcastGameUpdate(game)
 	s.schedulePhaseTimer(game)
 }
 
-func (s *Server) handleVotes(w http.ResponseWriter, r *http.Request, gameID string) {
-	if !s.enforceRateLimit(w, r, "votes") {
+func (s *Server) handleVotes(c *gin.Context) {
+	gameID := c.Param("gameID")
+	if !s.enforceRateLimit(c, "votes") {
 		return
 	}
 	var req votesRequest
-	if err := readJSON(r.Body, &req); err != nil || req.PlayerID <= 0 {
-		writeError(w, http.StatusBadRequest, "votes are required")
+	if err := c.ShouldBindJSON(&req); err != nil || req.PlayerID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "votes are required"})
 		return
 	}
 	choiceText := strings.TrimSpace(req.Choice)
@@ -749,12 +701,12 @@ func (s *Server) handleVotes(w http.ResponseWriter, r *http.Request, gameID stri
 		choiceText = strings.TrimSpace(req.Guess)
 	}
 	if choiceText == "" {
-		writeError(w, http.StatusBadRequest, "votes are required")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "votes are required"})
 		return
 	}
 	choiceText, err := validateChoice(choiceText)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	voteRoundNumber := 0
@@ -817,41 +769,42 @@ func (s *Server) handleVotes(w http.ResponseWriter, r *http.Request, gameID stri
 	})
 	if err != nil {
 		if err.Error() == "game not found" {
-			http.NotFound(w, r)
+			c.Status(http.StatusNotFound)
 			return
 		}
-		writeError(w, http.StatusConflict, err.Error())
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	}
 	if err := s.persistVote(game, req.PlayerID, voteRoundNumber, voteDrawingIndex, choiceText, voteChoiceType); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to save votes")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save votes"})
 		return
 	}
 	if game.Phase == phaseDrawings {
 		if err := s.persistRound(game); err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to create round")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create round"})
 			return
 		}
 		if err := s.assignPrompts(game); err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to assign prompts")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to assign prompts"})
 			return
 		}
 	}
 	if game.Phase == phaseDrawings || game.Phase == phaseResults {
 		if err := s.persistPhase(game, "game_advanced", map[string]any{"phase": game.Phase}); err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to advance game")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to advance game"})
 			return
 		}
 		log.Printf("game advanced game_id=%s phase=%s", game.ID, game.Phase)
 	}
 	log.Printf("vote submitted game_id=%s player_id=%d", game.ID, req.PlayerID)
-	writeJSON(w, http.StatusOK, s.snapshot(game))
+	c.JSON(http.StatusOK, s.snapshot(game))
 	s.broadcastGameUpdate(game)
 	s.schedulePhaseTimer(game)
 }
 
-func (s *Server) handleAdvance(w http.ResponseWriter, r *http.Request, gameID string) {
-	if !s.enforceRateLimit(w, r, "advance") {
+func (s *Server) handleAdvance(c *gin.Context) {
+	gameID := c.Param("gameID")
+	if !s.enforceRateLimit(c, "advance") {
 		return
 	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
@@ -880,24 +833,25 @@ func (s *Server) handleAdvance(w http.ResponseWriter, r *http.Request, gameID st
 	})
 	if err != nil {
 		if err.Error() == "game not found" {
-			http.NotFound(w, r)
+			c.Status(http.StatusNotFound)
 			return
 		}
-		writeError(w, http.StatusConflict, err.Error())
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	}
 	if err := s.persistPhase(game, "game_advanced", map[string]any{"phase": game.Phase}); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to advance game")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to advance game"})
 		return
 	}
 	log.Printf("game advanced game_id=%s phase=%s", game.ID, game.Phase)
-	writeJSON(w, http.StatusOK, s.snapshot(game))
+	c.JSON(http.StatusOK, s.snapshot(game))
 	s.broadcastGameUpdate(game)
 	s.schedulePhaseTimer(game)
 }
 
-func (s *Server) handleEndGame(w http.ResponseWriter, r *http.Request, gameID string) {
-	if !s.enforceRateLimit(w, r, "end") {
+func (s *Server) handleEndGame(c *gin.Context) {
+	gameID := c.Param("gameID")
+	if !s.enforceRateLimit(c, "end") {
 		return
 	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
@@ -909,25 +863,26 @@ func (s *Server) handleEndGame(w http.ResponseWriter, r *http.Request, gameID st
 	})
 	if err != nil {
 		if err.Error() == "game not found" {
-			http.NotFound(w, r)
+			c.Status(http.StatusNotFound)
 			return
 		}
-		writeError(w, http.StatusConflict, err.Error())
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	}
 	if err := s.persistPhase(game, "game_ended", map[string]any{"phase": game.Phase}); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to end game")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to end game"})
 		return
 	}
 	log.Printf("game ended game_id=%s", game.ID)
-	writeJSON(w, http.StatusOK, s.snapshot(game))
+	c.JSON(http.StatusOK, s.snapshot(game))
 	s.broadcastGameUpdate(game)
 }
 
-func (s *Server) handleResults(w http.ResponseWriter, r *http.Request, gameID string) {
+func (s *Server) handleResults(c *gin.Context) {
+	gameID := c.Param("gameID")
 	game, ok := s.store.GetGame(gameID)
 	if !ok {
-		http.NotFound(w, r)
+		c.Status(http.StatusNotFound)
 		return
 	}
 	round := currentRound(game)
@@ -941,7 +896,7 @@ func (s *Server) handleResults(w http.ResponseWriter, r *http.Request, gameID st
 		guessesCount = len(round.Guesses)
 		votesCount = len(round.Votes)
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
+	c.JSON(http.StatusOK, map[string]any{
 		"game_id": game.ID,
 		"phase":   game.Phase,
 		"players": extractPlayerNames(game.Players),
@@ -956,15 +911,15 @@ func (s *Server) handleResults(w http.ResponseWriter, r *http.Request, gameID st
 	})
 }
 
-func (s *Server) handlePromptCategories(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handlePromptCategories(c *gin.Context) {
 	if s.db == nil {
-		writeJSON(w, http.StatusOK, map[string]any{"categories": []string{}})
+		c.JSON(http.StatusOK, map[string]any{"categories": []string{}})
 		return
 	}
 	var categories []string
 	if err := s.db.Model(&db.PromptLibrary{}).Distinct("category").Order("category asc").Pluck("category", &categories).Error; err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to load categories")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load categories"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"categories": categories})
+	c.JSON(http.StatusOK, map[string]any{"categories": categories})
 }

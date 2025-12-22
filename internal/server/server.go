@@ -7,6 +7,7 @@ import (
 
 	"picture-this/internal/config"
 
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
@@ -36,24 +37,46 @@ func New(conn *gorm.DB, cfg config.Config) *Server {
 }
 
 func (s *Server) Handler() http.Handler {
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /", s.handleHome)
-	mux.HandleFunc("GET /join", s.handleJoinView)
-	mux.HandleFunc("GET /join/", s.handleJoinView)
-	mux.HandleFunc("GET /play/", s.handlePlayerView)
-	mux.HandleFunc("GET /games/", s.handleGameView)
-	mux.HandleFunc("GET /display/", s.handleDisplayView)
-	mux.HandleFunc("GET /replay/", s.handleReplayView)
-	mux.HandleFunc("GET /audience/", s.handleAudienceView)
-	mux.HandleFunc("POST /api/games", s.handleCreateGame)
-	mux.HandleFunc("GET /api/games/", s.handleGameSubroutes)
-	mux.HandleFunc("POST /api/games/", s.handleGameSubroutes)
-	mux.HandleFunc("GET /api/prompts/categories", s.handlePromptCategories)
-	mux.HandleFunc("GET /ws/games/", s.handleWebsocket)
-	mux.HandleFunc("GET /ws/home", s.handleHomeWebsocket)
-	mux.HandleFunc("GET /admin/", s.handleAdminView)
-	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
-	return mux
+	router := gin.New()
+	router.Use(gin.Logger(), gin.Recovery())
+	_ = router.SetTrustedProxies(nil)
+
+	router.GET("/", s.handleHome)
+	router.GET("/join", s.handleJoinView)
+	router.GET("/join/:code", s.handleJoinView)
+	router.GET("/play/:gameID/:playerID", s.handlePlayerView)
+	router.GET("/games/:gameID", s.handleGameView)
+	router.GET("/display/:gameID", s.handleDisplayView)
+	router.GET("/replay/:gameID", s.handleReplayView)
+	router.GET("/audience/:gameID/:audienceID", s.handleAudienceView)
+	router.GET("/admin/:gameID", s.handleAdminView)
+
+	api := router.Group("/api")
+	{
+		api.POST("/games", s.handleCreateGame)
+		api.GET("/games/:gameID", s.handleGetGame)
+		api.GET("/games/:gameID/events", s.handleEvents)
+		api.GET("/games/:gameID/results", s.handleResults)
+		api.GET("/games/:gameID/players/:playerID/prompt", s.handlePlayerPrompt)
+		api.POST("/games/:gameID/join", s.handleJoinGame)
+		api.POST("/games/:gameID/start", s.handleStartGame)
+		api.POST("/games/:gameID/drawings", s.handleDrawings)
+		api.POST("/games/:gameID/guesses", s.handleGuesses)
+		api.POST("/games/:gameID/votes", s.handleVotes)
+		api.POST("/games/:gameID/settings", s.handleSettings)
+		api.POST("/games/:gameID/kick", s.handleKick)
+		api.POST("/games/:gameID/rename", s.handleRename)
+		api.POST("/games/:gameID/advance", s.handleAdvance)
+		api.POST("/games/:gameID/end", s.handleEndGame)
+		api.POST("/games/:gameID/audience", s.handleAudienceJoin)
+		api.POST("/games/:gameID/audience/votes", s.handleAudienceVotes)
+		api.GET("/prompts/categories", s.handlePromptCategories)
+	}
+
+	router.GET("/ws/games/:gameID", s.handleWebsocket)
+	router.GET("/ws/home", s.handleHomeWebsocket)
+	router.Static("/static", "./static")
+	return router
 }
 
 func (s *Server) snapshot(game *Game) map[string]any {
