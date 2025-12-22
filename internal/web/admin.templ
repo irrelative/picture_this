@@ -1,0 +1,181 @@
+package web
+
+templ Admin(gameID string, data AdminData) {
+	@Layout("Picture This | Admin", "", "") {
+		<header class="hero">
+			<span class="tag">Admin</span>
+			<h1>Game Admin View</h1>
+			<p>Database-backed snapshot for game <strong>{ gameID }</strong>.</p>
+		</header>
+
+		if data.Error != "" {
+			<div class="panel">
+				<p class="result error">{ data.Error }</p>
+			</div>
+		}
+
+		<section class="panel">
+			<h2>Game</h2>
+			<table class="data-table">
+				<tbody>
+					<tr><th>ID</th><td>{ data.Game.ID }</td></tr>
+					<tr><th>Join Code</th><td>{ data.Game.JoinCode }</td></tr>
+					<tr><th>Phase</th><td>{ data.Game.Phase }</td></tr>
+					<tr><th>Prompts/Player</th><td>{ data.Game.PromptsPerPlayer }</td></tr>
+					<tr><th>Max Players</th><td>{ data.Game.MaxPlayers }</td></tr>
+					<tr><th>Prompt Category</th><td>{ data.Game.PromptCategory }</td></tr>
+					<tr><th>Lobby Locked</th><td>{ data.Game.LobbyLocked }</td></tr>
+					<tr><th>Created</th><td>{ formatTime(data.Game.CreatedAt) }</td></tr>
+					<tr><th>Updated</th><td>{ formatTime(data.Game.UpdatedAt) }</td></tr>
+				</tbody>
+			</table>
+		</section>
+
+		<section class="panel">
+			<h2>Players</h2>
+			<table class="data-table">
+				<thead>
+					<tr><th>ID</th><th>Name</th><th>Host</th><th>Joined</th></tr>
+				</thead>
+				<tbody>
+					for _, player := range data.Players {
+						<tr>
+							<td>{ player.ID }</td>
+							<td>{ player.Name }</td>
+							<td>{ player.IsHost }</td>
+							<td>{ formatTime(player.JoinedAt) }</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</section>
+
+		<section class="panel">
+			<h2>Rounds</h2>
+			<table class="data-table">
+				<thead>
+					<tr><th>ID</th><th>Number</th><th>Status</th><th>Created</th></tr>
+				</thead>
+				<tbody>
+					for _, round := range data.Rounds {
+						<tr>
+							<td>{ round.ID }</td>
+							<td>{ round.Number }</td>
+							<td>{ round.Status }</td>
+							<td>{ formatTime(round.CreatedAt) }</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</section>
+
+		<section class="panel">
+			<h2>Prompts</h2>
+			<table class="data-table">
+				<thead>
+					<tr><th>ID</th><th>Round</th><th>Player</th><th>Text</th></tr>
+				</thead>
+				<tbody>
+					for _, prompt := range data.Prompts {
+						<tr>
+							<td>{ prompt.ID }</td>
+							<td>{ prompt.RoundID }</td>
+							<td>{ prompt.PlayerID }</td>
+							<td>{ prompt.Text }</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</section>
+
+		<section class="panel">
+			<h2>Drawings</h2>
+			<table class="data-table">
+				<thead>
+					<tr><th>ID</th><th>Round</th><th>Player</th><th>Prompt</th><th>Bytes</th></tr>
+				</thead>
+				<tbody>
+					for _, drawing := range data.Drawings {
+						<tr>
+							<td>{ drawing.ID }</td>
+							<td>{ drawing.RoundID }</td>
+							<td>{ drawing.PlayerID }</td>
+							<td>{ drawing.PromptID }</td>
+							<td>{ len(drawing.ImageData) }</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</section>
+
+		<section class="panel">
+			<h2>Guesses</h2>
+			<table class="data-table">
+				<thead>
+					<tr><th>ID</th><th>Round</th><th>Player</th><th>Drawing</th><th>Text</th></tr>
+				</thead>
+				<tbody>
+					for _, guess := range data.Guesses {
+						<tr>
+							<td>{ guess.ID }</td>
+							<td>{ guess.RoundID }</td>
+							<td>{ guess.PlayerID }</td>
+							<td>{ guess.DrawingID }</td>
+							<td>{ guess.Text }</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</section>
+
+		<section class="panel">
+			<h2>Votes</h2>
+			<table class="data-table">
+				<thead>
+					<tr><th>ID</th><th>Round</th><th>Player</th><th>Drawing</th><th>Choice</th><th>Type</th></tr>
+				</thead>
+				<tbody>
+					for _, vote := range data.Votes {
+						<tr>
+							<td>{ vote.ID }</td>
+							<td>{ vote.RoundID }</td>
+							<td>{ vote.PlayerID }</td>
+							<td>{ vote.DrawingID }</td>
+							<td>{ vote.ChoiceText }</td>
+							<td>{ vote.ChoiceType }</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</section>
+
+		<section class="panel">
+			<h2>Event Flow</h2>
+			<table class="data-table">
+				<thead>
+					<tr><th>ID</th><th>Type</th><th>Round</th><th>Player</th><th>Payload</th><th>Created</th></tr>
+				</thead>
+				<tbody>
+					for _, event := range data.Events {
+						<tr>
+							<td>{ event.ID }</td>
+							<td>{ event.Type }</td>
+							if event.RoundID != nil {
+								<td>{ *event.RoundID }</td>
+							} else {
+								<td>-</td>
+							}
+							if event.PlayerID != nil {
+								<td>{ *event.PlayerID }</td>
+							} else {
+								<td>-</td>
+							}
+							<td><pre class="json">{ string(event.Payload) }</pre></td>
+							<td>{ formatTime(event.CreatedAt) }</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</section>
+	}
+}

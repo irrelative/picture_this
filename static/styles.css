@@ -419,6 +419,35 @@ select:focus {
   font-weight: 600;
 }
 
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.data-table th,
+.data-table td {
+  border: 1px solid #e3e3e3;
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.data-table th {
+  background: #f5f1e7;
+  font-weight: 600;
+}
+
+.json {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.85rem;
+  background: #f9f6ef;
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+
 .result-card {
   display: grid;
   gap: 12px;
