@@ -110,7 +110,6 @@ For now, don't include:
 
 
 ## Ideas
-* server/paths.go seems like it should be easier with a regex based route, use Gin framework
 * server/server.go phaseOrder doesn't capture the multiple rounds approach very well, might want a better data structure
 * Identify the host in the players list
 * Have players draw a self-portrait and use as avatar

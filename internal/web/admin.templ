@@ -180,7 +180,7 @@ templ Admin(gameID string, data AdminData) {
 	}
 }
 
-templ AdminHome(games []GameSummary) {
+templ AdminHome(active []GameSummary, history []AdminDBGameSummary) {
 	@Layout("Picture This | Admin", "", "") {
 		<header class="hero">
 			<span class="tag">Admin</span>
@@ -190,11 +190,11 @@ templ AdminHome(games []GameSummary) {
 
 		<section class="panel">
 			<h2>Active games</h2>
-			if len(games) == 0 {
+			if len(active) == 0 {
 				<p>No active games in memory.</p>
 			} else {
 				<ul class="game-list">
-					for _, game := range games {
+					for _, game := range active {
 						<li class="game-card">
 							<div>
 								<h3>{ game.ID }</h3>
@@ -204,6 +204,32 @@ templ AdminHome(games []GameSummary) {
 						</li>
 					}
 				</ul>
+			}
+		</section>
+
+		<section class="panel">
+			<h2>Database games</h2>
+			if len(history) == 0 {
+				<p>No game records found in the database.</p>
+			} else {
+				<table class="data-table">
+					<thead>
+						<tr><th>ID</th><th>Join Code</th><th>Phase</th><th>Players</th><th>Created</th><th>Updated</th><th></th></tr>
+					</thead>
+					<tbody>
+						for _, game := range history {
+							<tr>
+								<td>{ game.ID }</td>
+								<td>{ game.JoinCode }</td>
+								<td>{ game.Phase }</td>
+								<td>{ game.Players }</td>
+								<td>{ formatTime(game.CreatedAt) }</td>
+								<td>{ formatTime(game.UpdatedAt) }</td>
+								<td><a class="secondary" href={ "/admin/" + game.JoinCode }>Open</a></td>
+							</tr>
+						}
+					</tbody>
+				</table>
 			}
 		</section>
 	}

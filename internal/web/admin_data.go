@@ -1,6 +1,10 @@
 package web
 
-import "picture-this/internal/db"
+import (
+	"time"
+
+	"picture-this/internal/db"
+)
 
 type AdminData struct {
 	Game     db.Game
@@ -12,4 +16,13 @@ type AdminData struct {
 	Votes    []db.Vote
 	Events   []db.Event
 	Error    string
+}
+
+type AdminDBGameSummary struct {
+	ID        uint
+	JoinCode  string
+	Phase     string
+	Players   int
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }

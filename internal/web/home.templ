@@ -67,6 +67,9 @@ templ Home(flash string, playerName string, games []GameSummary) {
 			<div>
 				<h2>Active games</h2>
 				<p>Jump into a lobby or keep an eye on games in progress.</p>
+				<div class="admin-link">
+					<a class="secondary" href="/admin">Admin dashboard</a>
+				</div>
 			</div>
 			if len(games) == 0 {
 				<p id="noGames" class="hint">No active games yet.</p>

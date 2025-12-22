@@ -489,6 +489,10 @@ select:focus {
   color: #5b6770;
 }
 
+.admin-link {
+  margin-top: 8px;
+}
+
 .display-body {
   background: radial-gradient(circle at top, #fff1cc, #f6ebd8);
 }

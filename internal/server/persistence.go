@@ -70,7 +70,10 @@ func (s *Server) persistPlayer(game *Game, player *Player) (int, error) {
 		return 0, err
 	}
 	player.DBID = record.ID
-	if err := s.persistEvent(game, "player_joined", map[string]any{"player": player.Name}); err != nil {
+	if err := s.persistEvent(game, "player_joined", map[string]any{
+		"player":    player.Name,
+		"player_id": player.ID,
+	}); err != nil {
 		return player.ID, err
 	}
 	return player.ID, nil
