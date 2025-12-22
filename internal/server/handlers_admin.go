@@ -94,3 +94,7 @@ func (s *Server) handleAdminView(c *gin.Context) {
 
 	templ.Handler(web.Admin(gameID, data)).ServeHTTP(c.Writer, c.Request)
 }
+
+func (s *Server) handleAdminHome(c *gin.Context) {
+	templ.Handler(web.AdminHome(s.homeSummaries())).ServeHTTP(c.Writer, c.Request)
+}

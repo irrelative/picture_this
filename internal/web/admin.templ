@@ -179,3 +179,32 @@ templ Admin(gameID string, data AdminData) {
 		</section>
 	}
 }
+
+templ AdminHome(games []GameSummary) {
+	@Layout("Picture This | Admin", "", "") {
+		<header class="hero">
+			<span class="tag">Admin</span>
+			<h1>Admin Dashboard</h1>
+			<p>Pick a game to inspect its database records and event flow.</p>
+		</header>
+
+		<section class="panel">
+			<h2>Active games</h2>
+			if len(games) == 0 {
+				<p>No active games in memory.</p>
+			} else {
+				<ul class="game-list">
+					for _, game := range games {
+						<li class="game-card">
+							<div>
+								<h3>{ game.ID }</h3>
+								<p class="meta">Join code: { game.JoinCode } - Phase: { game.Phase } - Players: { game.Players }</p>
+							</div>
+							<a class="primary" href={ "/admin/" + game.ID }>Open admin view</a>
+						</li>
+					}
+				</ul>
+			}
+		</section>
+	}
+}

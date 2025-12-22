@@ -49,6 +49,7 @@ func (s *Server) Handler() http.Handler {
 	router.GET("/display/:gameID", s.handleDisplayView)
 	router.GET("/replay/:gameID", s.handleReplayView)
 	router.GET("/audience/:gameID/:audienceID", s.handleAudienceView)
+	router.GET("/admin", s.handleAdminHome)
 	router.GET("/admin/:gameID", s.handleAdminView)
 
 	api := router.Group("/api")
