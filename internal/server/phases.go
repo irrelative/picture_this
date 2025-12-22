@@ -5,16 +5,138 @@ import (
 	"time"
 )
 
-func nextPhase(current string) (string, bool) {
-	for i := range phaseOrder {
-		if phaseOrder[i] == current {
-			if i+1 < len(phaseOrder) {
-				return phaseOrder[i+1], true
+type transitionMode int
+
+const (
+	transitionPreview transitionMode = iota
+	transitionManual
+	transitionAuto
+)
+
+type phaseTransition struct {
+	advance func(s *Server, game *Game, mode transitionMode, at time.Time) (string, error)
+}
+
+var phaseTransitions = map[string]phaseTransition{
+	phaseLobby: {
+		advance: func(s *Server, game *Game, mode transitionMode, at time.Time) (string, error) {
+			if mode != transitionPreview && len(game.Rounds) == 0 {
+				game.Rounds = append(game.Rounds, RoundState{Number: 1})
 			}
-			return "", false
-		}
+			applyPhase(game, phaseDrawings, mode, at)
+			return phaseDrawings, nil
+		},
+	},
+	phaseDrawings: {
+		advance: func(s *Server, game *Game, mode transitionMode, at time.Time) (string, error) {
+			round := currentRound(game)
+			if round == nil {
+				return "", errors.New("round not started")
+			}
+			if mode == transitionAuto && len(round.Drawings) == 0 {
+				applyPhase(game, phaseComplete, mode, at)
+				return phaseComplete, nil
+			}
+			if mode != transitionPreview {
+				if err := s.buildGuessTurns(game, round); err != nil {
+					return "", err
+				}
+			} else if len(round.Drawings) == 0 {
+				return "", errors.New("no drawings submitted")
+			}
+			applyPhase(game, phaseGuesses, mode, at)
+			return phaseGuesses, nil
+		},
+	},
+	phaseGuesses: {
+		advance: func(s *Server, game *Game, mode transitionMode, at time.Time) (string, error) {
+			round := currentRound(game)
+			if round == nil {
+				return "", errors.New("round not started")
+			}
+			if mode != transitionPreview {
+				round.CurrentGuess = len(round.GuessTurns)
+				if err := s.buildVoteTurns(game, round); err != nil {
+					return "", err
+				}
+			} else if len(round.Drawings) == 0 {
+				return "", errors.New("no drawings submitted")
+			}
+			applyPhase(game, phaseGuessVotes, mode, at)
+			return phaseGuessVotes, nil
+		},
+	},
+	phaseGuessVotes: {
+		advance: func(s *Server, game *Game, mode transitionMode, at time.Time) (string, error) {
+			round := currentRound(game)
+			if round == nil {
+				return "", errors.New("round not started")
+			}
+			if mode != transitionPreview {
+				round.CurrentVote = len(round.VoteTurns)
+			}
+			if round.Number < game.PromptsPerPlayer {
+				if mode != transitionPreview {
+					game.Rounds = append(game.Rounds, RoundState{Number: len(game.Rounds) + 1})
+				}
+				applyPhase(game, phaseDrawings, mode, at)
+				return phaseDrawings, nil
+			}
+			if mode != transitionPreview {
+				initReveal(round)
+			}
+			applyPhase(game, phaseResults, mode, at)
+			return phaseResults, nil
+		},
+	},
+	phaseResults: {
+		advance: func(s *Server, game *Game, mode transitionMode, at time.Time) (string, error) {
+			round := currentRound(game)
+			if round == nil {
+				return "", errors.New("round not started")
+			}
+			if mode == transitionPreview {
+				return phaseComplete, nil
+			}
+			if len(round.Drawings) == 0 {
+				applyPhase(game, phaseComplete, mode, at)
+				return phaseComplete, nil
+			}
+			if round.RevealStage == "" {
+				initReveal(round)
+			} else if round.RevealStage == revealStageGuesses {
+				round.RevealStage = revealStageVotes
+			} else if round.RevealStage == revealStageVotes {
+				round.RevealIndex++
+				if round.RevealIndex >= len(round.Drawings) {
+					applyPhase(game, phaseComplete, mode, at)
+					return phaseComplete, nil
+				}
+				round.RevealStage = revealStageGuesses
+			}
+			applyPhase(game, phaseResults, mode, at)
+			return phaseResults, nil
+		},
+	},
+}
+
+func (s *Server) nextPhase(game *Game) (string, bool, error) {
+	next, err := s.advancePhase(game, transitionPreview, time.Time{})
+	if err != nil || next == "" {
+		return "", false, err
 	}
-	return "", false
+	return next, true, nil
+}
+
+func (s *Server) advancePhase(game *Game, mode transitionMode, at time.Time) (string, error) {
+	if game == nil {
+		return "", errors.New("game not found")
+	}
+	transition, ok := phaseTransitions[game.Phase]
+	if !ok {
+		return "", errors.New("no next phase")
+	}
+	return transition.advance(s, game, mode, at)
 }
 
 func currentRound(game *Game) *RoundState {
@@ -37,8 +159,22 @@ func roundByNumber(game *Game, number int) *RoundState {
 }
 
 func setPhase(game *Game, phase string) {
+	setPhaseAt(game, phase, time.Now().UTC())
+}
+
+func setPhaseAt(game *Game, phase string, at time.Time) {
 	game.Phase = phase
-	game.PhaseStartedAt = time.Now().UTC()
+	if at.IsZero() {
+		at = time.Now().UTC()
+	}
+	game.PhaseStartedAt = at
+}
+
+func applyPhase(game *Game, phase string, mode transitionMode, at time.Time) {
+	if mode == transitionPreview {
+		return
+	}
+	setPhaseAt(game, phase, at)
 }
 
 func initReveal(round *RoundState) {

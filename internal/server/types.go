@@ -16,15 +16,6 @@ const (
 	revealStageVotes   = "votes"
 )
 
-var phaseOrder = []string{
-	phaseLobby,
-	phaseDrawings,
-	phaseGuesses,
-	phaseGuessVotes,
-	phaseResults,
-	phaseComplete,
-}
-
 type GameSummary struct {
 	ID       string
 	JoinCode string

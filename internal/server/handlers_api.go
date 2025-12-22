@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"picture-this/internal/db"
 
@@ -808,28 +809,8 @@ func (s *Server) handleAdvance(c *gin.Context) {
 		return
 	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
-		next, ok := nextPhase(game.Phase)
-		if !ok {
-			return errors.New("no next phase")
-		}
-		setPhase(game, next)
-		if next == phaseGuesses {
-			round := currentRound(game)
-			if err := s.buildGuessTurns(game, round); err != nil {
-				return err
-			}
-		}
-		if next == phaseGuessVotes {
-			round := currentRound(game)
-			if err := s.buildVoteTurns(game, round); err != nil {
-				return err
-			}
-		}
-		if next == phaseResults {
-			round := currentRound(game)
-			initReveal(round)
-		}
-		return nil
+		_, err := s.advancePhase(game, transitionManual, time.Time{})
+		return err
 	})
 	if err != nil {
 		if err.Error() == "game not found" {

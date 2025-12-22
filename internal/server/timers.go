@@ -53,77 +53,8 @@ func (s *Server) autoAdvancePhase(gameID string, expectedPhase string) {
 		if game.Phase != expectedPhase {
 			return errors.New("phase changed")
 		}
-		switch expectedPhase {
-		case phaseDrawings:
-			round := currentRound(game)
-			if round == nil {
-				return errors.New("round not started")
-			}
-			if len(round.Drawings) == 0 {
-				game.Phase = phaseComplete
-				game.PhaseStartedAt = now
-				return nil
-			}
-			if err := s.buildGuessTurns(game, round); err != nil {
-				return err
-			}
-			game.Phase = phaseGuesses
-			game.PhaseStartedAt = now
-	case phaseGuesses:
-		round := currentRound(game)
-		if round == nil {
-			return errors.New("round not started")
-		}
-		round.CurrentGuess = len(round.GuessTurns)
-		if err := s.buildVoteTurns(game, round); err != nil {
-			return err
-		}
-		game.Phase = phaseGuessVotes
-		game.PhaseStartedAt = now
-	case phaseGuessVotes:
-		round := currentRound(game)
-		if round == nil {
-			return errors.New("round not started")
-		}
-		round.CurrentVote = len(round.VoteTurns)
-		if round.Number < game.PromptsPerPlayer {
-			game.Phase = phaseDrawings
-			game.PhaseStartedAt = now
-			game.Rounds = append(game.Rounds, RoundState{
-				Number: len(game.Rounds) + 1,
-			})
-		} else {
-			game.Phase = phaseResults
-			game.PhaseStartedAt = now
-			initReveal(round)
-		}
-		case phaseResults:
-			round := currentRound(game)
-			if round == nil {
-				return errors.New("round not started")
-			}
-			if len(round.Drawings) == 0 {
-				game.Phase = phaseComplete
-				game.PhaseStartedAt = now
-				return nil
-			}
-			if round.RevealStage == "" {
-				initReveal(round)
-			} else if round.RevealStage == revealStageGuesses {
-				round.RevealStage = revealStageVotes
-			} else if round.RevealStage == revealStageVotes {
-				round.RevealIndex++
-				if round.RevealIndex >= len(round.Drawings) {
-					game.Phase = phaseComplete
-					game.PhaseStartedAt = now
-					return nil
-				}
-				round.RevealStage = revealStageGuesses
-			}
-		default:
-			return errors.New("phase not timed")
-		}
-		return nil
+		_, err := s.advancePhase(game, transitionAuto, now)
+		return err
 	})
 	if err != nil {
 		return
