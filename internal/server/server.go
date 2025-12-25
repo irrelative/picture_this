@@ -42,11 +42,13 @@ func (s *Server) Handler() http.Handler {
 	_ = router.SetTrustedProxies(nil)
 
 	router.GET("/", s.handleHome)
+	router.GET("/partials/home/games", s.handleHomeGamesPartial)
 	router.GET("/join", s.handleJoinView)
 	router.GET("/join/:code", s.handleJoinView)
 	router.GET("/play/:gameID/:playerID", s.handlePlayerView)
 	router.GET("/games/:gameID", s.handleGameView)
 	router.GET("/display/:gameID", s.handleDisplayView)
+	router.GET("/partials/games/:gameID/display", s.handleDisplayPartial)
 	router.GET("/replay/:gameID", s.handleReplayView)
 	router.GET("/admin", s.handleAdminHome)
 	router.GET("/admin/:gameID", s.handleAdminView)

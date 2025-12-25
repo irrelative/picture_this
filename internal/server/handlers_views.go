@@ -31,12 +31,13 @@ func (s *Server) handleDisplayView(c *gin.Context) {
 		c.Status(http.StatusNotFound)
 		return
 	}
-	if _, ok := s.store.GetGame(gameID); !ok {
+	game, ok := s.store.GetGame(gameID)
+	if !ok {
 		log.Printf("display view missing game_id=%s", gameID)
 		c.Redirect(http.StatusFound, "/")
 		return
 	}
-	templ.Handler(web.DisplayView(gameID)).ServeHTTP(c.Writer, c.Request)
+	templ.Handler(web.DisplayView(s.buildDisplayState(game))).ServeHTTP(c.Writer, c.Request)
 }
 
 func (s *Server) handleHome(c *gin.Context) {
@@ -47,6 +48,10 @@ func (s *Server) handleHome(c *gin.Context) {
 		name = s.sessions.GetName(c.Writer, c.Request)
 	}
 	templ.Handler(web.Home(flash, name, s.homeSummaries())).ServeHTTP(c.Writer, c.Request)
+}
+
+func (s *Server) handleHomeGamesPartial(c *gin.Context) {
+	templ.Handler(web.ActiveGamesList(s.homeSummaries())).ServeHTTP(c.Writer, c.Request)
 }
 
 func (s *Server) handleJoinView(c *gin.Context) {
@@ -96,4 +101,18 @@ func (s *Server) handlePlayerView(c *gin.Context) {
 		return
 	}
 	templ.Handler(web.PlayerView(gameID, playerID, player.Name)).ServeHTTP(c.Writer, c.Request)
+}
+
+func (s *Server) handleDisplayPartial(c *gin.Context) {
+	gameID := c.Param("gameID")
+	if gameID == "" {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	game, ok := s.store.GetGame(gameID)
+	if !ok {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	templ.Handler(web.DisplayContent(s.buildDisplayState(game))).ServeHTTP(c.Writer, c.Request)
 }

@@ -1,0 +1,134 @@
+package web
+
+templ DisplayContent(state DisplayState) {
+	<div
+		id="displayContent"
+		hx-get={ "/partials/games/" + state.GameID + "/display" }
+		hx-trigger="load, every 2s"
+		hx-swap="outerHTML"
+		data-phase={ state.Phase }
+		data-phase-ends-at={ state.PhaseEndsAt }
+		data-game-id={ state.GameID }
+	>
+		<header class="display-header">
+			<div class="display-brand">
+				<span class="tag">Live Game Display</span>
+				<h1>Picture This</h1>
+				<p>Keep this screen on the TV so everyone can follow along.</p>
+			</div>
+			<div class="display-meta">
+				<div class="display-meta-block">
+					<span class="label">Join code</span>
+					<p class="display-code">{ state.JoinCode }</p>
+				</div>
+				<div class="display-meta-block">
+					<span class="label">Phase</span>
+					<p class="display-phase" role="status" aria-live="polite">{ state.Phase }</p>
+				</div>
+				<div class="display-meta-block">
+					<span class="label">Time left</span>
+					<p id="displayTimer" class="display-timer">--:--</p>
+				</div>
+				<div class="display-meta-block">
+					<span class="label">Round</span>
+					<p class="display-round">{ state.RoundLabel }</p>
+				</div>
+			</div>
+		</header>
+
+		<section class="display-grid">
+			<div class="display-panel display-stage" id="displayStage">
+				<h2 id="displayStageTitle">{ state.StageTitle }</h2>
+				<p id="displayStageStatus" class="display-status">{ state.StageStatus }</p>
+				if state.StageImage != "" {
+					<img id="displayStageImage" class="display-image" alt="Current drawing" src={ state.StageImage }/>
+				} else {
+					<img id="displayStageImage" class="display-image" alt="Current drawing" style="display:none;"/>
+				}
+				<div id="displayOptions" class="display-options">
+					if len(state.Options) > 0 {
+						<ul class="display-option-list">
+							for _, option := range state.Options {
+								<li>{ option }</li>
+							}
+						</ul>
+					}
+				</div>
+			</div>
+
+			<div class="display-panel display-players">
+				<h2>Players</h2>
+				<ul id="playerList" class="player-list display-player-list">
+					if len(state.Players) == 0 {
+						<li>No players yet</li>
+					} else {
+						for _, player := range state.Players {
+							<li class="player-entry">
+								if player.Avatar != "" {
+									<img class="player-avatar" alt={ player.Name + " avatar" } src={ player.Avatar }/>
+								}
+								<span>
+									if player.IsHost {
+										{ player.Name + "*" }
+									} else {
+										{ player.Name }
+									}
+								</span>
+							</li>
+						}
+					}
+				</ul>
+			</div>
+
+			if state.ShowScoreboard {
+				<div class="display-panel display-scoreboard" id="displayScoreboard">
+					<h2>Scoreboard</h2>
+					<p class="display-status">Current standings after the last round.</p>
+					<div class="results-scores" id="displayScoreList">
+						@ScoreList(state.Scores)
+					</div>
+				</div>
+			} else {
+				<div class="display-panel display-scoreboard" id="displayScoreboard" style="display:none;">
+					<h2>Scoreboard</h2>
+					<p class="display-status">Scores will appear after the round ends.</p>
+					<div class="results-scores" id="displayScoreList">
+						@ScoreList(state.Scores)
+					</div>
+				</div>
+			}
+
+			if state.ShowFinal {
+				<div class="display-panel display-scoreboard" id="displayFinalScores">
+					<h2>Final scores</h2>
+					<p class="display-status">Final standings for the game.</p>
+					<div class="results-scores" id="displayFinalList">
+						@ScoreList(state.Scores)
+					</div>
+				</div>
+			} else {
+				<div class="display-panel display-scoreboard" id="displayFinalScores" style="display:none;">
+					<h2>Final scores</h2>
+					<p class="display-status">Final standings for the game.</p>
+					<div class="results-scores" id="displayFinalList">
+						@ScoreList(state.Scores)
+					</div>
+				</div>
+			}
+		</section>
+		<p id="gameError" class="result error" role="alert"></p>
+		<audio id="lobbyAudio" src="/static/sounds/MainBkgMusicLoop.ogg" loop preload="auto"></audio>
+	</div>
+}
+
+templ ScoreList(scores []DisplayScore) {
+	if len(scores) == 0 {
+		<p class="hint">Scores will appear here once results are available.</p>
+	} else {
+		<ul class="score-list">
+			for _, entry := range scores {
+				<li>{ entry.Name + ": " + itoa(entry.Score) }</li>
+			}
+		</ul>
+	}
+}

@@ -1,0 +1,33 @@
+package web
+
+templ ActiveGamesList(games []GameSummary) {
+	if len(games) == 0 {
+		<p id="noGames" class="hint">No active games yet.</p>
+	} else {
+		<p id="noGames" class="hint" style="display:none;">No active games yet.</p>
+	}
+	<div id="gameList" class="game-list">
+		for _, game := range games {
+			<div class="game-card">
+				<div>
+					<h3>{ game.ID }</h3>
+					<p class="meta">State: { game.Phase } · Players: { game.Players }</p>
+				</div>
+				<div class="game-actions">
+					if game.Phase == "lobby" {
+						<button
+							class="secondary join-active"
+							data-join-code={ game.JoinCode }
+							data-game-id={ game.ID }
+							data-result-id={ "joinResult-" + game.ID }
+							type="button"
+						>Join lobby</button>
+					} else {
+						<span class="status-pill">In progress</span>
+					}
+					<p id={ "joinResult-" + game.ID } class="result" role="status" aria-live="polite"></p>
+				</div>
+			</div>
+		}
+	</div>
+}

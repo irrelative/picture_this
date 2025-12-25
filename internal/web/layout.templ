@@ -8,6 +8,7 @@ templ Layout(title string, scriptPath string, flash string) {
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>{ title }</title>
 			<link rel="stylesheet" href="/static/styles.css"/>
+			<script src="/static/vendor/htmx.min.js" defer></script>
 		</head>
 		<body>
 			<div class="page">
@@ -34,6 +35,7 @@ templ DisplayLayout(title string, scriptPath string) {
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>{ title }</title>
 			<link rel="stylesheet" href="/static/styles.css"/>
+			<script src="/static/vendor/htmx.min.js" defer></script>
 		</head>
 		<body class="display-body">
 			<div class="display-shell">

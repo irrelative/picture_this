@@ -112,6 +112,6 @@ For now, don't include:
 ## Ideas
 * Score calculations aren't working yet
 * Include a results stage between rounds
-* Make server/clients resillient to server restarts or page reloads
+* Move UI updates to server‑side templates for non‑interactive parts (or use HTMX) to reduce JS view code if you’re open to that UX tradeoff.
 
 
