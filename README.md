@@ -112,7 +112,6 @@ For now, don't include:
 ## Ideas
 * Score calculations aren't working yet
 * Include a results stage between rounds
-* 2 rounds might not be 2 per player
 * Make server/clients resillient to server restarts or page reloads
 
 

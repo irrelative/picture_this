@@ -189,33 +189,38 @@ func buildResults(game *Game) []map[string]any {
 }
 
 func buildScores(game *Game) []map[string]any {
-	round := currentRound(game)
-	if round == nil {
-		return nil
-	}
 	scores := map[int]int{}
 	for _, player := range game.Players {
 		scores[player.ID] = 0
 	}
-	for drawingIndex, drawing := range round.Drawings {
-		fooledVotes := 0
-		for _, vote := range round.Votes {
-			if vote.DrawingIndex != drawingIndex {
-				continue
-			}
-			if vote.ChoiceType == "prompt" {
-				scores[vote.PlayerID] += 1000
-			} else if vote.ChoiceType == "guess" {
-				if ownerID := guessOwner(round, drawingIndex, vote.ChoiceText); ownerID != 0 {
-					scores[ownerID] += 500
-					fooledVotes++
+	if game == nil {
+		return nil
+	}
+	for i := range game.Rounds {
+		round := &game.Rounds[i]
+		if len(round.Drawings) == 0 {
+			continue
+		}
+		for drawingIndex, drawing := range round.Drawings {
+			fooledVotes := 0
+			for _, vote := range round.Votes {
+				if vote.DrawingIndex != drawingIndex {
+					continue
+				}
+				if vote.ChoiceType == "prompt" {
+					scores[vote.PlayerID] += 1000
+				} else if vote.ChoiceType == "guess" {
+					if ownerID := guessOwner(round, drawingIndex, vote.ChoiceText); ownerID != 0 {
+						scores[ownerID] += 500
+						fooledVotes++
+					}
 				}
 			}
-		}
-		if fooledVotes == 0 {
-			scores[drawing.PlayerID] += 1000
-		} else {
-			scores[drawing.PlayerID] += 500 * fooledVotes
+			if fooledVotes == 0 {
+				scores[drawing.PlayerID] += 1000
+			} else {
+				scores[drawing.PlayerID] += 500 * fooledVotes
+			}
 		}
 	}
 	results := make([]map[string]any, 0, len(scores))
