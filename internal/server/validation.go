@@ -34,7 +34,6 @@ var rateLimitRules = map[string]rateLimitRule{
 	"avatar":   {Capacity: 10, Window: time.Minute},
 	"settings": {Capacity: 10, Window: time.Minute},
 	"kick":     {Capacity: 10, Window: time.Minute},
-	"rename":   {Capacity: 10, Window: time.Minute},
 	"start":    {Capacity: 5, Window: time.Minute},
 	"advance":  {Capacity: 10, Window: time.Minute},
 	"end":      {Capacity: 5, Window: time.Minute},

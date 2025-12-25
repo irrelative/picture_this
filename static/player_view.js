@@ -85,9 +85,6 @@ export function updateFromSnapshot(ctx, data) {
       els.playerName.textContent = `Signed in as ${playerNameValue}. Waiting for the host to begin.`;
     }
   }
-  if (els.renameInput && playerNameValue && !els.renameInput.value) {
-    els.renameInput.value = playerNameValue;
-  }
   if (els.hostSection) {
     els.hostSection.style.display = "grid";
   }

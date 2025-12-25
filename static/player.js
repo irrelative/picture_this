@@ -4,7 +4,6 @@ import {
   postAvatar,
   postDrawing,
   postGuess,
-  postRename,
   postStartGame,
   postVote
 } from "./player_api.js";
@@ -23,8 +22,6 @@ const ctx = {
     scoreboardStatus: document.getElementById("scoreboardStatus"),
     scoreboardList: document.getElementById("scoreboardList"),
     drawSection: document.getElementById("drawSection"),
-    renameForm: document.getElementById("renameForm"),
-    renameInput: document.getElementById("renameInput"),
     avatarSection: document.getElementById("avatarSection"),
     avatarCanvas: document.getElementById("avatarCanvas"),
     saveAvatar: document.getElementById("saveAvatar"),
@@ -149,29 +146,6 @@ async function fetchPromptForPlayer() {
   if (ctx.els.promptText) {
     ctx.els.promptText.textContent = ctx.state.assignedPrompt;
   }
-}
-
-if (ctx.els.renameForm) {
-  ctx.els.renameForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    if (!ctx.els.meta || !ctx.els.renameInput) return;
-    const name = ctx.els.renameInput.value.trim();
-    if (!name) return;
-    const gameId = ctx.els.meta.dataset.gameId;
-    const playerId = Number(ctx.els.meta.dataset.playerId);
-    const { res, data } = await postRename(gameId, playerId, name);
-    if (!res.ok) {
-      if (ctx.els.playerError) {
-        ctx.els.playerError.textContent = data.error || "Unable to update name.";
-      }
-      return;
-    }
-    if (ctx.els.playerError) {
-      ctx.els.playerError.textContent = "";
-    }
-    ctx.els.meta.dataset.playerName = name;
-    updateFromSnapshot(ctx, data);
-  });
 }
 
 let avatarCanvasState = null;

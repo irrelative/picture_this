@@ -311,32 +311,6 @@ func TestKickPlayerBlocksRejoin(t *testing.T) {
 	}
 }
 
-func TestRenamePlayer(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
-	t.Cleanup(ts.Close)
-
-	gameID := createGame(t, ts)
-	playerID := joinPlayer(t, ts, gameID, "Ada")
-
-	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/rename", map[string]any{
-		"player_id": playerID,
-		"name":      "Ada Prime",
-	})
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
-	}
-
-	snapshot := fetchSnapshot(t, ts, gameID)
-	players, ok := snapshot["players"].([]any)
-	if !ok || len(players) != 1 {
-		t.Fatalf("expected one player, got %#v", snapshot["players"])
-	}
-	if players[0].(string) != "Ada Prime" {
-		t.Fatalf("expected renamed player, got %#v", players[0])
-	}
-}
-
 func TestJoinSameNameReturnsSamePlayer(t *testing.T) {
 	srv := New(nil, config.Default())
 	ts := httptest.NewServer(srv.Handler())

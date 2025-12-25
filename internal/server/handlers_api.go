@@ -27,11 +27,6 @@ type kickRequest struct {
 	TargetID int `json:"target_id"`
 }
 
-type renameRequest struct {
-	PlayerID int    `json:"player_id"`
-	Name     string `json:"name"`
-}
-
 type joinRequest struct {
 	Name       string `json:"name"`
 	AvatarData string `json:"avatar_data"`
@@ -388,54 +383,6 @@ func (s *Server) handleKick(c *gin.Context) {
 		return
 	}
 	log.Printf("player removed game_id=%s target_id=%d", game.ID, req.TargetID)
-	c.JSON(http.StatusOK, s.snapshot(game))
-	s.broadcastGameUpdate(game)
-}
-
-func (s *Server) handleRename(c *gin.Context) {
-	gameID := c.Param("gameID")
-	if !s.enforceRateLimit(c, "rename") {
-		return
-	}
-	var req renameRequest
-	if err := c.ShouldBindJSON(&req); err != nil || req.PlayerID <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "player_id and name are required"})
-		return
-	}
-	newName, err := validateName(req.Name)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
-		if game.Phase != phaseLobby {
-			return errors.New("rename only available in lobby")
-		}
-		for i := range game.Players {
-			if strings.EqualFold(game.Players[i].Name, newName) {
-				return errors.New("name already taken")
-			}
-		}
-		for i := range game.Players {
-			if game.Players[i].ID == req.PlayerID {
-				game.Players[i].Name = newName
-				return nil
-			}
-		}
-		return errors.New("player not found")
-	})
-	if err != nil {
-		if err.Error() == "game not found" {
-			c.Status(http.StatusNotFound)
-			return
-		}
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
-		return
-	}
-	if s.sessions != nil {
-		s.sessions.SetName(c.Writer, c.Request, newName)
-	}
-	log.Printf("player renamed game_id=%s player_id=%d", game.ID, req.PlayerID)
 	c.JSON(http.StatusOK, s.snapshot(game))
 	s.broadcastGameUpdate(game)
 }

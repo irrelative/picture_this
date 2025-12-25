@@ -352,12 +352,6 @@ select:focus {
   background: #ffffff;
 }
 
-.rename-form {
-  display: grid;
-  gap: 10px;
-  margin-top: 12px;
-}
-
 .replay-panel {
   grid-template-columns: 1fr;
 }

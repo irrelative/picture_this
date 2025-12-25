@@ -25,13 +25,6 @@ templ PlayerView(gameID string, playerID int, playerName string) {
 				<p>You're signed in as <strong>{ playerName }</strong>.</p>
 			</div>
 			<ul id="playerList" class="player-list"></ul>
-			<form id="renameForm" class="rename-form">
-				<label class="field">
-					<span class="label">Update display name</span>
-					<input id="renameInput" name="name" placeholder="Update display name" autocomplete="name"/>
-				</label>
-				<button type="submit" class="secondary">Update name</button>
-			</form>
 		</section>
 
 		<section id="avatarSection" class="panel avatar-panel">

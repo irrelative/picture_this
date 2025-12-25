@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"errors"
 	"log"
 	"net/http"
 	"sync"
@@ -195,9 +194,6 @@ func (s *Server) handleHomeWebsocket(c *gin.Context) {
 
 func (s *Server) readWS(gameID string, conn *websocket.Conn, isHost bool) {
 	defer s.ws.Remove(gameID, conn, isHost)
-	if isHost {
-		defer s.endGameFromHost(gameID)
-	}
 	for {
 		if _, _, err := conn.ReadMessage(); err != nil {
 			log.Printf("ws disconnected game_id=%s error=%v", gameID, err)
@@ -214,25 +210,6 @@ func (s *Server) readHomeWS(conn *websocket.Conn) {
 			return
 		}
 	}
-}
-
-func (s *Server) endGameFromHost(gameID string) {
-	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
-		if game.Phase == phaseComplete {
-			return errors.New("game already ended")
-		}
-		setPhase(game, phaseComplete)
-		return nil
-	})
-	if err != nil {
-		return
-	}
-	if err := s.persistPhase(game, "game_ended", EventPayload{Phase: game.Phase}); err != nil {
-		return
-	}
-	log.Printf("game ended game_id=%s reason=host_disconnected", game.ID)
-	s.broadcastGameUpdate(game)
-	s.cancelPhaseTimer(game.ID)
 }
 
 func (s *Server) broadcastGameUpdate(game *Game) {
