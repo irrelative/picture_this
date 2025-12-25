@@ -227,6 +227,13 @@ func (s *Server) handleAvatar(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save avatar"})
 		return
 	}
+	if err := s.persistEvent(game, "avatar_updated", EventPayload{
+		PlayerName: player.Name,
+		PlayerID:   player.ID,
+	}); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save avatar event"})
+		return
+	}
 	log.Printf("player avatar updated game_id=%s player_id=%d", game.ID, req.PlayerID)
 	c.JSON(http.StatusOK, s.snapshot(game))
 	s.broadcastGameUpdate(game)
