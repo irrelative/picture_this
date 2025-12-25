@@ -20,20 +20,28 @@ func LoadDotEnv(path string) error {
 }
 
 type Config struct {
-	PromptsPerPlayer      int
-	DrawDurationSeconds   int
-	GuessDurationSeconds  int
-	VoteDurationSeconds   int
-	RevealDurationSeconds int
+	PromptsPerPlayer         int
+	DrawDurationSeconds      int
+	GuessDurationSeconds     int
+	VoteDurationSeconds      int
+	RevealDurationSeconds    int
+	DBMaxOpenConns           int
+	DBMaxIdleConns           int
+	DBConnMaxLifetimeSeconds int
+	DBConnMaxIdleTimeSeconds int
 }
 
 func Default() Config {
 	return Config{
-		PromptsPerPlayer:      2,
-		DrawDurationSeconds:   90,
-		GuessDurationSeconds:  60,
-		VoteDurationSeconds:   45,
-		RevealDurationSeconds: 6,
+		PromptsPerPlayer:         2,
+		DrawDurationSeconds:      90,
+		GuessDurationSeconds:     60,
+		VoteDurationSeconds:      45,
+		RevealDurationSeconds:    6,
+		DBMaxOpenConns:           10,
+		DBMaxIdleConns:           10,
+		DBConnMaxLifetimeSeconds: 300,
+		DBConnMaxIdleTimeSeconds: 60,
 	}
 }
 
@@ -62,6 +70,26 @@ func Load() Config {
 	if raw := os.Getenv("REVEAL_SECONDS"); raw != "" {
 		if value, err := strconv.Atoi(raw); err == nil {
 			cfg.RevealDurationSeconds = value
+		}
+	}
+	if raw := os.Getenv("DB_MAX_OPEN_CONNS"); raw != "" {
+		if value, err := strconv.Atoi(raw); err == nil && value > 0 {
+			cfg.DBMaxOpenConns = value
+		}
+	}
+	if raw := os.Getenv("DB_MAX_IDLE_CONNS"); raw != "" {
+		if value, err := strconv.Atoi(raw); err == nil && value > 0 {
+			cfg.DBMaxIdleConns = value
+		}
+	}
+	if raw := os.Getenv("DB_CONN_MAX_LIFETIME_SECONDS"); raw != "" {
+		if value, err := strconv.Atoi(raw); err == nil && value > 0 {
+			cfg.DBConnMaxLifetimeSeconds = value
+		}
+	}
+	if raw := os.Getenv("DB_CONN_MAX_IDLE_SECONDS"); raw != "" {
+		if value, err := strconv.Atoi(raw); err == nil && value > 0 {
+			cfg.DBConnMaxIdleTimeSeconds = value
 		}
 	}
 	return cfg
