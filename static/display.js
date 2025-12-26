@@ -2,6 +2,11 @@ import { applyHTMLMessage } from "./ws_html.js";
 
 let displayContent = document.getElementById("displayContent");
 const lobbyAudio = document.getElementById("lobbyAudio");
+const drawingAudio = document.getElementById("drawingAudio");
+const writeLieAudio = document.getElementById("writeLieAudio");
+const chooseLieAudio = document.getElementById("chooseLieAudio");
+const questionAudio = document.getElementById("questionAudio");
+const creditsAudio = document.getElementById("creditsAudio");
 const joinSound = document.getElementById("joinSound");
 const roundStartSound = document.getElementById("roundStartSound");
 const timerEndSound = document.getElementById("timerEndSound");
@@ -14,8 +19,35 @@ const state = {
   playerCount: null,
   round: null,
   lastPhase: "",
+  lastMusicPhase: "",
   timerEndedKey: ""
 };
+
+const phaseMusic = new Map([
+  ["lobby", lobbyAudio],
+  ["drawings", drawingAudio],
+  ["guesses", writeLieAudio],
+  ["guesses-votes", chooseLieAudio],
+  ["results", questionAudio],
+  ["complete", creditsAudio]
+]);
+
+function playAudio(audio) {
+  if (!audio) return;
+  if (!audio.paused) return;
+  const playPromise = audio.play();
+  if (playPromise && typeof playPromise.catch === "function") {
+    playPromise.catch(() => {
+      // Ignore autoplay failures until user interacts.
+    });
+  }
+}
+
+function stopAudio(audio) {
+  if (!audio || audio.paused) return;
+  audio.pause();
+  audio.currentTime = 0;
+}
 
 function formatTime(seconds) {
   const minutes = Math.floor(seconds / 60);
@@ -36,31 +68,25 @@ function renderTimer() {
     const key = `${state.phase}:${state.round || 0}`;
     if (state.timerEndedKey !== key) {
       state.timerEndedKey = key;
-      const playPromise = timerEndSound.play();
-      if (playPromise && typeof playPromise.catch === "function") {
-        playPromise.catch(() => {
-          // Ignore autoplay failures until user interacts.
-        });
-      }
+      playAudio(timerEndSound);
     }
   }
 }
 
-function syncLobbyAudio(phase) {
-  if (!lobbyAudio) return;
-  if (phase === "lobby") {
-    if (lobbyAudio.paused) {
-      const playPromise = lobbyAudio.play();
-      if (playPromise && typeof playPromise.catch === "function") {
-        playPromise.catch(() => {
-          // Ignore autoplay failures until user interacts.
-        });
+function syncPhaseAudio(phase) {
+  const targetAudio = phaseMusic.get(phase) || null;
+  if (state.lastMusicPhase !== phase) {
+    phaseMusic.forEach((audio, key) => {
+      if (key !== phase) {
+        stopAudio(audio);
       }
+    });
+    if (targetAudio) {
+      targetAudio.currentTime = 0;
     }
-  } else if (!lobbyAudio.paused) {
-    lobbyAudio.pause();
-    lobbyAudio.currentTime = 0;
+    state.lastMusicPhase = phase;
   }
+  playAudio(targetAudio);
 }
 
 function syncFromContent() {
@@ -73,12 +99,7 @@ function syncFromContent() {
   const roundValue = Number(displayContent.dataset.round || 0);
   if (state.phase === "lobby" && state.playerCount !== null && countValue > state.playerCount) {
     if (joinSound) {
-      const playPromise = joinSound.play();
-      if (playPromise && typeof playPromise.catch === "function") {
-        playPromise.catch(() => {
-          // Ignore autoplay failures until user interacts.
-        });
-      }
+      playAudio(joinSound);
     }
   }
   if (
@@ -87,26 +108,16 @@ function syncFromContent() {
     (state.round === null || roundValue > state.round) &&
     roundValue > 0
   ) {
-    const playPromise = roundStartSound.play();
-    if (playPromise && typeof playPromise.catch === "function") {
-      playPromise.catch(() => {
-        // Ignore autoplay failures until user interacts.
-      });
-    }
+    playAudio(roundStartSound);
   }
   if (votingStartSound && nextPhase === "guesses-votes" && state.lastPhase !== "guesses-votes") {
-    const playPromise = votingStartSound.play();
-    if (playPromise && typeof playPromise.catch === "function") {
-      playPromise.catch(() => {
-        // Ignore autoplay failures until user interacts.
-      });
-    }
+    playAudio(votingStartSound);
   }
   state.phase = nextPhase;
   state.playerCount = Number.isNaN(countValue) ? state.playerCount : countValue;
   state.round = Number.isNaN(roundValue) ? state.round : roundValue;
   state.lastPhase = nextPhase;
-  syncLobbyAudio(state.phase);
+  syncPhaseAudio(state.phase);
   renderTimer();
   if (!state.timerHandle) {
     state.timerHandle = setInterval(renderTimer, 1000);
@@ -116,7 +127,7 @@ function syncFromContent() {
 document.addEventListener(
   "click",
   () => {
-    syncLobbyAudio(state.phase);
+    syncPhaseAudio(state.phase);
   },
   { once: true }
 );

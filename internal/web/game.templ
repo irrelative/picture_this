@@ -61,6 +61,11 @@ templ GameView(gameID string) {
 
 		<p id="gameError" class="result error" role="alert"></p>
 		<audio id="lobbyAudio" src="/static/sounds/MainBkgMusicLoop.ogg" loop preload="auto"></audio>
+		<audio id="drawingAudio" src="/static/sounds/DrawingTimeLoop.ogg" loop preload="auto"></audio>
+		<audio id="writeLieAudio" src="/static/sounds/WriteLieLoop.ogg" loop preload="auto"></audio>
+		<audio id="chooseLieAudio" src="/static/sounds/ChooseLieLoop.ogg" loop preload="auto"></audio>
+		<audio id="questionAudio" src="/static/sounds/QuestionMusicLoop.ogg" loop preload="auto"></audio>
+		<audio id="creditsAudio" src="/static/sounds/Credits.ogg" loop preload="auto"></audio>
 		<div id="gameMeta" data-game-id={ gameID }></div>
 	}
 }

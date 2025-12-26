@@ -46,6 +46,7 @@ const ctx = {
     hostId: 0,
     categoriesLoaded: false,
     currentPhase: "",
+    lastMusicPhase: "",
     timerEndsAt: 0,
     timerPhase: "",
     timerHandle: null
@@ -53,27 +54,56 @@ const ctx = {
 };
 
 const lobbyAudio = document.getElementById("lobbyAudio");
+const drawingAudio = document.getElementById("drawingAudio");
+const writeLieAudio = document.getElementById("writeLieAudio");
+const chooseLieAudio = document.getElementById("chooseLieAudio");
+const questionAudio = document.getElementById("questionAudio");
+const creditsAudio = document.getElementById("creditsAudio");
 
-function syncLobbyAudio(phase) {
-  if (!lobbyAudio) return;
-  if (phase === "lobby") {
-    if (lobbyAudio.paused) {
-      const playPromise = lobbyAudio.play();
-      if (playPromise && typeof playPromise.catch === "function") {
-        playPromise.catch(() => {
-          // Ignore autoplay failures until user interacts.
-        });
-      }
-    }
-  } else if (!lobbyAudio.paused) {
-    lobbyAudio.pause();
-    lobbyAudio.currentTime = 0;
+const phaseMusic = new Map([
+  ["lobby", lobbyAudio],
+  ["drawings", drawingAudio],
+  ["guesses", writeLieAudio],
+  ["guesses-votes", chooseLieAudio],
+  ["results", questionAudio],
+  ["complete", creditsAudio]
+]);
+
+function playAudio(audio) {
+  if (!audio) return;
+  if (!audio.paused) return;
+  const playPromise = audio.play();
+  if (playPromise && typeof playPromise.catch === "function") {
+    playPromise.catch(() => {
+      // Ignore autoplay failures until user interacts.
+    });
   }
 }
 
+function stopAudio(audio) {
+  if (!audio || audio.paused) return;
+  audio.pause();
+  audio.currentTime = 0;
+}
+
+function syncPhaseAudio(phase) {
+  const targetAudio = phaseMusic.get(phase) || null;
+  if (ctx.state.lastMusicPhase !== phase) {
+    phaseMusic.forEach((audio, key) => {
+      if (key !== phase) {
+        stopAudio(audio);
+      }
+    });
+    if (targetAudio) {
+      targetAudio.currentTime = 0;
+    }
+    ctx.state.lastMusicPhase = phase;
+  }
+  playAudio(targetAudio);
+}
+
 function enableAudioOnInteraction() {
-  if (!lobbyAudio) return;
-  syncLobbyAudio(ctx.state.currentPhase);
+  syncPhaseAudio(ctx.state.currentPhase);
 }
 
 function formatTime(seconds) {
@@ -119,7 +149,7 @@ async function loadGame() {
   }
   ctx.state.currentPhase = data.phase || "";
   updateFromSnapshot(ctx, data);
-  syncLobbyAudio(ctx.state.currentPhase);
+  syncPhaseAudio(ctx.state.currentPhase);
   syncTimer(data);
 }
 
@@ -143,7 +173,7 @@ function connectWS() {
       const data = JSON.parse(event.data);
       ctx.state.currentPhase = data.phase || "";
       updateFromSnapshot(ctx, data);
-      syncLobbyAudio(ctx.state.currentPhase);
+      syncPhaseAudio(ctx.state.currentPhase);
       syncTimer(data);
     } catch {
       // ignore invalid payloads

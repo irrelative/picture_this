@@ -356,7 +356,7 @@ func DisplayContent(state DisplayState) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "</section><p id=\"gameError\" class=\"result error\" role=\"alert\"></p><audio id=\"lobbyAudio\" src=\"/static/sounds/MainBkgMusicLoop.ogg\" loop preload=\"auto\"></audio> <audio id=\"joinSound\" src=\"/static/sounds/join.ogg\" preload=\"auto\"></audio> <audio id=\"roundStartSound\" src=\"/static/sounds/round_start.wav\" preload=\"auto\"></audio> <audio id=\"timerEndSound\" src=\"/static/sounds/timer_end.wav\" preload=\"auto\"></audio> <audio id=\"votingStartSound\" src=\"/static/sounds/voting_start.mp3\" preload=\"auto\"></audio></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "</section><p id=\"gameError\" class=\"result error\" role=\"alert\"></p><audio id=\"lobbyAudio\" src=\"/static/sounds/MainBkgMusicLoop.ogg\" loop preload=\"auto\"></audio> <audio id=\"drawingAudio\" src=\"/static/sounds/DrawingTimeLoop.ogg\" loop preload=\"auto\"></audio> <audio id=\"writeLieAudio\" src=\"/static/sounds/WriteLieLoop.ogg\" loop preload=\"auto\"></audio> <audio id=\"chooseLieAudio\" src=\"/static/sounds/ChooseLieLoop.ogg\" loop preload=\"auto\"></audio> <audio id=\"questionAudio\" src=\"/static/sounds/QuestionMusicLoop.ogg\" loop preload=\"auto\"></audio> <audio id=\"creditsAudio\" src=\"/static/sounds/Credits.ogg\" loop preload=\"auto\"></audio> <audio id=\"joinSound\" src=\"/static/sounds/join.ogg\" preload=\"auto\"></audio> <audio id=\"roundStartSound\" src=\"/static/sounds/round_start.ogg\" preload=\"auto\"></audio> <audio id=\"timerEndSound\" src=\"/static/sounds/timer_end.ogg\" preload=\"auto\"></audio> <audio id=\"votingStartSound\" src=\"/static/sounds/voting_start.mp3\" preload=\"auto\"></audio></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -403,7 +403,7 @@ func ScoreList(scores []DisplayScore) templ.Component {
 				var templ_7745c5c3_Var19 string
 				templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(entry.Name + ": " + itoa(entry.Score))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/display_partials.templ`, Line: 133, Col: 47}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/display_partials.templ`, Line: 138, Col: 47}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 				if templ_7745c5c3_Err != nil {

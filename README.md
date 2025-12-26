@@ -109,8 +109,8 @@ When the server starts, it will auto-migrate and load prompts from `prompts.csv`
 ## Sound Effects
 Display-mode sound effects are pulled from OpenGameArt:
 - Join: https://opengameart.org/content/pop-sounds-0 (pop2.wav.ogg) -> `static/sounds/join.ogg`
-- Round start: https://opengameart.org/content/pop-sounds-0 (pop1.wav) -> `static/sounds/round_start.wav`
-- Timer ending: https://opengameart.org/content/pop-sounds-0 (pop9.wav) -> `static/sounds/timer_end.wav`
+- Round start: https://opengameart.org/content/pop-sounds-0 (pop1.wav) -> `static/sounds/round_start.ogg`
+- Timer ending: https://opengameart.org/content/pop-sounds-0 (pop9.wav) -> `static/sounds/timer_end.ogg`
 - Voting start: https://opengameart.org/content/ui-accept-or-forward (Accept.mp3) -> `static/sounds/voting_start.mp3`
 
 Please review licensing requirements at the source before distribution.
@@ -121,4 +121,3 @@ For now, don't include:
 
 ## Ideas
 * htmx 2.0 upgrade
-
