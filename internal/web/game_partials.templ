@@ -1,0 +1,25 @@
+package web
+
+templ GamePlayerActions(items []PlayerListItem, actionsEnabled bool) {
+	if len(items) == 0 {
+		<p class="hint">No players yet.</p>
+	} else {
+		for _, player := range items {
+			<div class="player-action-row">
+				<span>
+					if player.IsHost {
+						{ player.Name + "*" }
+					} else {
+						{ player.Name }
+					}
+				</span>
+				<button
+					type="button"
+					class="secondary"
+					data-player-id={ itoa(player.ID) }
+					disabled?={ !actionsEnabled || player.IsHost }
+				>Remove</button>
+			</div>
+		}
+	}
+}

@@ -15,15 +15,21 @@ templ ActiveGamesList(games []GameSummary) {
 				</div>
 				<div class="game-actions">
 					if game.Phase == "lobby" {
-						<button
-							class="secondary join-active"
-							data-join-code={ game.JoinCode }
-							data-game-id={ game.ID }
-							data-result-id={ "joinResult-" + game.ID }
-							type="button"
-						>Join lobby</button>
+						<div class="inline-actions">
+							<button
+								class="secondary join-active"
+								data-join-code={ game.JoinCode }
+								data-game-id={ game.ID }
+								data-result-id={ "joinResult-" + game.ID }
+								type="button"
+							>Join lobby</button>
+							<a class="secondary" href={ "/display/" + game.ID }>Display game</a>
+						</div>
 					} else {
-						<span class="status-pill">In progress</span>
+						<div class="inline-actions">
+							<span class="status-pill">In progress</span>
+							<a class="secondary" href={ "/display/" + game.ID }>Display game</a>
+						</div>
 					}
 					<p id={ "joinResult-" + game.ID } class="result" role="status" aria-live="polite"></p>
 				</div>

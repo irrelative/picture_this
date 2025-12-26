@@ -24,6 +24,7 @@ type Server struct {
 }
 
 func New(conn *gorm.DB, cfg config.Config) *Server {
+	registerValidators()
 	return &Server{
 		store:    NewStore(),
 		db:       conn,

@@ -5,7 +5,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -15,20 +14,25 @@ import (
 )
 
 type settingsRequest struct {
-	PlayerID       int    `json:"player_id"`
-	Rounds         int    `json:"rounds"`
-	MaxPlayers     int    `json:"max_players"`
-	PromptCategory string `json:"prompt_category"`
+	PlayerID       int    `json:"player_id" binding:"required,gt=0"`
+	Rounds         int    `json:"rounds" binding:"min=0,max=10"`
+	MaxPlayers     int    `json:"max_players" binding:"min=0,max=12"`
+	PromptCategory string `json:"prompt_category" binding:"category"`
 	LobbyLocked    bool   `json:"lobby_locked"`
 }
 
 type kickRequest struct {
-	PlayerID int `json:"player_id"`
-	TargetID int `json:"target_id"`
+	PlayerID int `json:"player_id" binding:"required,gt=0"`
+	TargetID int `json:"target_id" binding:"required,gt=0"`
+}
+
+type playerPromptURI struct {
+	GameID   string `uri:"gameID" binding:"required"`
+	PlayerID int    `uri:"playerID" binding:"required,gt=0"`
 }
 
 type joinRequest struct {
-	Name       string `json:"name"`
+	Name       string `json:"name" binding:"required,name"`
 	AvatarData string `json:"avatar_data"`
 }
 
@@ -37,22 +41,22 @@ type startRequest struct {
 }
 
 type avatarRequest struct {
-	PlayerID   int    `json:"player_id"`
-	AvatarData string `json:"avatar_data"`
+	PlayerID   int    `json:"player_id" binding:"required,gt=0"`
+	AvatarData string `json:"avatar_data" binding:"required"`
 }
 type drawingsRequest struct {
-	PlayerID  int    `json:"player_id"`
-	ImageData string `json:"image_data"`
-	Prompt    string `json:"prompt"`
+	PlayerID  int    `json:"player_id" binding:"required,gt=0"`
+	ImageData string `json:"image_data" binding:"required"`
+	Prompt    string `json:"prompt" binding:"required,prompt"`
 }
 
 type guessesRequest struct {
-	PlayerID int    `json:"player_id"`
-	Guess    string `json:"guess"`
+	PlayerID int    `json:"player_id" binding:"required,gt=0"`
+	Guess    string `json:"guess" binding:"required,guess"`
 }
 
 type votesRequest struct {
-	PlayerID int    `json:"player_id"`
+	PlayerID int    `json:"player_id" binding:"required,gt=0"`
 	Choice   string `json:"choice"`
 	Guess    string `json:"guess"`
 }
@@ -76,13 +80,12 @@ func (s *Server) handleCreateGame(c *gin.Context) {
 }
 
 func (s *Server) handlePlayerPrompt(c *gin.Context) {
-	gameID := c.Param("gameID")
-	playerID, err := strconv.Atoi(c.Param("playerID"))
-	if gameID == "" || err != nil || playerID <= 0 {
+	var uri playerPromptURI
+	if !bindURI(c, &uri) {
 		c.Status(http.StatusNotFound)
 		return
 	}
-	game, player, ok := s.store.GetPlayer(gameID, playerID)
+	game, player, ok := s.store.GetPlayer(uri.GameID, uri.PlayerID)
 	if !ok || game == nil || player == nil {
 		c.Status(http.StatusNotFound)
 		return
@@ -120,15 +123,15 @@ func (s *Server) handleJoinGame(c *gin.Context) {
 		return
 	}
 	var req joinRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "name is required"})
+	if !bindJSON(c, &req, bindMessages{
+		"Name": {
+			"required": "name is required",
+			"name":     "name is invalid",
+		},
+	}, "name is required") {
 		return
 	}
-	name, err := validateName(req.Name)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
+	name := normalizeText(req.Name)
 	avatar := []byte(nil)
 	if strings.TrimSpace(req.AvatarData) != "" {
 		decoded, err := decodeImageData(req.AvatarData)
@@ -181,8 +184,15 @@ func (s *Server) handleAvatar(c *gin.Context) {
 		return
 	}
 	var req avatarRequest
-	if err := c.ShouldBindJSON(&req); err != nil || req.PlayerID <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "player_id is required"})
+	if !bindJSON(c, &req, bindMessages{
+		"PlayerID": {
+			"required": "player_id is required",
+			"gt":       "player_id is required",
+		},
+		"AvatarData": {
+			"required": "avatar image is required",
+		},
+	}, "avatar image is required") {
 		return
 	}
 	avatar, err := decodeImageData(req.AvatarData)
@@ -279,27 +289,28 @@ func (s *Server) handleSettings(c *gin.Context) {
 		return
 	}
 	var req settingsRequest
-	if err := c.ShouldBindJSON(&req); err != nil || req.PlayerID <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "player_id is required"})
-		return
-	}
-	if req.Rounds > maxRoundsPerGame {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "rounds exceeds maximum"})
-		return
-	}
-	if req.MaxPlayers > maxLobbyPlayers {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "max players exceeds maximum"})
+	if !bindJSON(c, &req, bindMessages{
+		"PlayerID": {
+			"required": "player_id is required",
+			"gt":       "player_id is required",
+		},
+		"Rounds": {
+			"max": "rounds exceeds maximum",
+		},
+		"MaxPlayers": {
+			"max": "max players exceeds maximum",
+		},
+		"PromptCategory": {
+			"category": "prompt category is invalid",
+		},
+	}, "invalid settings") {
 		return
 	}
 	if req.MaxPlayers < 0 || req.Rounds < 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid settings"})
 		return
 	}
-	category, err := validateCategory(req.PromptCategory)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
+	category := strings.TrimSpace(req.PromptCategory)
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
 		if game.Phase != phaseLobby {
 			return errors.New("settings only available in lobby")
@@ -343,8 +354,16 @@ func (s *Server) handleKick(c *gin.Context) {
 		return
 	}
 	var req kickRequest
-	if err := c.ShouldBindJSON(&req); err != nil || req.PlayerID <= 0 || req.TargetID <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "player_id and target_id are required"})
+	if !bindJSON(c, &req, bindMessages{
+		"PlayerID": {
+			"required": "player_id and target_id are required",
+			"gt":       "player_id and target_id are required",
+		},
+		"TargetID": {
+			"required": "player_id and target_id are required",
+			"gt":       "player_id and target_id are required",
+		},
+	}, "player_id and target_id are required") {
 		return
 	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
@@ -445,15 +464,22 @@ func (s *Server) handleDrawings(c *gin.Context) {
 		return
 	}
 	var req drawingsRequest
-	if err := c.ShouldBindJSON(&req); err != nil || req.PlayerID <= 0 || req.ImageData == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "drawings are required"})
+	if !bindJSON(c, &req, bindMessages{
+		"PlayerID": {
+			"required": "drawings are required",
+			"gt":       "drawings are required",
+		},
+		"ImageData": {
+			"required": "drawings are required",
+		},
+		"Prompt": {
+			"required": "drawings are required",
+			"prompt":   "prompt is invalid",
+		},
+	}, "drawings are required") {
 		return
 	}
-	promptText, err := validatePrompt(req.Prompt)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
+	promptText := strings.TrimSpace(req.Prompt)
 	image, err := decodeImageData(req.ImageData)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid image data"})
@@ -527,15 +553,19 @@ func (s *Server) handleGuesses(c *gin.Context) {
 		return
 	}
 	var req guessesRequest
-	if err := c.ShouldBindJSON(&req); err != nil || req.PlayerID <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "guesses are required"})
+	if !bindJSON(c, &req, bindMessages{
+		"PlayerID": {
+			"required": "guesses are required",
+			"gt":       "guesses are required",
+		},
+		"Guess": {
+			"required": "guesses are required",
+			"guess":    "guess is invalid",
+		},
+	}, "guesses are required") {
 		return
 	}
-	guessText, err := validateGuess(req.Guess)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
+	guessText := normalizeText(req.Guess)
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
 		if game.Phase != phaseGuesses {
 			return errors.New("guesses not accepted in this phase")
@@ -608,13 +638,17 @@ func (s *Server) handleVotes(c *gin.Context) {
 		return
 	}
 	var req votesRequest
-	if err := c.ShouldBindJSON(&req); err != nil || req.PlayerID <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "votes are required"})
+	if !bindJSON(c, &req, bindMessages{
+		"PlayerID": {
+			"required": "votes are required",
+			"gt":       "votes are required",
+		},
+	}, "votes are required") {
 		return
 	}
-	choiceText := strings.TrimSpace(req.Choice)
+	choiceText := normalizeText(req.Choice)
 	if choiceText == "" {
-		choiceText = strings.TrimSpace(req.Guess)
+		choiceText = normalizeText(req.Guess)
 	}
 	if choiceText == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "votes are required"})

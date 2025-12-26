@@ -3,7 +3,6 @@ package server
 import (
 	"log"
 	"net/http"
-	"strconv"
 
 	"picture-this/internal/web"
 
@@ -11,29 +10,36 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type gameURI struct {
+	GameID string `uri:"gameID" binding:"required"`
+}
+
+type playerViewURI struct {
+	GameID   string `uri:"gameID" binding:"required"`
+	PlayerID int    `uri:"playerID" binding:"required,gt=0"`
+}
+
 func (s *Server) handleGameView(c *gin.Context) {
-	gameID := c.Param("gameID")
-	if gameID == "" {
-		c.Status(http.StatusNotFound)
+	var uri gameURI
+	if !bindURI(c, &uri) {
 		return
 	}
-	if _, ok := s.store.GetGame(gameID); !ok {
-		log.Printf("game view missing game_id=%s", gameID)
+	if _, ok := s.store.GetGame(uri.GameID); !ok {
+		log.Printf("game view missing game_id=%s", uri.GameID)
 		c.Redirect(http.StatusFound, "/")
 		return
 	}
-	templ.Handler(web.GameView(gameID)).ServeHTTP(c.Writer, c.Request)
+	templ.Handler(web.GameView(uri.GameID)).ServeHTTP(c.Writer, c.Request)
 }
 
 func (s *Server) handleDisplayView(c *gin.Context) {
-	gameID := c.Param("gameID")
-	if gameID == "" {
-		c.Status(http.StatusNotFound)
+	var uri gameURI
+	if !bindURI(c, &uri) {
 		return
 	}
-	game, ok := s.store.GetGame(gameID)
+	game, ok := s.store.GetGame(uri.GameID)
 	if !ok {
-		log.Printf("display view missing game_id=%s", gameID)
+		log.Printf("display view missing game_id=%s", uri.GameID)
 		c.Redirect(http.StatusFound, "/")
 		return
 	}
@@ -64,31 +70,28 @@ func (s *Server) handleJoinView(c *gin.Context) {
 }
 
 func (s *Server) handleReplayView(c *gin.Context) {
-	gameID := c.Param("gameID")
-	if gameID == "" {
+	var uri gameURI
+	if !bindURI(c, &uri) {
+		return
+	}
+	if _, exists := s.store.GetGame(uri.GameID); !exists {
 		c.Status(http.StatusNotFound)
 		return
 	}
-	if _, exists := s.store.GetGame(gameID); !exists {
-		c.Status(http.StatusNotFound)
-		return
-	}
-	templ.Handler(web.ReplayView(gameID)).ServeHTTP(c.Writer, c.Request)
+	templ.Handler(web.ReplayView(uri.GameID)).ServeHTTP(c.Writer, c.Request)
 }
 
 func (s *Server) handlePlayerView(c *gin.Context) {
-	gameID := c.Param("gameID")
-	playerID, err := strconv.Atoi(c.Param("playerID"))
-	if gameID == "" || err != nil || playerID <= 0 {
-		c.Status(http.StatusNotFound)
+	var uri playerViewURI
+	if !bindURI(c, &uri) {
 		return
 	}
-	game, player, ok := s.store.GetPlayer(gameID, playerID)
+	game, player, ok := s.store.GetPlayer(uri.GameID, uri.PlayerID)
 	if !ok || game == nil || player == nil {
 		if s.sessions != nil {
 			s.sessions.SetFlash(c.Writer, c.Request, "Game not found. Start a new one or join with a fresh code.")
 		}
-		log.Printf("player view missing game_id=%s player_id=%d", gameID, playerID)
+		log.Printf("player view missing game_id=%s player_id=%d", uri.GameID, uri.PlayerID)
 		c.Redirect(http.StatusFound, "/")
 		return
 	}
@@ -96,20 +99,19 @@ func (s *Server) handlePlayerView(c *gin.Context) {
 		if s.sessions != nil {
 			s.sessions.SetFlash(c.Writer, c.Request, "That game has ended. Start a new one!")
 		}
-		log.Printf("player view ended game_id=%s player_id=%d", gameID, playerID)
+		log.Printf("player view ended game_id=%s player_id=%d", uri.GameID, uri.PlayerID)
 		c.Redirect(http.StatusFound, "/")
 		return
 	}
-	templ.Handler(web.PlayerView(gameID, playerID, player.Name)).ServeHTTP(c.Writer, c.Request)
+	templ.Handler(web.PlayerView(uri.GameID, uri.PlayerID, player.Name)).ServeHTTP(c.Writer, c.Request)
 }
 
 func (s *Server) handleDisplayPartial(c *gin.Context) {
-	gameID := c.Param("gameID")
-	if gameID == "" {
-		c.Status(http.StatusNotFound)
+	var uri gameURI
+	if !bindURI(c, &uri) {
 		return
 	}
-	game, ok := s.store.GetGame(gameID)
+	game, ok := s.store.GetGame(uri.GameID)
 	if !ok {
 		c.Status(http.StatusNotFound)
 		return

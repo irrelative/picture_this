@@ -50,9 +50,6 @@ templ Home(flash string, playerName string, games []GameSummary) {
 			</div>
 			<div
 				id="activeGamesContent"
-				hx-get="/partials/home/games"
-				hx-trigger="load, every 3s"
-				hx-swap="innerHTML"
 			>
 				@ActiveGamesList(games)
 			</div>

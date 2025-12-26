@@ -1,0 +1,30 @@
+package web
+
+templ PlayerList(items []PlayerListItem) {
+	if len(items) == 0 {
+		<li>No players yet</li>
+	} else {
+		for _, player := range items {
+			<li class="player-entry">
+				if player.Avatar != "" {
+					if player.Color != "" {
+						<img class="player-avatar" alt={ player.Name + " avatar" } src={ player.Avatar } style={ "border-color: " + player.Color }/>
+					} else {
+						<img class="player-avatar" alt={ player.Name + " avatar" } src={ player.Avatar }/>
+					}
+				} else if player.Color != "" {
+					<span class="player-dot" style={ "background-color: " + player.Color }></span>
+				} else {
+					<span class="player-dot"></span>
+				}
+				<span>
+					if player.IsHost {
+						{ player.Name + "*" }
+					} else {
+						{ player.Name }
+					}
+				</span>
+			</li>
+		}
+	}
+}

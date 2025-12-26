@@ -3,12 +3,11 @@ package web
 templ DisplayContent(state DisplayState) {
 	<div
 		id="displayContent"
-		hx-get={ "/partials/games/" + state.GameID + "/display" }
-		hx-trigger="load, every 2s"
-		hx-swap="outerHTML"
 		data-phase={ state.Phase }
 		data-phase-ends-at={ state.PhaseEndsAt }
 		data-game-id={ state.GameID }
+		data-player-count={ itoa(state.PlayerCount) }
+		data-round={ itoa(state.CurrentRound) }
 	>
 		<header class="display-header">
 			<div class="display-brand">
@@ -118,6 +117,10 @@ templ DisplayContent(state DisplayState) {
 		</section>
 		<p id="gameError" class="result error" role="alert"></p>
 		<audio id="lobbyAudio" src="/static/sounds/MainBkgMusicLoop.ogg" loop preload="auto"></audio>
+		<audio id="joinSound" src="/static/sounds/join.ogg" preload="auto"></audio>
+		<audio id="roundStartSound" src="/static/sounds/round_start.wav" preload="auto"></audio>
+		<audio id="timerEndSound" src="/static/sounds/timer_end.wav" preload="auto"></audio>
+		<audio id="votingStartSound" src="/static/sounds/voting_start.mp3" preload="auto"></audio>
 	</div>
 }
 

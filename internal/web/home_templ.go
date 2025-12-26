@@ -82,7 +82,7 @@ func Home(flash string, playerName string, games []GameSummary) templ.Component 
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\"><div><h2>Active games</h2><p>Jump into a lobby or keep an eye on games in progress.</p><div class=\"admin-link\"><a class=\"secondary\" href=\"/admin\">Admin dashboard</a></div></div><div id=\"activeGamesContent\" hx-get=\"/partials/home/games\" hx-trigger=\"load, every 3s\" hx-swap=\"innerHTML\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\"><div><h2>Active games</h2><p>Jump into a lobby or keep an eye on games in progress.</p><div class=\"admin-link\"><a class=\"secondary\" href=\"/admin\">Admin dashboard</a></div></div><div id=\"activeGamesContent\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

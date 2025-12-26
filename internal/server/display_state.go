@@ -1,6 +1,8 @@
 package server
 
 import (
+	"bytes"
+	"context"
 	"strconv"
 	"time"
 
@@ -62,7 +64,18 @@ func (s *Server) buildDisplayState(game *Game) web.DisplayState {
 		Scores:         scores,
 		ShowScoreboard: showScoreboard,
 		ShowFinal:      showFinal,
+		PlayerCount:    len(game.Players),
+		CurrentRound:   len(game.Rounds),
 	}
+}
+
+func (s *Server) renderDisplayHTML(game *Game) string {
+	var buf bytes.Buffer
+	state := s.buildDisplayState(game)
+	if err := web.DisplayContent(state).Render(context.Background(), &buf); err != nil {
+		return ""
+	}
+	return buf.String()
 }
 
 func buildDisplayStage(game *Game) (string, string, string, []string) {

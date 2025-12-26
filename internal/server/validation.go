@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/go-playground/validator/v10"
 )
 
 const (
@@ -40,6 +42,37 @@ var rateLimitRules = map[string]rateLimitRule{
 	"drawings": {Capacity: 30, Window: time.Minute},
 	"guesses":  {Capacity: 30, Window: time.Minute},
 	"votes":    {Capacity: 30, Window: time.Minute},
+}
+
+var validatorOnce sync.Once
+
+func registerValidators() {
+	validatorOnce.Do(func() {
+		engine, ok := binding.Validator.Engine().(*validator.Validate)
+		if !ok {
+			return
+		}
+		_ = engine.RegisterValidation("name", func(fl validator.FieldLevel) bool {
+			_, err := validateName(fl.Field().String())
+			return err == nil
+		})
+		_ = engine.RegisterValidation("prompt", func(fl validator.FieldLevel) bool {
+			_, err := validatePrompt(fl.Field().String())
+			return err == nil
+		})
+		_ = engine.RegisterValidation("guess", func(fl validator.FieldLevel) bool {
+			_, err := validateGuess(fl.Field().String())
+			return err == nil
+		})
+		_ = engine.RegisterValidation("choice", func(fl validator.FieldLevel) bool {
+			_, err := validateChoice(fl.Field().String())
+			return err == nil
+		})
+		_ = engine.RegisterValidation("category", func(fl validator.FieldLevel) bool {
+			_, err := validateCategory(fl.Field().String())
+			return err == nil
+		})
+	})
 }
 
 type rateLimiter struct {

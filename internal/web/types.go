@@ -32,4 +32,14 @@ type DisplayState struct {
 	Scores         []DisplayScore
 	ShowScoreboard bool
 	ShowFinal      bool
+	PlayerCount    int
+	CurrentRound   int
+}
+
+type PlayerListItem struct {
+	ID     int
+	Name   string
+	Avatar string
+	Color  string
+	IsHost bool
 }
