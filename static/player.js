@@ -9,6 +9,7 @@ import {
 } from "./player_api.js";
 import { applyBrushColor, clearCanvas, setupCanvas } from "./player_canvas.js";
 import { updateFromSnapshot } from "./player_view.js";
+import { applyHTMLMessage } from "./ws_html.js";
 
 const ctx = {
   els: {
@@ -105,6 +106,10 @@ function connectWS() {
   const socket = new WebSocket(`${protocol}://${window.location.host}/ws/games/${encodeURIComponent(gameId)}`);
 
   socket.addEventListener("message", (event) => {
+    const htmlResult = applyHTMLMessage(event.data);
+    if (htmlResult) {
+      return;
+    }
     try {
       const data = JSON.parse(event.data);
       updateFromSnapshot(ctx, data);

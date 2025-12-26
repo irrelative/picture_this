@@ -672,6 +672,13 @@ select:focus {
   justify-items: start;
 }
 
+.inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
 .status-pill {
   display: inline-flex;
   align-items: center;

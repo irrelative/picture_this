@@ -15,6 +15,7 @@
 ## Coding Style & Naming Conventions
 - Go code should be formatted with `gofmt` and follow standard Go naming (exported `CamelCase`, unexported `camelCase`).
 - Keep JavaScript minimal and framework-free as stated in `README.md`.
+- Prefer HTMX for server/client interactions when possible, favoring server-rendered partials over custom JS view updates.
 - Prefer clear package names that match responsibility (e.g., `game`, `storage`, `web`).
 
 ## Testing Guidelines
@@ -24,7 +25,7 @@
 
 ## Commit & Pull Request Guidelines
 - Use Conventional Commits (e.g., `feat: add game state model`, `chore: update Makefile`).
-- When working as Codex, run `make test` and `make e2e-test`, then `git add` and `git commit` after each change to make rollback easy.
+- When working as Codex, run `make test` and `make e2e-test` after each change to keep changes safe to land.
 - PRs should describe the change, link any related issues, and include screenshots for WebUI changes.
 
 ## Security & Configuration Tips

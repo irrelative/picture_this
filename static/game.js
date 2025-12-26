@@ -7,6 +7,7 @@ import {
   postStartGame
 } from "./game_api.js";
 import { updateFromSnapshot } from "./game_view.js";
+import { applyHTMLMessage } from "./ws_html.js";
 
 const ctx = {
   els: {
@@ -134,6 +135,10 @@ function connectWS() {
   const socket = new WebSocket(`${protocol}://${window.location.host}/ws/games/${encodeURIComponent(gameId)}?role=host`);
 
   socket.addEventListener("message", (event) => {
+    const htmlResult = applyHTMLMessage(event.data);
+    if (htmlResult) {
+      return;
+    }
     try {
       const data = JSON.parse(event.data);
       ctx.state.currentPhase = data.phase || "";

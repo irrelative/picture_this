@@ -76,6 +76,9 @@ def main():
     game_id = game["game_id"]
     print(f"Created game {game_id} join_code={game['join_code']}")
 
+    status, categories = request_json("GET", f"{base_url}/api/prompts/categories")
+    assert status == 200, f"categories failed: {status} {categories}"
+
     player_names = ["Alice", "Bob", "Carol", "Dave"]
     players = []
     for idx, name in enumerate(player_names):
@@ -90,12 +93,19 @@ def main():
         players.append(player)
         status, _ = request_json(
             "POST",
-            f"{base_url}/api/games/{game_id}/join",
-            {"name": name, "avatar_data": updated_avatar_data},
+            f"{base_url}/api/games/{game_id}/avatar",
+            {"player_id": player["player_id"], "avatar_data": updated_avatar_data},
         )
         assert status == 200, f"avatar update failed for {name}"
     joined = " ".join(f"{player_names[idx]}={player['player_id']}" for idx, player in enumerate(players))
     print(f"Joined players: {joined}")
+
+    status, _ = request_json(
+        "POST",
+        f"{base_url}/api/games/{game_id}/settings",
+        {"player_id": players[0]["player_id"], "rounds": 2, "max_players": 0, "prompt_category": "", "lobby_locked": False},
+    )
+    assert status == 200, f"settings update failed: {status}"
 
     status, started = request_json(
         "POST",
@@ -198,6 +208,9 @@ def main():
     assert status == 200, f"results failed: {results}"
     print("Results:")
     print(json.dumps(results, indent=2))
+
+    status, events = request_json("GET", f"{base_url}/api/games/{game_id}/events")
+    assert status == 200, f"events failed: {events}"
 
     print("E2E run complete")
 

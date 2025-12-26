@@ -1,3 +1,5 @@
+import { applyHTMLMessage } from "./ws_html.js";
+
 const createBtn = document.getElementById("createGame");
 const createResult = document.getElementById("createResult");
 const joinForm = document.getElementById("joinForm");
@@ -40,6 +42,12 @@ if (joinForm) {
 
 
 if (activeGames) {
+  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  const ws = new WebSocket(`${protocol}://${window.location.host}/ws/home`);
+  ws.addEventListener("message", (event) => {
+    applyHTMLMessage(event.data);
+  });
+
   activeGames.addEventListener("click", async (event) => {
     const target = event.target;
     if (!target || !target.classList.contains("join-active")) {

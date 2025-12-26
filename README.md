@@ -22,9 +22,10 @@ This project uses the following technology:
 ## Getting Started
 1. Copy the example env file: `cp .env.example .env`
 2. Update `DATABASE_URL` in `.env`.
-3. Run migrations: `make migrate`
-4. Start the server: `make run`
-5. Open `http://localhost:8080` to create a game.
+3. Run initialization assets: `make init`
+4. Run migrations: `make migrate`
+5. Start the server: `make run`
+6. Open `http://localhost:8080` to create a game.
 
 When the server starts, it will auto-migrate and load prompts from `prompts.csv` if available.
 
@@ -36,6 +37,7 @@ When the server starts, it will auto-migrate and load prompts from `prompts.csv`
 - `REVEAL_SECONDS` — time per reveal step in results.
 
 ## Dev Commands
+- `make init` — download local sound effects + vendor assets for the display view.
 - `make run` — generate templ output and start the server.
 - `make build` — generate templ output and build all packages.
 - `make test` — run all tests.
@@ -104,14 +106,19 @@ When the server starts, it will auto-migrate and load prompts from `prompts.csv`
 - `events` — `id`, `game_id`, `round_id`, `player_id`, `type`, `payload`, `created_at`.
 - Migrations: store SQL migrations under `db/migrations/`.
 
+## Sound Effects
+Display-mode sound effects are pulled from OpenGameArt:
+- Join: https://opengameart.org/content/pop-sounds-0 (pop2.wav.ogg) -> `static/sounds/join.ogg`
+- Round start: https://opengameart.org/content/pop-sounds-0 (pop1.wav) -> `static/sounds/round_start.wav`
+- Timer ending: https://opengameart.org/content/pop-sounds-0 (pop9.wav) -> `static/sounds/timer_end.wav`
+- Voting start: https://opengameart.org/content/ui-accept-or-forward (Accept.mp3) -> `static/sounds/voting_start.mp3`
+
+Please review licensing requirements at the source before distribution.
+
 For now, don't include:
-* Sound effects/music
 * Voiceover. Instead, have the instructions printed to the WebUI
 
 
 ## Ideas
-* Score calculations aren't working yet
-* Include a results stage between rounds
-* Move UI updates to server‑side templates for non‑interactive parts (or use HTMX) to reduce JS view code if you’re open to that UX tradeoff.
-
+* htmx 2.0 upgrade
 
