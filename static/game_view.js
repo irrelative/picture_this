@@ -173,9 +173,9 @@ function updateDisplayStage(ctx, data, phase) {
   if (phase === "results") {
     const reveal = data.reveal || null;
     if (reveal && reveal.drawing_image) {
-      setStage(els, "Round results", "Reviewing answers and votes.", reveal.drawing_image);
+      setStage(els, "Drawing results", "Reviewing answers and votes.", reveal.drawing_image);
     } else {
-      setStage(els, "Round results", "Reviewing answers and votes.", "");
+      setStage(els, "Drawing results", "Reviewing answers and votes.", "");
     }
     setOptions(els, []);
     return;
@@ -208,7 +208,7 @@ function updateDisplayScores(ctx, data, phase) {
     }
   }
 
-  const showFinal = phase === "results" || phase === "complete";
+  const showFinal = phase === "complete";
   if (els.displayFinalScores) {
     els.displayFinalScores.style.display = showFinal ? "grid" : "none";
   }

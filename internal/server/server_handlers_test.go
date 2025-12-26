@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -192,27 +191,6 @@ func TestJoinRejectsInvalidName(t *testing.T) {
 	})
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
-	}
-}
-
-func TestRateLimitJoin(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
-	t.Cleanup(ts.Close)
-
-	gameID := createGame(t, ts)
-	var last *http.Response
-	for i := 0; i < 11; i++ {
-		last = doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/join", map[string]string{
-			"name":        fmt.Sprintf("Player%d", i),
-			"avatar_data": testAvatarData,
-		})
-	}
-	if last == nil {
-		t.Fatalf("expected response, got nil")
-	}
-	if last.StatusCode != http.StatusTooManyRequests {
-		t.Fatalf("expected status %d, got %d", http.StatusTooManyRequests, last.StatusCode)
 	}
 }
 

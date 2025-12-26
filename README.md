@@ -6,8 +6,8 @@ Picture This is a Drawful-style party game with a Go backend, templ-rendered UI,
 - Host creates a game and shares the join code.
 - Players join from `/join` and receive assigned prompts.
 - Audience can join from the home page to vote during guessing rounds.
-- The game advances through drawing, guessing, guess-voting, and results phases.
-- Results are shown after each round, with state synced via websockets.
+- The game advances through drawing, guessing, guess-voting, and per-drawing results phases.
+- Results are shown after each drawing, with final results after all rounds and state synced via websockets.
 
 ## Tech Stack
 This project uses the following technology:
@@ -64,14 +64,14 @@ When the server starts, it will auto-migrate and load prompts from `prompts.csv`
 - `GET /ws/games/{game_id}` — websocket for realtime state/events.
 
 ## Game State Transition Flow (Draft)
-- Phases: `lobby` -> `drawings` -> `guesses` -> `guesses-votes` -> `results` -> `complete`.
+- Phases: `lobby` -> `drawings` -> (`guesses` -> `guesses-votes` -> `results`) per drawing -> `complete`.
 - `POST /api/games/{game_id}/start` moves `lobby` to `drawings`.
 - Each round assigns one prompt per player from the prompt library.
 - Prompts do not repeat within a game session.
-- When all drawings are in, the game moves to `guesses` and walks each guess turn sequentially.
-- After guesses complete, either a new round starts (if `PROMPTS_PER_PLAYER` > round count) or the game moves to `guesses-votes`.
-- During `guesses-votes`, each drawing is shown with the prompt plus all guesses as options; players vote on the true prompt.
-- Results are shown in `results` (guesses and votes per drawing), then the game is marked `complete`.
+- When all drawings are in, the game moves to `guesses` and walks each guess turn per drawing.
+- After a drawing's guesses complete, the game moves to `guesses-votes` for that drawing.
+- After voting completes for that drawing, `results` reveals guesses and votes for that drawing (guesses first, then votes).
+- When all drawings in the round have been revealed, a new round starts (if `PROMPTS_PER_PLAYER` > round count) or the game moves to `complete` for final results.
 
 ## Roadmap (Drawful Parity)
 ### Priority 1: Core Game Scoring & Flow

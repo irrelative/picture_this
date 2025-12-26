@@ -49,7 +49,7 @@ func (s *Server) buildDisplayState(game *Game) web.DisplayState {
 			}
 		}
 	}
-	showFinal := phase == phaseResults || phase == phaseComplete
+	showFinal := phase == phaseComplete
 	return web.DisplayState{
 		GameID:         game.ID,
 		JoinCode:       game.JoinCode,
@@ -95,7 +95,7 @@ func buildDisplayStage(game *Game) (string, string, string, []string) {
 	if phase == phaseResults {
 		reveal := buildReveal(game)
 		image, _ := reveal["drawing_image"].(string)
-		return "Round results", "Reviewing answers and votes.", image, nil
+		return "Drawing results", "Reviewing answers and votes.", image, nil
 	}
 	if phase == phaseComplete {
 		return "Game complete", "Thanks for playing!", "", nil

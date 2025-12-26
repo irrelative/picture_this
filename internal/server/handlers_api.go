@@ -591,9 +591,19 @@ func (s *Server) handleGuesses(c *gin.Context) {
 			Text:         guessText,
 		})
 		round.CurrentGuess++
-		if round.CurrentGuess >= len(round.GuessTurns) {
+		if round.CurrentGuess >= len(round.GuessTurns) || round.GuessTurns[round.CurrentGuess].DrawingIndex != turn.DrawingIndex {
 			if err := s.buildVoteTurns(game, round); err != nil {
 				return err
+			}
+			start := voteTurnStartIndex(round, turn.DrawingIndex)
+			if start < 0 {
+				return errors.New("no vote turns for drawing")
+			}
+			if round.CurrentVote > start {
+				return errors.New("vote turns out of sync")
+			}
+			if round.CurrentVote < start {
+				round.CurrentVote = start
 			}
 			setPhase(game, phaseGuessVotes)
 		}
@@ -704,16 +714,9 @@ func (s *Server) handleVotes(c *gin.Context) {
 			ChoiceType:   choiceType,
 		})
 		round.CurrentVote++
-		if round.CurrentVote >= len(round.VoteTurns) {
-			if round.Number < game.PromptsPerPlayer {
-				setPhase(game, phaseDrawings)
-				game.Rounds = append(game.Rounds, RoundState{
-					Number: len(game.Rounds) + 1,
-				})
-			} else {
-				setPhase(game, phaseResults)
-				initReveal(round)
-			}
+		if round.CurrentVote >= len(round.VoteTurns) || round.VoteTurns[round.CurrentVote].DrawingIndex != turn.DrawingIndex {
+			setPhase(game, phaseResults)
+			initReveal(round, turn.DrawingIndex)
 		}
 		return nil
 	})
@@ -730,17 +733,7 @@ func (s *Server) handleVotes(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save votes"})
 		return
 	}
-	if game.Phase == phaseDrawings {
-		if err := s.persistRound(game); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create round"})
-			return
-		}
-		if err := s.assignPrompts(game); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to assign prompts"})
-			return
-		}
-	}
-	if game.Phase == phaseDrawings || game.Phase == phaseResults {
+	if game.Phase == phaseResults {
 		if err := s.persistPhase(game, "game_advanced", EventPayload{Phase: game.Phase}); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to advance game"})
 			return
@@ -758,7 +751,9 @@ func (s *Server) handleAdvance(c *gin.Context) {
 	if !s.enforceRateLimit(c, "advance") {
 		return
 	}
+	prevPhase := ""
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+		prevPhase = game.Phase
 		_, err := s.advancePhase(game, transitionManual, time.Time{})
 		return err
 	})
@@ -769,6 +764,18 @@ func (s *Server) handleAdvance(c *gin.Context) {
 		}
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
+	}
+	if game.Phase == phaseDrawings && prevPhase != phaseDrawings {
+		if err := s.persistRound(game); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create round"})
+			return
+		}
+		if len(game.Players) > 0 {
+			if err := s.assignPrompts(game); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to assign prompts"})
+				return
+			}
+		}
 	}
 	if err := s.persistPhase(game, "game_advanced", EventPayload{Phase: game.Phase}); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to advance game"})

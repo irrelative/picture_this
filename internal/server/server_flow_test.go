@@ -128,13 +128,6 @@ func TestSubmitGuesses(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
 	}
-	resp = doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/guesses", map[string]any{
-		"player_id": playerID,
-		"guess":     "guess-2",
-	})
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
-	}
 	snapshot := fetchSnapshot(t, ts, gameID)
 	if snapshot["phase"] != "guesses-votes" {
 		t.Fatalf("expected guesses-votes phase, got %v", snapshot["phase"])
@@ -164,23 +157,8 @@ func TestSubmitVotes(t *testing.T) {
 		"image_data": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMBAp4pWZkAAAAASUVORK5CYII=",
 		"prompt":     prompt2,
 	})
-	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/guesses", map[string]any{
-		"player_id": playerID2,
-		"guess":     "guess-1",
-	})
-	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/guesses", map[string]any{
-		"player_id": playerID,
-		"guess":     "guess-2",
-	})
-	snapshot := fetchSnapshot(t, ts, gameID)
-	if snapshot["phase"] != "guesses-votes" {
-		t.Fatalf("expected guesses-votes phase, got %v", snapshot["phase"])
-	}
-	for i := 0; i < 2; i++ {
-		snapshot = fetchSnapshot(t, ts, gameID)
-		if snapshot["phase"] != "guesses-votes" {
-			break
-		}
+	submitVote := func() {
+		snapshot := fetchSnapshot(t, ts, gameID)
 		turn, ok := snapshot["vote_turn"].(map[string]any)
 		if !ok {
 			t.Fatalf("expected vote turn, got %#v", snapshot["vote_turn"])
@@ -202,6 +180,49 @@ func TestSubmitVotes(t *testing.T) {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
 		}
 	}
+
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/guesses", map[string]any{
+		"player_id": playerID2,
+		"guess":     "guess-1",
+	})
+	snapshot := fetchSnapshot(t, ts, gameID)
+	if snapshot["phase"] != "guesses-votes" {
+		t.Fatalf("expected guesses-votes phase, got %v", snapshot["phase"])
+	}
+	submitVote()
+	snapshot = fetchSnapshot(t, ts, gameID)
+	if snapshot["phase"] != "results" {
+		t.Fatalf("expected results phase, got %v", snapshot["phase"])
+	}
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/advance", nil)
+	snapshot = fetchSnapshot(t, ts, gameID)
+	if snapshot["phase"] != "results" {
+		t.Fatalf("expected results phase, got %v", snapshot["phase"])
+	}
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/advance", nil)
+	snapshot = fetchSnapshot(t, ts, gameID)
+	if snapshot["phase"] != "guesses" {
+		t.Fatalf("expected guesses phase, got %v", snapshot["phase"])
+	}
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/guesses", map[string]any{
+		"player_id": playerID,
+		"guess":     "guess-2",
+	})
+	snapshot = fetchSnapshot(t, ts, gameID)
+	if snapshot["phase"] != "guesses-votes" {
+		t.Fatalf("expected guesses-votes phase, got %v", snapshot["phase"])
+	}
+	submitVote()
+	snapshot = fetchSnapshot(t, ts, gameID)
+	if snapshot["phase"] != "results" {
+		t.Fatalf("expected results phase, got %v", snapshot["phase"])
+	}
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/advance", nil)
+	snapshot = fetchSnapshot(t, ts, gameID)
+	if snapshot["phase"] != "results" {
+		t.Fatalf("expected results phase, got %v", snapshot["phase"])
+	}
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/advance", nil)
 	snapshot = fetchSnapshot(t, ts, gameID)
 	if snapshot["phase"] != "drawings" {
 		t.Fatalf("expected drawings phase, got %v", snapshot["phase"])
@@ -222,6 +243,25 @@ func TestSubmitVotes(t *testing.T) {
 		"player_id": playerID2,
 		"guess":     "guess-3",
 	})
+	snapshot = fetchSnapshot(t, ts, gameID)
+	if snapshot["phase"] != "guesses-votes" {
+		t.Fatalf("expected guesses-votes phase, got %v", snapshot["phase"])
+	}
+	submitVote()
+	snapshot = fetchSnapshot(t, ts, gameID)
+	if snapshot["phase"] != "results" {
+		t.Fatalf("expected results phase, got %v", snapshot["phase"])
+	}
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/advance", nil)
+	snapshot = fetchSnapshot(t, ts, gameID)
+	if snapshot["phase"] != "results" {
+		t.Fatalf("expected results phase, got %v", snapshot["phase"])
+	}
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/advance", nil)
+	snapshot = fetchSnapshot(t, ts, gameID)
+	if snapshot["phase"] != "guesses" {
+		t.Fatalf("expected guesses phase, got %v", snapshot["phase"])
+	}
 	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/guesses", map[string]any{
 		"player_id": playerID,
 		"guess":     "guess-4",
@@ -230,35 +270,20 @@ func TestSubmitVotes(t *testing.T) {
 	if snapshot["phase"] != "guesses-votes" {
 		t.Fatalf("expected guesses-votes phase, got %v", snapshot["phase"])
 	}
-	for i := 0; i < 4; i++ {
-		snapshot = fetchSnapshot(t, ts, gameID)
-		if snapshot["phase"] != "guesses-votes" {
-			break
-		}
-		turn, ok := snapshot["vote_turn"].(map[string]any)
-		if !ok {
-			t.Fatalf("expected vote turn, got %#v", snapshot["vote_turn"])
-		}
-		voterID := int(turn["voter_id"].(float64))
-		optionsRaw, ok := turn["options"].([]any)
-		if !ok || len(optionsRaw) == 0 {
-			t.Fatalf("expected vote options, got %#v", turn["options"])
-		}
-		choice, ok := optionsRaw[0].(string)
-		if !ok {
-			t.Fatalf("expected option string, got %#v", optionsRaw[0])
-		}
-		resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/votes", map[string]any{
-			"player_id": voterID,
-			"choice":    choice,
-		})
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
-		}
-	}
+	submitVote()
 	snapshot = fetchSnapshot(t, ts, gameID)
 	if snapshot["phase"] != "results" {
 		t.Fatalf("expected results phase, got %v", snapshot["phase"])
+	}
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/advance", nil)
+	snapshot = fetchSnapshot(t, ts, gameID)
+	if snapshot["phase"] != "results" {
+		t.Fatalf("expected results phase, got %v", snapshot["phase"])
+	}
+	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/advance", nil)
+	snapshot = fetchSnapshot(t, ts, gameID)
+	if snapshot["phase"] != "complete" {
+		t.Fatalf("expected complete phase, got %v", snapshot["phase"])
 	}
 }
 

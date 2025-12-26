@@ -59,7 +59,7 @@ func (s *Server) autoAdvancePhase(gameID string, expectedPhase string) {
 	if err != nil {
 		return
 	}
-	if game.Phase == phaseDrawings && (expectedPhase == phaseGuesses || expectedPhase == phaseGuessVotes) {
+	if game.Phase == phaseDrawings && expectedPhase != phaseDrawings {
 		if err := s.persistRound(game); err != nil {
 			log.Printf("auto-advance persist round failed game_id=%s error=%v", game.ID, err)
 			return

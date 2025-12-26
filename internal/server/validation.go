@@ -3,10 +3,8 @@ package server
 import (
 	"errors"
 	"fmt"
-	"net/http"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -22,27 +20,7 @@ const (
 	maxDrawingBytes   = 250 * 1024
 	maxRoundsPerGame  = 10
 	maxLobbyPlayers   = 12
-	rateLimitExceeded = "rate limit exceeded"
 )
-
-type rateLimitRule struct {
-	Capacity int
-	Window   time.Duration
-}
-
-var rateLimitRules = map[string]rateLimitRule{
-	"create":   {Capacity: 5, Window: time.Minute},
-	"join":     {Capacity: 10, Window: time.Minute},
-	"avatar":   {Capacity: 10, Window: time.Minute},
-	"settings": {Capacity: 10, Window: time.Minute},
-	"kick":     {Capacity: 10, Window: time.Minute},
-	"start":    {Capacity: 5, Window: time.Minute},
-	"advance":  {Capacity: 10, Window: time.Minute},
-	"end":      {Capacity: 5, Window: time.Minute},
-	"drawings": {Capacity: 30, Window: time.Minute},
-	"guesses":  {Capacity: 30, Window: time.Minute},
-	"votes":    {Capacity: 30, Window: time.Minute},
-}
 
 var validatorOnce sync.Once
 
@@ -75,72 +53,8 @@ func registerValidators() {
 	})
 }
 
-type rateLimiter struct {
-	mu      sync.Mutex
-	buckets map[string]*tokenBucket
-	now     func() time.Time
-}
-
-type tokenBucket struct {
-	tokens float64
-	last   time.Time
-}
-
-func newRateLimiter() *rateLimiter {
-	return &rateLimiter{
-		buckets: make(map[string]*tokenBucket),
-		now:     time.Now,
-	}
-}
-
-func (r *rateLimiter) allow(key string, capacity int, window time.Duration) bool {
-	if capacity <= 0 || window <= 0 {
-		return true
-	}
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	now := r.now()
-	bucket, ok := r.buckets[key]
-	if !ok {
-		r.buckets[key] = &tokenBucket{
-			tokens: float64(capacity - 1),
-			last:   now,
-		}
-		return true
-	}
-	elapsed := now.Sub(bucket.last).Seconds()
-	refill := (float64(capacity) / window.Seconds()) * elapsed
-	bucket.tokens = minFloat(float64(capacity), bucket.tokens+refill)
-	bucket.last = now
-	if bucket.tokens < 1 {
-		return false
-	}
-	bucket.tokens--
-	return true
-}
-
 func (s *Server) enforceRateLimit(c *gin.Context, action string) bool {
-	if s.limiter == nil {
-		return true
-	}
-	rule, ok := rateLimitRules[action]
-	if !ok {
-		return true
-	}
-	key := action + ":" + clientKey(c)
-	if s.limiter.allow(key, rule.Capacity, rule.Window) {
-		return true
-	}
-	c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"error": rateLimitExceeded})
-	return false
-}
-
-func clientKey(c *gin.Context) string {
-	if value, err := c.Cookie("pt_session"); err == nil && value != "" {
-		return "session:" + value
-	}
-	return c.ClientIP()
+	return true
 }
 
 func validateName(name string) (string, error) {

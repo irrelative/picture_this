@@ -3,8 +3,6 @@ package web
 templ ActiveGamesList(games []GameSummary) {
 	if len(games) == 0 {
 		<p id="noGames" class="hint">No active games yet.</p>
-	} else {
-		<p id="noGames" class="hint" style="display:none;">No active games yet.</p>
 	}
 	<div id="gameList" class="game-list">
 		for _, game := range games {

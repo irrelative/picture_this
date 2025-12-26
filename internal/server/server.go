@@ -18,7 +18,6 @@ type Server struct {
 	homeWS   *homeHub
 	cfg      config.Config
 	sessions *sessionStore
-	limiter  *rateLimiter
 	timersMu sync.Mutex
 	timers   map[string]*time.Timer
 }
@@ -32,7 +31,6 @@ func New(conn *gorm.DB, cfg config.Config) *Server {
 		homeWS:   newHomeHub(),
 		cfg:      cfg,
 		sessions: newSessionStore(conn),
-		limiter:  newRateLimiter(),
 		timers:   make(map[string]*time.Timer),
 	}
 }
