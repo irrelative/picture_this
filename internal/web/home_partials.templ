@@ -6,7 +6,7 @@ templ ActiveGamesList(games []GameSummary) {
 	}
 	<div id="gameList" class="game-list">
 		for _, game := range games {
-			<div class="game-card">
+		<div class="game-card card-surface">
 				<div>
 					<h3>{ game.ID }</h3>
 					<p class="meta">State: { game.Phase } · Players: { game.Players }</p>

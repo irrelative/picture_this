@@ -889,7 +889,7 @@ func AdminHome(active []GameSummary, history []AdminDBGameSummary) templ.Compone
 					return templ_7745c5c3_Err
 				}
 				for _, game := range active {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, "<li class=\"game-card\"><div><h3>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, "<li class=\"game-card card-surface\"><div><h3>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}

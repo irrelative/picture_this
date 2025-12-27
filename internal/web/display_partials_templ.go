@@ -164,14 +164,14 @@ func DisplayContent(state DisplayState) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if state.StageImage != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<img id=\"displayStageImage\" class=\"display-image\" alt=\"Current drawing\" src=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<img id=\"displayStageImage\" class=\"display-image media-frame\" alt=\"Current drawing\" src=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(state.StageImage)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/display_partials.templ`, Line: 43, Col: 99}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/display_partials.templ`, Line: 43, Col: 111}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 			if templ_7745c5c3_Err != nil {
@@ -182,7 +182,7 @@ func DisplayContent(state DisplayState) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<img id=\"displayStageImage\" class=\"display-image\" alt=\"Current drawing\" style=\"display:none;\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<img id=\"displayStageImage\" class=\"display-image media-frame\" alt=\"Current drawing\" style=\"display:none;\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -197,14 +197,14 @@ func DisplayContent(state DisplayState) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			for _, option := range state.Options {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<li>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<li class=\"card-surface\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var13 string
 				templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(option)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/display_partials.templ`, Line: 51, Col: 20}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/display_partials.templ`, Line: 51, Col: 40}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 				if templ_7745c5c3_Err != nil {

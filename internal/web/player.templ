@@ -33,7 +33,7 @@ templ PlayerView(gameID string, playerID int, playerName string) {
 				<p>Draw a quick avatar to represent you while everyone joins.</p>
 			</div>
 			<div class="canvas-wrap">
-				<canvas id="avatarCanvas" class="avatar-canvas" width="800" height="600" aria-label="Avatar canvas"></canvas>
+				<canvas id="avatarCanvas" class="avatar-canvas media-frame" width="800" height="600" aria-label="Avatar canvas"></canvas>
 				<div class="canvas-actions">
 					<button type="button" id="saveAvatar" class="secondary">Save avatar</button>
 				</div>
@@ -53,12 +53,12 @@ templ PlayerView(gameID string, playerID int, playerName string) {
 				<h2>Draw your prompt</h2>
 				<p>Use your finger or mouse to sketch. Resolution is fixed for fair play.</p>
 			</div>
-			<div class="prompt-card">
+			<div class="prompt-card card-surface">
 				<span class="label">Your prompt</span>
 				<p id="promptText" class="prompt-text">Loading...</p>
 			</div>
 			<div class="canvas-wrap">
-				<canvas id="drawCanvas" width="800" height="600" aria-label="Drawing canvas"></canvas>
+				<canvas id="drawCanvas" class="media-frame" width="800" height="600" aria-label="Drawing canvas"></canvas>
 				<div class="canvas-actions">
 					<button type="button" id="saveCanvas" class="primary">Save drawing</button>
 				</div>
@@ -71,7 +71,7 @@ templ PlayerView(gameID string, playerID int, playerName string) {
 				<p id="guessStatus" role="status" aria-live="polite">Waiting for your turn to guess.</p>
 			</div>
 			<div class="guess-card">
-				<img id="guessImage" class="guess-image" alt="Drawing to guess"/>
+				<img id="guessImage" class="guess-image media-frame" alt="Drawing to guess"/>
 				<form id="guessForm" class="guess-form">
 					<label class="field">
 						<span class="label">Your guess</span>
@@ -88,7 +88,7 @@ templ PlayerView(gameID string, playerID int, playerName string) {
 				<p id="voteStatus" role="status" aria-live="polite">Waiting for your turn to vote.</p>
 			</div>
 			<div class="vote-card">
-				<img id="voteImage" class="guess-image" alt="Drawing to vote on"/>
+				<img id="voteImage" class="guess-image media-frame" alt="Drawing to vote on"/>
 				<form id="voteForm" class="vote-form">
 					<div id="voteOptions" class="vote-options"></div>
 					<button type="submit" class="primary">Submit vote</button>

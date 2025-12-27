@@ -49,7 +49,7 @@ export function updateFromSnapshot(ctx, data) {
 
     if (els.playerActions) {
       const row = document.createElement("div");
-      row.className = "player-action-row";
+      row.className = "player-action-row card-surface";
       const label = document.createElement("span");
       const isHost = playerIDs[index] === state.hostId;
       label.textContent = nameText;
@@ -244,6 +244,7 @@ function setOptions(els, options) {
   list.className = "display-option-list";
   options.forEach((option) => {
     const item = document.createElement("li");
+    item.className = "card-surface";
     item.textContent = option;
     list.appendChild(item);
   });

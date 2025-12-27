@@ -14,7 +14,11 @@ templ Layout(title string, scriptPath string, flash string) {
 		<body>
 			<div class="page">
 				<a class="skip-link" href="#content">Skip to content</a>
-				<main class="shell" id="content">
+				<main class="shell confetti-bg" id="content">
+					<nav class="top-nav" aria-label="Primary">
+						<a class="nav-link" href="/">Home</a>
+						<a class="nav-link" href="/admin">Admin</a>
+					</nav>
 					if flash != "" {
 						<div class="flash" role="status" aria-live="polite">{ flash }</div>
 					}
@@ -40,7 +44,11 @@ templ DisplayLayout(title string, scriptPath string) {
 			<script src="/static/vendor/htmx-2.0.8.js" defer></script>
 		</head>
 		<body class="display-body">
-			<div class="display-shell">
+			<div class="display-shell confetti-bg">
+				<nav class="top-nav" aria-label="Primary">
+					<a class="nav-link" href="/">Home</a>
+					<a class="nav-link" href="/admin">Admin</a>
+				</nav>
 				{ children... }
 			</div>
 			if scriptPath != "" {

@@ -306,7 +306,7 @@ function renderVoteOptions(ctx, options, noteText) {
   }
   options.forEach((option, index) => {
     const label = document.createElement("label");
-    label.className = "vote-option";
+    label.className = "vote-option card-surface";
     const input = document.createElement("input");
     input.type = "radio";
     input.name = "voteOption";
@@ -333,7 +333,7 @@ function renderResults(ctx, results, scores) {
 
   if (Array.isArray(scores) && scores.length > 0 && els.resultsScores) {
     const card = document.createElement("div");
-    card.className = "result-card";
+    card.className = "result-card card-surface";
     const title = document.createElement("h3");
     title.textContent = "Scoreboard";
     const list = document.createElement("ol");
@@ -354,7 +354,7 @@ function renderResults(ctx, results, scores) {
 
   results.forEach((entry, index) => {
     const card = document.createElement("div");
-    card.className = "result-card";
+    card.className = "result-card card-surface";
 
     const header = document.createElement("div");
     header.className = "result-block";
@@ -367,7 +367,7 @@ function renderResults(ctx, results, scores) {
     header.appendChild(prompt);
 
     const image = document.createElement("img");
-    image.className = "guess-image";
+    image.className = "guess-image media-frame";
     image.alt = "Drawing"
     image.src = entry.drawing_image || "";
 
@@ -432,7 +432,7 @@ function renderReveal(ctx, reveal) {
   header.appendChild(stage);
 
   const image = document.createElement("img");
-  image.className = "guess-image";
+  image.className = "guess-image media-frame";
   image.alt = "Drawing reveal";
   image.src = reveal.drawing_image || "";
 

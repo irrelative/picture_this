@@ -209,7 +209,7 @@ templ AdminHome(active []GameSummary, history []AdminDBGameSummary) {
 			} else {
 				<ul class="game-list">
 					for _, game := range active {
-						<li class="game-card">
+					<li class="game-card card-surface">
 							<div>
 								<h3>{ game.ID }</h3>
 								<p class="meta">Join code: { game.JoinCode } - Phase: { game.Phase } - Players: { game.Players }</p>

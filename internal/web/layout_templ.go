@@ -42,7 +42,7 @@ func Layout(title string, scriptPath string, flash string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</title><link rel=\"icon\" href=\"/static/favicon.svg\" type=\"image/svg+xml\"><link rel=\"stylesheet\" href=\"/static/styles.css\"><script src=\"/static/vendor/htmx-2.0.8.js\" defer></script></head><body><div class=\"page\"><a class=\"skip-link\" href=\"#content\">Skip to content</a><main class=\"shell\" id=\"content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</title><link rel=\"icon\" href=\"/static/favicon.svg\" type=\"image/svg+xml\"><link rel=\"stylesheet\" href=\"/static/styles.css\"><script src=\"/static/vendor/htmx-2.0.8.js\" defer></script></head><body><div class=\"page\"><a class=\"skip-link\" href=\"#content\">Skip to content</a><main class=\"shell confetti-bg\" id=\"content\"><nav class=\"top-nav\" aria-label=\"Primary\"><a class=\"nav-link\" href=\"/\">Home</a> <a class=\"nav-link\" href=\"/admin\">Admin</a></nav>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -54,7 +54,7 @@ func Layout(title string, scriptPath string, flash string) templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(flash)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 19, Col: 65}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 23, Col: 65}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -81,7 +81,7 @@ func Layout(title string, scriptPath string, flash string) templ.Component {
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(scriptPath)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 25, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 29, Col: 42}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -128,13 +128,13 @@ func DisplayLayout(title string, scriptPath string) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 37, Col: 17}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 41, Col: 17}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</title><link rel=\"icon\" href=\"/static/favicon.svg\" type=\"image/svg+xml\"><link rel=\"stylesheet\" href=\"/static/styles.css\"><script src=\"/static/vendor/htmx-2.0.8.js\" defer></script></head><body class=\"display-body\"><div class=\"display-shell\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</title><link rel=\"icon\" href=\"/static/favicon.svg\" type=\"image/svg+xml\"><link rel=\"stylesheet\" href=\"/static/styles.css\"><script src=\"/static/vendor/htmx-2.0.8.js\" defer></script></head><body class=\"display-body\"><div class=\"display-shell confetti-bg\"><nav class=\"top-nav\" aria-label=\"Primary\"><a class=\"nav-link\" href=\"/\">Home</a> <a class=\"nav-link\" href=\"/admin\">Admin</a></nav>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -154,7 +154,7 @@ func DisplayLayout(title string, scriptPath string) templ.Component {
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(scriptPath)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 47, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/layout.templ`, Line: 55, Col: 42}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {

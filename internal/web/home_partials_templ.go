@@ -40,7 +40,7 @@ func ActiveGamesList(games []GameSummary) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		for _, game := range games {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"game-card\"><div><h3>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"game-card card-surface\"><div><h3>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

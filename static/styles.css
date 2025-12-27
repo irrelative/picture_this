@@ -36,6 +36,33 @@ body {
   left: 12px;
 }
 
+.top-nav {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.nav-link {
+  display: inline-block;
+  text-decoration: none;
+  font-weight: 600;
+  color: var(--ink);
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 2px solid rgba(26, 26, 26, 0.08);
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.nav-link:hover {
+  background: rgba(255, 255, 255, 1);
+  border-color: rgba(26, 26, 26, 0.16);
+}
+
+.nav-link:focus-visible {
+  outline: 3px solid #1f1f1f;
+  outline-offset: 2px;
+}
+
 .page {
   min-height: 100vh;
 }
@@ -43,9 +70,12 @@ body {
 .shell {
   max-width: 960px;
   margin: 0 auto;
-  padding: 48px 20px 64px;
+  padding: 28px 20px 64px;
   display: grid;
   gap: 24px;
+}
+
+.confetti-bg {
   position: relative;
   --confetti-pink: #ff6fae;
   --confetti-blue: #4cc9f0;
@@ -54,8 +84,8 @@ body {
   --confetti-green: #70e000;
 }
 
-.shell::before,
-.shell::after {
+.confetti-bg::before,
+.confetti-bg::after {
   content: "";
   position: absolute;
   inset: -80px -40px auto auto;
@@ -68,7 +98,7 @@ body {
   z-index: 0;
 }
 
-.shell::after {
+.confetti-bg::after {
   inset: 120px auto auto -60px;
   width: 320px;
   height: 320px;
@@ -76,7 +106,7 @@ body {
     radial-gradient(circle at 70% 30%, rgba(112, 224, 0, 0.35), transparent 60%);
 }
 
-.shell > * {
+.confetti-bg > * {
   position: relative;
   z-index: 1;
 }
@@ -164,12 +194,24 @@ p {
   border-color: rgba(255, 111, 174, 0.2);
 }
 
+.card-surface {
+  border: 1px solid #e3e3e3;
+  background: #ffffff;
+}
+
+.media-frame {
+  border: 1px solid #e3e3e3;
+  background: #ffffff;
+  border-radius: 16px;
+}
+
 .join-panel {
   align-items: stretch;
 }
 
 .primary,
 .secondary {
+  display: inline-block;
   font: inherit;
   border-radius: 999px;
   padding: 12px 20px;
@@ -352,9 +394,6 @@ select:focus {
   width: 100%;
   height: auto;
   max-width: 100%;
-  border-radius: 16px;
-  border: 1px solid #e3e3e3;
-  background: #ffffff;
   touch-action: none;
 }
 
@@ -362,9 +401,6 @@ select:focus {
   width: 100%;
   height: auto;
   max-width: 100%;
-  border-radius: 16px;
-  border: 1px solid #e3e3e3;
-  background: #ffffff;
   touch-action: none;
 }
 
@@ -428,8 +464,6 @@ select:focus {
   align-items: center;
   padding: 10px 12px;
   border-radius: 12px;
-  border: 1px solid #e3e3e3;
-  background: #ffffff;
 }
 
 .replay-panel {
@@ -448,8 +482,6 @@ select:focus {
   gap: 8px;
   padding: 16px;
   border-radius: 18px;
-  border: 1px solid #e3e3e3;
-  background: #ffffff;
 }
 
 .guess-card,
@@ -460,9 +492,6 @@ select:focus {
 
 .guess-image {
   width: 100%;
-  border-radius: 16px;
-  border: 1px solid #e3e3e3;
-  background: #ffffff;
 }
 
 .guess-form,
@@ -482,8 +511,6 @@ select:focus {
   gap: 10px;
   padding: 10px 12px;
   border-radius: 12px;
-  border: 1px solid #e3e3e3;
-  background: #ffffff;
   font-weight: 600;
 }
 
@@ -556,8 +583,6 @@ select:focus {
   gap: 12px;
   padding: 16px;
   border-radius: 18px;
-  border: 1px solid #e3e3e3;
-  background: #ffffff;
 }
 
 .result-block {
@@ -581,8 +606,6 @@ select:focus {
   gap: 12px;
   padding: 16px;
   border-radius: 18px;
-  border: 1px solid #e3e3e3;
-  background: #ffffff;
 }
 
 .game-card h3 {
@@ -604,42 +627,9 @@ select:focus {
 
 .display-shell {
   min-height: 100vh;
-  padding: 48px 56px;
+  padding: 28px 56px 40px;
   display: grid;
   gap: 32px;
-  position: relative;
-  --confetti-pink: #ff6fae;
-  --confetti-blue: #4cc9f0;
-  --confetti-yellow: #ffd166;
-  --confetti-purple: #6f5bff;
-  --confetti-green: #70e000;
-}
-
-.display-shell::before,
-.display-shell::after {
-  content: "";
-  position: absolute;
-  inset: -80px -40px auto auto;
-  width: 360px;
-  height: 360px;
-  background: radial-gradient(circle at 30% 30%, rgba(255, 111, 174, 0.35), transparent 60%),
-    radial-gradient(circle at 60% 70%, rgba(76, 201, 240, 0.35), transparent 65%);
-  filter: blur(2px);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.display-shell::after {
-  inset: 120px auto auto -60px;
-  width: 320px;
-  height: 320px;
-  background: radial-gradient(circle at 40% 50%, rgba(255, 209, 102, 0.45), transparent 60%),
-    radial-gradient(circle at 70% 30%, rgba(112, 224, 0, 0.35), transparent 60%);
-}
-
-.display-shell > * {
-  position: relative;
-  z-index: 1;
 }
 
 .display-header {
@@ -647,6 +637,7 @@ select:focus {
   gap: 18px;
   grid-template-columns: 1.1fr 1.3fr;
   align-items: start;
+  margin-bottom: 12px;
 }
 
 .display-brand h1 {
@@ -717,9 +708,6 @@ select:focus {
   width: 100%;
   max-height: 320px;
   object-fit: contain;
-  border-radius: 16px;
-  border: 1px solid #e3e3e3;
-  background: #fff;
 }
 
 .display-options {
@@ -739,7 +727,6 @@ select:focus {
 .display-option-list li {
   padding: 10px 12px;
   border-radius: 12px;
-  border: 1px solid #e3e3e3;
   background: #fffdf6;
 }
 
@@ -827,7 +814,6 @@ button.primary:disabled {
   gap: 8px;
   padding: 16px;
   border-radius: 16px;
-  border: 1px solid #e3e3e3;
   background: #fff8e6;
 }
 

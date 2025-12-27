@@ -5,7 +5,7 @@ templ GamePlayerActions(items []PlayerListItem, actionsEnabled bool) {
 		<p class="hint">No players yet.</p>
 	} else {
 		for _, player := range items {
-			<div class="player-action-row">
+			<div class="player-action-row card-surface">
 				<span>
 					if player.IsHost {
 						{ player.Name + "*" }

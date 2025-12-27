@@ -97,7 +97,7 @@ func JoinView(code string, playerName string) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</label><div class=\"field\"><span class=\"label\">Self-portrait avatar</span><p class=\"hint\">Draw a quick self-portrait to represent you in the lobby.</p><div class=\"canvas-wrap\"><canvas id=\"avatarCanvas\" class=\"avatar-canvas\" width=\"800\" height=\"600\" aria-label=\"Avatar canvas\"></canvas></div></div><button type=\"submit\" class=\"primary\">Join game</button></form><div id=\"joinResult\" class=\"result\" role=\"status\" aria-live=\"polite\"></div></section>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</label><div class=\"field\"><span class=\"label\">Self-portrait avatar</span><p class=\"hint\">Draw a quick self-portrait to represent you in the lobby.</p><div class=\"canvas-wrap\"><canvas id=\"avatarCanvas\" class=\"avatar-canvas media-frame\" width=\"800\" height=\"600\" aria-label=\"Avatar canvas\"></canvas></div></div><button type=\"submit\" class=\"primary\">Join game</button></form><div id=\"joinResult\" class=\"result\" role=\"status\" aria-live=\"polite\"></div></section>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

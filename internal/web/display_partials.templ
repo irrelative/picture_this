@@ -40,15 +40,15 @@ templ DisplayContent(state DisplayState) {
 				<h2 id="displayStageTitle">{ state.StageTitle }</h2>
 				<p id="displayStageStatus" class="display-status">{ state.StageStatus }</p>
 				if state.StageImage != "" {
-					<img id="displayStageImage" class="display-image" alt="Current drawing" src={ state.StageImage }/>
+					<img id="displayStageImage" class="display-image media-frame" alt="Current drawing" src={ state.StageImage }/>
 				} else {
-					<img id="displayStageImage" class="display-image" alt="Current drawing" style="display:none;"/>
+					<img id="displayStageImage" class="display-image media-frame" alt="Current drawing" style="display:none;"/>
 				}
 				<div id="displayOptions" class="display-options">
 					if len(state.Options) > 0 {
 						<ul class="display-option-list">
 							for _, option := range state.Options {
-								<li>{ option }</li>
+							<li class="card-surface">{ option }</li>
 							}
 						</ul>
 					}
