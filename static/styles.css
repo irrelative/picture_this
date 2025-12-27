@@ -607,6 +607,39 @@ select:focus {
   padding: 48px 56px;
   display: grid;
   gap: 32px;
+  position: relative;
+  --confetti-pink: #ff6fae;
+  --confetti-blue: #4cc9f0;
+  --confetti-yellow: #ffd166;
+  --confetti-purple: #6f5bff;
+  --confetti-green: #70e000;
+}
+
+.display-shell::before,
+.display-shell::after {
+  content: "";
+  position: absolute;
+  inset: -80px -40px auto auto;
+  width: 360px;
+  height: 360px;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 111, 174, 0.35), transparent 60%),
+    radial-gradient(circle at 60% 70%, rgba(76, 201, 240, 0.35), transparent 65%);
+  filter: blur(2px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.display-shell::after {
+  inset: 120px auto auto -60px;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle at 40% 50%, rgba(255, 209, 102, 0.45), transparent 60%),
+    radial-gradient(circle at 70% 30%, rgba(112, 224, 0, 0.35), transparent 60%);
+}
+
+.display-shell > * {
+  position: relative;
+  z-index: 1;
 }
 
 .display-header {
