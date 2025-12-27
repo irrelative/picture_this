@@ -33,6 +33,18 @@ if [[ -z "$DB_PASS" ]]; then
   exit 1
 fi
 
+if [[ ! "$DB_USER" =~ ^[a-zA-Z0-9_]+$ ]]; then
+  echo "DB_USER must be alphanumeric/underscore only." >&2
+  exit 1
+fi
+
+if [[ ! "$DB_NAME" =~ ^[a-zA-Z0-9_]+$ ]]; then
+  echo "DB_NAME must be alphanumeric/underscore only." >&2
+  exit 1
+fi
+
+DB_PASS_ESC=${DB_PASS//\'/\'\'}
+
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y --no-install-recommends \
@@ -40,6 +52,7 @@ apt-get install -y --no-install-recommends \
   curl \
   git \
   rsync \
+  apache2-utils \
   make \
   nginx \
   postgresql \
@@ -64,22 +77,18 @@ chown -R "$APP_USER":"$APP_USER" /var/log/picture-this
 
 # Database setup
 sudo -u postgres psql -v ON_ERROR_STOP=1 <<SQL
-DO $$
+DO \$\$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${DB_USER}') THEN
-    CREATE ROLE ${DB_USER} LOGIN PASSWORD '${DB_PASS}';
+    CREATE ROLE "${DB_USER}" LOGIN PASSWORD '${DB_PASS_ESC}';
   END IF;
 END
-$$;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '${DB_NAME}') THEN
-    CREATE DATABASE ${DB_NAME} OWNER ${DB_USER};
-  END IF;
-END
-$$;
+\$\$;
 SQL
+
+if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'" | grep -q 1; then
+  sudo -u postgres createdb --owner="${DB_USER}" "${DB_NAME}"
+fi
 
 # App env
 cat > "$APP_DIR/.env" <<ENV
@@ -107,6 +116,8 @@ fi
 
 # Nginx config
 install -d /etc/nginx/sites-available /etc/nginx/sites-enabled
+htpasswd -b -c /etc/nginx/.htpasswd picturethis picturethis
+
 sed \
   -e "s#{{DOMAIN}}#${DOMAIN}#g" \
   -e "s#{{APP_DIR}}#${APP_DIR}#g" \
