@@ -44,6 +44,38 @@ When the server starts, it will auto-migrate and load prompts from `prompts.csv`
 - `make migrate` — apply SQL migrations in `db/migrations/`.
 - `make migrate-create name=add_table` — create a new migration pair.
 
+## Deployment (Ubuntu 24.04 VPS)
+This repo includes a simple root-run setup script plus nginx/supervisor configs.
+
+Prereqs:
+- DNS A record for your domain points at the VPS.
+- Ports 80/443 open in your firewall/security group.
+
+From the repo on the server (as root):
+```
+DOMAIN=example.com \
+LETSENCRYPT_EMAIL=you@example.com \
+DB_PASS='strong-password' \
+./scripts/setup_vps.sh
+```
+
+Optional overrides:
+- `APP_USER` (default `picturethis`)
+- `APP_DIR` (default `/opt/picture-this`)
+- `APP_PORT` (default `8080`)
+- `DB_NAME` (default `picture_this`)
+- `DB_USER` (default `picture_this`)
+- `APP_ENV` (default `production`)
+- `SKIP_BUILD=1` (skip the Go build step)
+
+What it does:
+- Installs nginx, postgres, supervisor, certbot, and Go.
+- Creates the app user and Postgres role/database.
+- Writes `.env` with the configured `DATABASE_URL`.
+- Builds `./cmd/server` into `bin/picture-this`.
+- Installs nginx and supervisor configs from `deploy/`.
+- Requests a Let’s Encrypt cert and reloads nginx.
+
 ## Planned Server Endpoints (Draft)
 - `POST /api/games` — create a new game; returns `game_id` and `join_code`.
 - `POST /api/games/{game_id}/join` — join a game with a player name.
