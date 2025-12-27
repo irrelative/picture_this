@@ -2,57 +2,59 @@ package web
 
 templ Home(flash string, playerName string, games []GameSummary) {
 	@Layout("Picture This", "/static/app.js", flash) {
-		<header class="hero">
-			<span class="tag">Picture This</span>
-			<h1>Draw together. Guess boldly.</h1>
-			<p>Host a game in seconds or jump into a session with your code.</p>
-		</header>
+		<div class="home">
+			<header class="hero">
+				<span class="tag">Picture This</span>
+				<h1>Draw together. Guess boldly.</h1>
+				<p>Host a game in seconds or jump into a session with your code.</p>
+			</header>
 
-		<section class="panel">
-			<div>
-				<h2>Create a game</h2>
-				<p>Generate a new lobby and share the join code with your players.</p>
-			</div>
-			<button id="createGame" class="primary">Create game</button>
-			<div id="createResult" class="result" role="status" aria-live="polite"></div>
-		</section>
-
-		<section class="panel">
-			<div>
-				<h2>Join a game</h2>
-				<p>Enter the join code from the host and your display name.</p>
-			</div>
-			<form id="joinForm" class="join-form">
-				<label class="field">
-					<span class="label">Join code</span>
-					<input name="code" placeholder="Join code" autocomplete="off" required/>
-				</label>
-				<label class="field">
-					<span class="label">Display name</span>
-					if playerName != "" {
-						<input name="name" placeholder="Display name" autocomplete="name" value={ playerName } required/>
-					} else {
-						<input name="name" placeholder="Display name" autocomplete="name" required/>
-					}
-				</label>
-				<button type="submit" class="secondary">Join game</button>
-			</form>
-			<div id="joinResult" class="result" role="status" aria-live="polite"></div>
-		</section>
-
-		<section class="panel active-panel" id="activeGames" data-player-name={ playerName }>
-			<div>
-				<h2>Active games</h2>
-				<p>Jump into a lobby or keep an eye on games in progress.</p>
-				<div class="admin-link">
-					<a class="secondary" href="/admin">Admin dashboard</a>
+			<section class="panel">
+				<div>
+					<h2>Create a game</h2>
+					<p>Generate a new lobby and share the join code with your players.</p>
 				</div>
-			</div>
-			<div
-				id="activeGamesContent"
-			>
-				@ActiveGamesList(games)
-			</div>
-		</section>
+				<button id="createGame" class="primary">Create game</button>
+				<div id="createResult" class="result" role="status" aria-live="polite"></div>
+			</section>
+
+			<section class="panel">
+				<div>
+					<h2>Join a game</h2>
+					<p>Enter the join code from the host and your display name.</p>
+				</div>
+				<form id="joinForm" class="join-form">
+					<label class="field">
+						<span class="label">Join code</span>
+						<input name="code" placeholder="Join code" autocomplete="off" required/>
+					</label>
+					<label class="field">
+						<span class="label">Display name</span>
+						if playerName != "" {
+							<input name="name" placeholder="Display name" autocomplete="name" value={ playerName } required/>
+						} else {
+							<input name="name" placeholder="Display name" autocomplete="name" required/>
+						}
+					</label>
+					<button type="submit" class="secondary">Join game</button>
+				</form>
+				<div id="joinResult" class="result" role="status" aria-live="polite"></div>
+			</section>
+
+			<section class="panel active-panel" id="activeGames" data-player-name={ playerName }>
+				<div>
+					<h2>Active games</h2>
+					<p>Jump into a lobby or keep an eye on games in progress.</p>
+					<div class="admin-link">
+						<a class="secondary" href="/admin">Admin dashboard</a>
+					</div>
+				</div>
+				<div
+					id="activeGamesContent"
+				>
+					@ActiveGamesList(games)
+				</div>
+			</section>
+		</div>
 	}
 }

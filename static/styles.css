@@ -46,6 +46,50 @@ body {
   padding: 48px 20px 64px;
   display: grid;
   gap: 24px;
+  position: relative;
+  --confetti-pink: #ff6fae;
+  --confetti-blue: #4cc9f0;
+  --confetti-yellow: #ffd166;
+  --confetti-purple: #6f5bff;
+  --confetti-green: #70e000;
+}
+
+.shell::before,
+.shell::after {
+  content: "";
+  position: absolute;
+  inset: -80px -40px auto auto;
+  width: 360px;
+  height: 360px;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 111, 174, 0.35), transparent 60%),
+    radial-gradient(circle at 60% 70%, rgba(76, 201, 240, 0.35), transparent 65%);
+  filter: blur(2px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.shell::after {
+  inset: 120px auto auto -60px;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle at 40% 50%, rgba(255, 209, 102, 0.45), transparent 60%),
+    radial-gradient(circle at 70% 30%, rgba(112, 224, 0, 0.35), transparent 60%);
+}
+
+.shell > * {
+  position: relative;
+  z-index: 1;
+}
+
+.home {
+  display: grid;
+  gap: 24px;
+  padding: 12px 6px 36px;
+}
+
+.home > * {
+  position: relative;
+  z-index: 1;
 }
 
 .flash {
@@ -61,12 +105,23 @@ body {
   gap: 12px;
 }
 
+.hero h1 {
+  font-size: clamp(2.2rem, 4.6vw, 3.4rem);
+  letter-spacing: -0.02em;
+}
+
+.hero p {
+  max-width: 540px;
+  font-size: 1.05rem;
+}
+
 .tag {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
   padding: 6px 14px;
-  background: #1f1f1f;
+  background: linear-gradient(135deg, #1b1b1b, #3a3a3a);
+  box-shadow: 0 8px 18px rgba(26, 26, 26, 0.2);
   color: #fff;
   font-size: 0.85rem;
   letter-spacing: 0.06em;
@@ -93,9 +148,20 @@ p {
   display: grid;
   gap: 16px;
   padding: 24px;
-  background: var(--card);
+  border: 2px solid rgba(26, 26, 26, 0.05);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(255, 248, 235, 0.98));
   border-radius: 20px;
-  box-shadow: 0 10px 30px var(--shadow);
+  box-shadow: 0 18px 40px rgba(26, 26, 26, 0.08);
+}
+
+.panel:nth-of-type(2) {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(242, 248, 255, 0.98));
+  border-color: rgba(76, 201, 240, 0.2);
+}
+
+.panel:nth-of-type(3) {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 244, 250, 0.98));
+  border-color: rgba(255, 111, 174, 0.2);
 }
 
 .join-panel {
@@ -113,19 +179,25 @@ p {
 }
 
 .primary {
-  background: var(--accent);
+  background: linear-gradient(120deg, var(--confetti-yellow), #ff9f1c);
+  box-shadow: 0 12px 22px rgba(255, 160, 0, 0.25);
   color: #1b1b1b;
   font-weight: 600;
 }
 
 .primary:hover {
-  background: var(--accent-dark);
+  background: linear-gradient(120deg, #ffde7d, #ff851a);
 }
 
 .secondary {
-  background: #1f1f1f;
+  background: linear-gradient(120deg, var(--confetti-purple), #3d2eff);
+  box-shadow: 0 12px 22px rgba(77, 63, 255, 0.25);
   color: #fff;
   font-weight: 600;
+}
+
+.secondary:hover {
+  background: linear-gradient(120deg, #806bff, #2f23e6);
 }
 
 .secondary:disabled {
@@ -162,14 +234,26 @@ input {
   font: inherit;
   padding: 12px 16px;
   border-radius: 12px;
-  border: 1px solid #e3e3e3;
+  border: 2px solid rgba(26, 26, 26, 0.08);
   background: #fff;
   min-height: 44px;
+  box-shadow: inset 0 0 0 2px transparent;
+}
+
+select {
+  font: inherit;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 2px solid rgba(26, 26, 26, 0.08);
+  background: #fff;
+  min-height: 44px;
+  box-shadow: inset 0 0 0 2px transparent;
 }
 
 input:focus,
 select:focus {
-  border-color: #1f1f1f;
+  border-color: rgba(76, 201, 240, 0.6);
+  box-shadow: 0 0 0 4px rgba(76, 201, 240, 0.25);
 }
 
 .result {
@@ -315,11 +399,7 @@ select:focus {
 
 .settings-form select {
   font: inherit;
-  padding: 12px 16px;
-  border-radius: 12px;
-  border: 1px solid #e3e3e3;
-  background: #fff;
-  min-height: 44px;
+  border-color: rgba(26, 26, 26, 0.08);
 }
 
 .settings-actions {
@@ -487,6 +567,8 @@ select:focus {
 
 .active-panel {
   grid-template-columns: 1fr;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(239, 255, 242, 0.98));
+  border-color: rgba(112, 224, 0, 0.2);
 }
 
 .game-list {
