@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+set -x
 
 if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
   echo "This script must run as root." >&2
