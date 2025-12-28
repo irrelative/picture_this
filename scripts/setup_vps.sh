@@ -115,7 +115,7 @@ if [[ -z "$SKIP_BUILD" ]]; then
   chown "$APP_USER":"$APP_USER" "$APP_DIR/bin/picture-this"
 fi
 
-# Nginx config
+# Nginx config (HTTP-only bootstrap for certbot)
 install -d /etc/nginx/sites-available /etc/nginx/sites-enabled
 htpasswd -b -c /etc/nginx/.htpasswd picturethis picturethis
 
@@ -123,7 +123,7 @@ sed \
   -e "s#{{DOMAIN}}#${DOMAIN}#g" \
   -e "s#{{APP_DIR}}#${APP_DIR}#g" \
   -e "s#{{APP_PORT}}#${APP_PORT}#g" \
-  "$APP_DIR/deploy/nginx/picture-this.conf" \
+  "$APP_DIR/deploy/nginx/picture-this-http.conf" \
   > /etc/nginx/sites-available/picture-this.conf
 
 ln -sf /etc/nginx/sites-available/picture-this.conf /etc/nginx/sites-enabled/picture-this.conf
@@ -145,8 +145,17 @@ supervisorctl update
 supervisorctl restart picture-this
 
 # TLS via Let's Encrypt
-certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos -m "$LETSENCRYPT_EMAIL"
+certbot certonly --nginx -d "$DOMAIN" --non-interactive --agree-tos -m "$LETSENCRYPT_EMAIL"
 
+# Swap in SSL-enabled config after certs exist
+sed \
+  -e "s#{{DOMAIN}}#${DOMAIN}#g" \
+  -e "s#{{APP_DIR}}#${APP_DIR}#g" \
+  -e "s#{{APP_PORT}}#${APP_PORT}#g" \
+  "$APP_DIR/deploy/nginx/picture-this.conf" \
+  > /etc/nginx/sites-available/picture-this.conf
+
+nginx -t
 systemctl reload nginx
 
 echo "Setup complete. App should be live at https://${DOMAIN}"
