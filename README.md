@@ -54,7 +54,6 @@ Prereqs:
 From the repo on the server (as root):
 ```
 DOMAIN=example.com \
-LETSENCRYPT_EMAIL=you@example.com \
 DB_PASS='strong-password' \
 ./scripts/setup_vps.sh
 ```
@@ -69,12 +68,13 @@ Optional overrides:
 - `SKIP_BUILD=1` (skip the Go build step)
 
 What it does:
-- Installs nginx, postgres, supervisor, certbot, and Go.
+- Installs nginx, postgres, supervisor, openssl, and Go.
+- Generates a self-signed TLS certificate (valid for 10 years).
 - Creates the app user and Postgres role/database.
 - Writes `.env` with the configured `DATABASE_URL`.
 - Builds `./cmd/server` into `bin/picture-this`.
 - Installs nginx and supervisor configs from `deploy/`.
-- Requests a Let’s Encrypt cert and reloads nginx.
+- Reloads nginx with the TLS config.
 
 ## Planned Server Endpoints (Draft)
 - `POST /api/games` — create a new game; returns `game_id` and `join_code`.

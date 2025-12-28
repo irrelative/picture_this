@@ -8,7 +8,6 @@ if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
 fi
 
 DOMAIN=${DOMAIN:-}
-LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL:-}
 APP_USER=${APP_USER:-picturethis}
 APP_DIR=${APP_DIR:-/opt/picture-this}
 APP_PORT=${APP_PORT:-8080}
@@ -21,11 +20,6 @@ SKIP_BUILD=${SKIP_BUILD:-}
 
 if [[ -z "$DOMAIN" ]]; then
   echo "DOMAIN is required (e.g. DOMAIN=example.com)." >&2
-  exit 1
-fi
-
-if [[ -z "$LETSENCRYPT_EMAIL" ]]; then
-  echo "LETSENCRYPT_EMAIL is required for certbot." >&2
   exit 1
 fi
 
@@ -58,8 +52,7 @@ apt-get install -y --no-install-recommends \
   nginx \
   postgresql \
   supervisor \
-  certbot \
-  python3-certbot-nginx \
+  openssl \
   golang-go
 
 systemctl enable --now postgresql
@@ -115,7 +108,7 @@ if [[ -z "$SKIP_BUILD" ]]; then
   chown "$APP_USER":"$APP_USER" "$APP_DIR/bin/picture-this"
 fi
 
-# Nginx config (HTTP-only bootstrap for certbot)
+# Nginx config (HTTP-only bootstrap for self-signed cert)
 install -d /etc/nginx/sites-available /etc/nginx/sites-enabled
 htpasswd -b -c /etc/nginx/.htpasswd picturethis picturethis
 
@@ -144,8 +137,15 @@ supervisorctl reread
 supervisorctl update
 supervisorctl restart picture-this
 
-# TLS via Let's Encrypt
-certbot certonly --nginx -d "$DOMAIN" --non-interactive --agree-tos -m "$LETSENCRYPT_EMAIL"
+# TLS via self-signed certificate (10 years)
+install -d /etc/ssl/picture-this
+if [[ ! -f /etc/ssl/picture-this/picture-this.key ]]; then
+  openssl req -x509 -nodes -newkey rsa:2048 \
+    -keyout /etc/ssl/picture-this/picture-this.key \
+    -out /etc/ssl/picture-this/picture-this.crt \
+    -days 3650 \
+    -subj "/C=US/ST=CA/L=San Francisco/O=Picture This/OU=Game/CN=${DOMAIN}"
+fi
 
 # Swap in SSL-enabled config after certs exist
 sed \
