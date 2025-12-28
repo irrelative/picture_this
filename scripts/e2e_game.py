@@ -76,9 +76,6 @@ def main():
     game_id = game["game_id"]
     print(f"Created game {game_id} join_code={game['join_code']}")
 
-    status, categories = request_json("GET", f"{base_url}/api/prompts/categories")
-    assert status == 200, f"categories failed: {status} {categories}"
-
     player_names = ["Alice", "Bob", "Carol", "Dave"]
     players = []
     for idx, name in enumerate(player_names):
@@ -103,7 +100,7 @@ def main():
     status, _ = request_json(
         "POST",
         f"{base_url}/api/games/{game_id}/settings",
-        {"player_id": players[0]["player_id"], "rounds": 2, "max_players": 0, "prompt_category": "", "lobby_locked": False},
+        {"player_id": players[0]["player_id"], "rounds": 2, "max_players": 0, "lobby_locked": False},
     )
     assert status == 200, f"settings update failed: {status}"
 

@@ -50,6 +50,10 @@ func (s *Server) Handler() http.Handler {
 	router.GET("/partials/games/:gameID/display", s.handleDisplayPartial)
 	router.GET("/replay/:gameID", s.handleReplayView)
 	router.GET("/admin", s.handleAdminHome)
+	router.GET("/admin/prompts", s.handleAdminPromptsView)
+	router.POST("/admin/prompts", s.handleAdminPromptCreate)
+	router.POST("/admin/prompts/:id", s.handleAdminPromptUpdate)
+	router.POST("/admin/prompts/:id/delete", s.handleAdminPromptDelete)
 	router.GET("/admin/:gameID", s.handleAdminView)
 
 	api := router.Group("/api")
@@ -69,7 +73,6 @@ func (s *Server) Handler() http.Handler {
 		api.POST("/games/:gameID/kick", s.handleKick)
 		api.POST("/games/:gameID/advance", s.handleAdvance)
 		api.POST("/games/:gameID/end", s.handleEndGame)
-		api.GET("/prompts/categories", s.handlePromptCategories)
 	}
 
 	router.GET("/ws/games/:gameID", s.handleWebsocket)

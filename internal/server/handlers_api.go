@@ -17,7 +17,6 @@ type settingsRequest struct {
 	PlayerID       int    `json:"player_id" binding:"required,gt=0"`
 	Rounds         int    `json:"rounds" binding:"min=0,max=10"`
 	MaxPlayers     int    `json:"max_players" binding:"min=0,max=12"`
-	PromptCategory string `json:"prompt_category" binding:"category"`
 	LobbyLocked    bool   `json:"lobby_locked"`
 }
 
@@ -300,9 +299,6 @@ func (s *Server) handleSettings(c *gin.Context) {
 		"MaxPlayers": {
 			"max": "max players exceeds maximum",
 		},
-		"PromptCategory": {
-			"category": "prompt category is invalid",
-		},
 	}, "invalid settings") {
 		return
 	}
@@ -310,7 +306,6 @@ func (s *Server) handleSettings(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid settings"})
 		return
 	}
-	category := strings.TrimSpace(req.PromptCategory)
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
 		if game.Phase != phaseLobby {
 			return errors.New("settings only available in lobby")
@@ -327,7 +322,6 @@ func (s *Server) handleSettings(c *gin.Context) {
 			}
 			game.MaxPlayers = req.MaxPlayers
 		}
-		game.PromptCategory = category
 		game.LobbyLocked = req.LobbyLocked
 		return nil
 	})
@@ -343,7 +337,7 @@ func (s *Server) handleSettings(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save settings"})
 		return
 	}
-	log.Printf("settings updated game_id=%s rounds=%d max_players=%d category=%s locked=%t", game.ID, game.PromptsPerPlayer, game.MaxPlayers, game.PromptCategory, game.LobbyLocked)
+	log.Printf("settings updated game_id=%s rounds=%d max_players=%d locked=%t", game.ID, game.PromptsPerPlayer, game.MaxPlayers, game.LobbyLocked)
 	c.JSON(http.StatusOK, s.snapshot(game))
 	s.broadcastGameUpdate(game)
 }
@@ -847,17 +841,4 @@ func (s *Server) handleResults(c *gin.Context) {
 			"votes":    votesCount,
 		},
 	})
-}
-
-func (s *Server) handlePromptCategories(c *gin.Context) {
-	if s.db == nil {
-		c.JSON(http.StatusOK, map[string]any{"categories": []string{}})
-		return
-	}
-	var categories []string
-	if err := s.db.Model(&db.PromptLibrary{}).Distinct("category").Order("category asc").Pluck("category", &categories).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load categories"})
-		return
-	}
-	c.JSON(http.StatusOK, map[string]any{"categories": categories})
 }

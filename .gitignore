@@ -1,3 +1,4 @@
 .env
 .aider*
 screenshots/*
+static/sounds/*

@@ -37,7 +37,6 @@ func (s *Store) CreateGame(promptsPerPlayer int) *Game {
 		Phase:            phaseLobby,
 		PhaseStartedAt:   timeNowUTC(),
 		MaxPlayers:       0,
-		PromptCategory:   "",
 		LobbyLocked:      false,
 		UsedPrompts:      make(map[string]struct{}),
 		KickedPlayers:    make(map[string]struct{}),

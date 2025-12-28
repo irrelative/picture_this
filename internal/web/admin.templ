@@ -6,6 +6,9 @@ templ Admin(gameID string, data AdminData) {
 			<span class="tag">Admin</span>
 			<h1>Game Admin View</h1>
 			<p>Database-backed snapshot for game <strong>{ gameID }</strong>.</p>
+			<div class="inline-actions">
+				<a class="secondary" href="/admin/prompts">Prompt library</a>
+			</div>
 		</header>
 
 		if data.Error != "" {
@@ -23,7 +26,6 @@ templ Admin(gameID string, data AdminData) {
 					<tr><th>Phase</th><td>{ data.Game.Phase }</td></tr>
 					<tr><th>Prompts/Player</th><td>{ data.Game.PromptsPerPlayer }</td></tr>
 					<tr><th>Max Players</th><td>{ data.Game.MaxPlayers }</td></tr>
-					<tr><th>Prompt Category</th><td>{ data.Game.PromptCategory }</td></tr>
 					<tr><th>Lobby Locked</th><td>{ data.Game.LobbyLocked }</td></tr>
 					<tr><th>Created</th><td>{ formatTime(data.Game.CreatedAt) }</td></tr>
 					<tr><th>Updated</th><td>{ formatTime(data.Game.UpdatedAt) }</td></tr>
@@ -200,6 +202,9 @@ templ AdminHome(active []GameSummary, history []AdminDBGameSummary) {
 			<span class="tag">Admin</span>
 			<h1>Admin Dashboard</h1>
 			<p>Pick a game to inspect its database records and event flow.</p>
+			<div class="inline-actions">
+				<a class="secondary" href="/admin/prompts">Prompt library</a>
+			</div>
 		</header>
 
 		<section class="panel">

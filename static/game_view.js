@@ -73,9 +73,6 @@ export function updateFromSnapshot(ctx, data) {
   if (els.maxPlayersInput) {
     els.maxPlayersInput.value = data.max_players || 0;
   }
-  if (els.promptCategory) {
-    els.promptCategory.value = data.prompt_category || "";
-  }
   if (els.lobbyLocked) {
     els.lobbyLocked.checked = Boolean(data.lobby_locked);
   }

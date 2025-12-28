@@ -59,6 +59,40 @@ func TestDisplayView(t *testing.T) {
 	}
 }
 
+func TestAdminHomeView(t *testing.T) {
+	srv := New(nil, config.Default())
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	resp := doRequest(t, ts, http.MethodGet, "/admin", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+}
+
+func TestAdminPromptLibraryView(t *testing.T) {
+	srv := New(nil, config.Default())
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	resp := doRequest(t, ts, http.MethodGet, "/admin/prompts", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+}
+
+func TestAdminGameView(t *testing.T) {
+	srv := New(nil, config.Default())
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	gameID := createGame(t, ts)
+	resp := doRequest(t, ts, http.MethodGet, "/admin/"+gameID, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+}
+
 func TestJoinView(t *testing.T) {
 	srv := New(nil, config.Default())
 	ts := httptest.NewServer(srv.Handler())
@@ -221,7 +255,6 @@ func TestUpdateSettings(t *testing.T) {
 		"player_id":       hostID,
 		"rounds":          3,
 		"max_players":     4,
-		"prompt_category": "animals",
 		"lobby_locked":    true,
 	})
 	if resp.StatusCode != http.StatusOK {
@@ -233,9 +266,6 @@ func TestUpdateSettings(t *testing.T) {
 	}
 	if snapshot["max_players"] != float64(4) {
 		t.Fatalf("expected max players 4, got %v", snapshot["max_players"])
-	}
-	if snapshot["prompt_category"] != "animals" {
-		t.Fatalf("expected prompt category, got %v", snapshot["prompt_category"])
 	}
 	if snapshot["lobby_locked"] != true {
 		t.Fatalf("expected lobby locked, got %v", snapshot["lobby_locked"])

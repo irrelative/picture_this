@@ -151,5 +151,9 @@ For now, don't include:
 * Voiceover. Instead, have the instructions printed to the WebUI
 
 
+## TODO
+* Music and SFX generation
+
+
 ## Ideas
-* htmx 2.0 upgrade
+

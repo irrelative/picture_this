@@ -104,7 +104,7 @@ func (s *Server) assignPrompts(game *Game) error {
 		return errors.New("no players to assign prompts")
 	}
 
-	prompts, err := s.loadPromptLibrary(total, game.PromptCategory, game.UsedPrompts)
+	prompts, err := s.loadPromptLibrary(total, game.UsedPrompts)
 	if err != nil {
 		return err
 	}
@@ -132,15 +132,12 @@ func (s *Server) assignPrompts(game *Game) error {
 	return nil
 }
 
-func (s *Server) loadPromptLibrary(limit int, category string, used map[string]struct{}) ([]string, error) {
+func (s *Server) loadPromptLibrary(limit int, used map[string]struct{}) ([]string, error) {
 	if s.db == nil {
 		return selectPrompts(fallbackPromptsList(), limit, used), nil
 	}
 	var records []db.PromptLibrary
 	query := s.db
-	if category = strings.TrimSpace(category); category != "" {
-		query = query.Where("category = ?", category)
-	}
 	if len(used) > 0 {
 		exclusions := make([]string, 0, len(used))
 		for prompt := range used {

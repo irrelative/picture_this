@@ -1,5 +1,4 @@
 import {
-  fetchCategories,
   fetchSnapshot,
   postEndGame,
   postKick,
@@ -36,7 +35,6 @@ const ctx = {
     settingsForm: document.getElementById("settingsForm"),
     roundsInput: document.getElementById("roundsInput"),
     maxPlayersInput: document.getElementById("maxPlayersInput"),
-    promptCategory: document.getElementById("promptCategory"),
     lobbyLocked: document.getElementById("lobbyLocked"),
     lobbyStatus: document.getElementById("lobbyStatus"),
     settingsStatus: document.getElementById("settingsStatus")
@@ -44,7 +42,6 @@ const ctx = {
   state: {
     pollTimer: null,
     hostId: 0,
-    categoriesLoaded: false,
     currentPhase: "",
     lastMusicPhase: "",
     timerEndsAt: 0,
@@ -189,24 +186,6 @@ function connectWS() {
   });
 }
 
-async function loadCategories() {
-  if (ctx.state.categoriesLoaded || !ctx.els.promptCategory) return;
-  ctx.state.categoriesLoaded = true;
-  const { data } = await fetchCategories();
-  const categories = Array.isArray(data.categories) ? data.categories : [];
-  ctx.els.promptCategory.innerHTML = "";
-  const allOption = document.createElement("option");
-  allOption.value = "";
-  allOption.textContent = "All prompts";
-  ctx.els.promptCategory.appendChild(allOption);
-  categories.forEach((category) => {
-    const option = document.createElement("option");
-    option.value = category;
-    option.textContent = category;
-    ctx.els.promptCategory.appendChild(option);
-  });
-}
-
 if (ctx.els.startGame) {
   ctx.els.startGame.addEventListener("click", async () => {
     if (!ctx.els.meta) return;
@@ -262,7 +241,6 @@ if (ctx.els.settingsForm) {
     const gameId = ctx.els.meta.dataset.gameId;
     const rounds = Number(ctx.els.roundsInput?.value || 0);
     const maxPlayers = Number(ctx.els.maxPlayersInput?.value || 0);
-    const category = ctx.els.promptCategory ? ctx.els.promptCategory.value : "";
     const locked = Boolean(ctx.els.lobbyLocked?.checked);
     if (ctx.els.settingsStatus) {
       ctx.els.settingsStatus.textContent = "Saving...";
@@ -271,7 +249,6 @@ if (ctx.els.settingsForm) {
       player_id: ctx.state.hostId || 0,
       rounds,
       max_players: maxPlayers,
-      prompt_category: category,
       lobby_locked: locked
     });
     if (!res.ok) {
@@ -285,7 +262,6 @@ if (ctx.els.settingsForm) {
     }
     updateFromSnapshot(ctx, data);
   });
-  loadCategories();
 }
 
 if (ctx.els.playerActions) {

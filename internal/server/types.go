@@ -30,7 +30,6 @@ type Game struct {
 	Phase            string
 	PhaseStartedAt   time.Time
 	MaxPlayers       int
-	PromptCategory   string
 	LobbyLocked      bool
 	UsedPrompts      map[string]struct{}
 	KickedPlayers    map[string]struct{}

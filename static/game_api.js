@@ -37,7 +37,3 @@ export async function postKick(gameId, payload) {
     body: JSON.stringify(payload)
   });
 }
-
-export async function fetchCategories() {
-  return requestJSON("/api/prompts/categories");
-}

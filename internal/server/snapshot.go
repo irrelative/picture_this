@@ -69,7 +69,6 @@ func snapshotWithConfig(game *Game, cfg config.Config) map[string]any {
 		"player_ids":         playerIDs,
 		"player_colors":      playerColors,
 		"player_avatars":     playerAvatars,
-		"prompt_category":    game.PromptCategory,
 		"max_players":        game.MaxPlayers,
 		"lobby_locked":       game.LobbyLocked,
 		"host_id":            game.HostID,

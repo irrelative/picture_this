@@ -16,7 +16,6 @@ const (
 	maxGuessLength    = 60
 	maxPromptLength   = 140
 	maxChoiceLength   = 140
-	maxCategoryLength = 32
 	maxDrawingBytes   = 250 * 1024
 	maxRoundsPerGame  = 10
 	maxLobbyPlayers   = 12
@@ -44,10 +43,6 @@ func registerValidators() {
 		})
 		_ = engine.RegisterValidation("choice", func(fl validator.FieldLevel) bool {
 			_, err := validateChoice(fl.Field().String())
-			return err == nil
-		})
-		_ = engine.RegisterValidation("category", func(fl validator.FieldLevel) bool {
-			_, err := validateCategory(fl.Field().String())
 			return err == nil
 		})
 	})
@@ -81,35 +76,6 @@ func validatePrompt(text string) (string, error) {
 
 func validateChoice(text string) (string, error) {
 	return validateText("choice", text, maxChoiceLength)
-}
-
-func validateCategory(text string) (string, error) {
-	trimmed := strings.TrimSpace(text)
-	if trimmed == "" {
-		return "", nil
-	}
-	if len(trimmed) > maxCategoryLength {
-		return "", fmt.Errorf("prompt category must be %d characters or fewer", maxCategoryLength)
-	}
-	for _, r := range trimmed {
-		if r > 127 {
-			return "", errors.New("prompt category contains unsupported characters")
-		}
-		if r >= 'a' && r <= 'z' {
-			continue
-		}
-		if r >= 'A' && r <= 'Z' {
-			continue
-		}
-		if r >= '0' && r <= '9' {
-			continue
-		}
-		if r == '-' || r == '_' {
-			continue
-		}
-		return "", errors.New("prompt category contains unsupported characters")
-	}
-	return trimmed, nil
 }
 
 func validateText(label, text string, maxLen int) (string, error) {

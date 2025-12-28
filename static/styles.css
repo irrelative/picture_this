@@ -563,6 +563,11 @@ select:focus {
   vertical-align: top;
 }
 
+.data-table input {
+  width: 100%;
+  min-width: 12rem;
+}
+
 .data-table th {
   background: #f5f1e7;
   font-weight: 600;

@@ -22,7 +22,6 @@ func (s *Server) persistGame(game *Game) error {
 		Phase:            game.Phase,
 		PromptsPerPlayer: game.PromptsPerPlayer,
 		MaxPlayers:       game.MaxPlayers,
-		PromptCategory:   game.PromptCategory,
 		LobbyLocked:      game.LobbyLocked,
 	}
 	if err := s.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&record).Error; err != nil {
@@ -145,7 +144,6 @@ func (s *Server) persistSettings(game *Game) error {
 	updates := map[string]any{
 		"prompts_per_player": game.PromptsPerPlayer,
 		"max_players":        game.MaxPlayers,
-		"prompt_category":    game.PromptCategory,
 		"lobby_locked":       game.LobbyLocked,
 	}
 	if err := s.db.Model(&db.Game{}).Where("id = ?", game.DBID).Updates(updates).Error; err != nil {
@@ -154,7 +152,6 @@ func (s *Server) persistSettings(game *Game) error {
 	return s.persistEvent(game, "settings_updated", EventPayload{
 		PromptsPerPlayer: game.PromptsPerPlayer,
 		MaxPlayers:       game.MaxPlayers,
-		PromptCategory:   game.PromptCategory,
 		LobbyLocked:      game.LobbyLocked,
 	})
 }

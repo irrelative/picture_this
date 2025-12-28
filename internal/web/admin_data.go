@@ -26,3 +26,10 @@ type AdminDBGameSummary struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
+
+type AdminPromptLibraryData struct {
+	Prompts       []db.PromptLibrary
+	Error         string
+	Notice        string
+	DraftText     string
+}

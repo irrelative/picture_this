@@ -8,7 +8,6 @@ type Game struct {
 	Phase            string    `gorm:"size:32;not null"`
 	PromptsPerPlayer int       `gorm:"not null;default:2"`
 	MaxPlayers       int       `gorm:"not null;default:0"`
-	PromptCategory   string    `gorm:"size:64;not null;default:''"`
 	LobbyLocked      bool      `gorm:"not null;default:false"`
 	CreatedAt        time.Time `gorm:"not null"`
 	UpdatedAt        time.Time `gorm:"not null"`
