@@ -15,6 +15,11 @@ import (
 
 const openAIUserPlaceholder = "{{instructions}}"
 
+type GeneratedPrompt struct {
+	Text string
+	Joke string
+}
+
 type openAIChatRequest struct {
 	Model       string              `json:"model"`
 	Messages    []openAIChatMessage `json:"messages"`
@@ -38,7 +43,7 @@ type openAIChatResponse struct {
 	} `json:"error,omitempty"`
 }
 
-func (s *Server) generatePromptsFromOpenAI(ctx context.Context, instructions string) ([]string, error) {
+func (s *Server) generatePromptsFromOpenAI(ctx context.Context, instructions string) ([]GeneratedPrompt, error) {
 	if strings.TrimSpace(s.cfg.OpenAIAPIKey) == "" {
 		return nil, errors.New("OpenAI API key is not configured.")
 	}
@@ -118,9 +123,10 @@ func readPromptFile(path string) (string, error) {
 	return strings.TrimSpace(string(content)), nil
 }
 
-func parsePromptList(raw string) []string {
+func parsePromptList(raw string) []GeneratedPrompt {
 	lines := strings.Split(raw, "\n")
-	out := make([]string, 0, len(lines))
+	out := make([]GeneratedPrompt, 0, len(lines))
+	var current *GeneratedPrompt
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		line = strings.TrimLeft(line, "-*•")
@@ -130,17 +136,26 @@ func parsePromptList(raw string) []string {
 		if line == "" {
 			continue
 		}
+		if strings.HasPrefix(strings.ToLower(line), "joke:") {
+			if current != nil {
+				current.Joke = strings.TrimSpace(strings.TrimPrefix(line, "Joke:"))
+				current.Joke = strings.TrimSpace(strings.TrimPrefix(current.Joke, "joke:"))
+			}
+			continue
+		}
 		line = stripDifficultyTag(line)
-		out = append(out, line)
+		entry := GeneratedPrompt{Text: line}
+		out = append(out, entry)
+		current = &out[len(out)-1]
 	}
 	return sanitizePromptList(out)
 }
 
-func sanitizePromptList(prompts []string) []string {
+func sanitizePromptList(prompts []GeneratedPrompt) []GeneratedPrompt {
 	unique := make(map[string]struct{}, len(prompts))
-	out := make([]string, 0, len(prompts))
+	out := make([]GeneratedPrompt, 0, len(prompts))
 	for _, prompt := range prompts {
-		clean := strings.TrimSpace(prompt)
+		clean := strings.TrimSpace(prompt.Text)
 		if clean == "" {
 			continue
 		}
@@ -149,7 +164,9 @@ func sanitizePromptList(prompts []string) []string {
 			continue
 		}
 		unique[key] = struct{}{}
-		out = append(out, clean)
+		prompt.Text = clean
+		prompt.Joke = strings.TrimSpace(prompt.Joke)
+		out = append(out, prompt)
 		if len(out) == 20 {
 			break
 		}

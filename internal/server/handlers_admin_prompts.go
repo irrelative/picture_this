@@ -35,13 +35,18 @@ func (s *Server) handleAdminPromptCreate(c *gin.Context) {
 	}
 	text, err := validatePrompt(c.PostForm("text"))
 	if err != nil {
-		s.renderPromptLibraryError(c, err.Error(), c.PostForm("text"))
+		s.renderPromptLibraryError(c, err.Error(), c.PostForm("text"), c.PostForm("joke"))
+		return
+	}
+	joke, err := validateJoke(c.PostForm("joke"))
+	if err != nil {
+		s.renderPromptLibraryError(c, err.Error(), c.PostForm("text"), c.PostForm("joke"))
 		return
 	}
 
-	entry := db.PromptLibrary{Text: text}
+	entry := db.PromptLibrary{Text: text, Joke: joke}
 	if err := s.db.Create(&entry).Error; err != nil {
-		s.renderPromptLibraryError(c, "Failed to save prompt (it may already exist).", text)
+		s.renderPromptLibraryError(c, "Failed to save prompt (it may already exist).", text, joke)
 		return
 	}
 
@@ -69,11 +74,15 @@ func (s *Server) handleAdminPromptGenerate(c *gin.Context) {
 
 	entries := make([]db.PromptLibrary, 0, len(prompts))
 	for _, prompt := range prompts {
-		clean, err := validatePrompt(prompt)
+		clean, err := validatePrompt(prompt.Text)
 		if err != nil {
 			continue
 		}
-		entries = append(entries, db.PromptLibrary{Text: clean})
+		joke, err := validateJoke(prompt.Joke)
+		if err != nil {
+			joke = ""
+		}
+		entries = append(entries, db.PromptLibrary{Text: clean, Joke: joke})
 	}
 	if len(entries) == 0 {
 		s.renderPromptLibraryGenerateError(c, "No valid prompts were generated. Try again.", instructions)
@@ -99,25 +108,31 @@ func (s *Server) handleAdminPromptUpdate(c *gin.Context) {
 	}
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil || id <= 0 {
-		s.renderPromptLibraryError(c, "Invalid prompt id.", "")
+		s.renderPromptLibraryError(c, "Invalid prompt id.", "", "")
 		return
 	}
 	text, err := validatePrompt(c.PostForm("text"))
 	if err != nil {
-		s.renderPromptLibraryError(c, err.Error(), c.PostForm("text"))
+		s.renderPromptLibraryError(c, err.Error(), c.PostForm("text"), c.PostForm("joke"))
+		return
+	}
+	joke, err := validateJoke(c.PostForm("joke"))
+	if err != nil {
+		s.renderPromptLibraryError(c, err.Error(), c.PostForm("text"), c.PostForm("joke"))
 		return
 	}
 
 	var entry db.PromptLibrary
 	if err := s.db.First(&entry, uint(id)).Error; err != nil {
-		s.renderPromptLibraryError(c, "Prompt not found.", "")
+		s.renderPromptLibraryError(c, "Prompt not found.", "", "")
 		return
 	}
 	entry.Text = text
 	if err := s.db.Model(&entry).Updates(map[string]any{
 		"Text": text,
+		"Joke": joke,
 	}).Error; err != nil {
-		s.renderPromptLibraryError(c, "Failed to update prompt (it may already exist).", text)
+		s.renderPromptLibraryError(c, "Failed to update prompt (it may already exist).", text, joke)
 		return
 	}
 
@@ -134,16 +149,16 @@ func (s *Server) handleAdminPromptDelete(c *gin.Context) {
 	}
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil || id <= 0 {
-		s.renderPromptLibraryError(c, "Invalid prompt id.", "")
+		s.renderPromptLibraryError(c, "Invalid prompt id.", "", "")
 		return
 	}
 	result := s.db.Delete(&db.PromptLibrary{}, uint(id))
 	if result.Error != nil {
-		s.renderPromptLibraryError(c, "Failed to delete prompt.", "")
+		s.renderPromptLibraryError(c, "Failed to delete prompt.", "", "")
 		return
 	}
 	if result.RowsAffected == 0 {
-		s.renderPromptLibraryError(c, "Prompt not found.", "")
+		s.renderPromptLibraryError(c, "Prompt not found.", "", "")
 		return
 	}
 
@@ -163,10 +178,11 @@ func (s *Server) loadPromptLibraryData() web.AdminPromptLibraryData {
 	return data
 }
 
-func (s *Server) renderPromptLibraryError(c *gin.Context, message, text string) {
+func (s *Server) renderPromptLibraryError(c *gin.Context, message, text, joke string) {
 	data := s.loadPromptLibraryData()
 	data.Error = message
 	data.DraftText = text
+	data.DraftJoke = joke
 	templ.Handler(web.AdminPromptLibrary(data)).ServeHTTP(c.Writer, c.Request)
 }
 

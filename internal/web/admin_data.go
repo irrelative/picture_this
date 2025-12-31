@@ -37,5 +37,6 @@ type AdminPromptLibraryData struct {
 	Error                string
 	Notice               string
 	DraftText            string
+	DraftJoke            string
 	GenerateInstructions string
 }

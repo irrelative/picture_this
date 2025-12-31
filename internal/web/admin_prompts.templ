@@ -42,6 +42,10 @@ templ AdminPromptLibrary(data AdminPromptLibraryData) {
 					<span class="label">Prompt</span>
 					<input name="text" placeholder="A llama on a skateboard" value={ data.DraftText } required />
 				</label>
+				<label>
+					<span class="label">Joke (optional)</span>
+					<input name="joke" placeholder="The dragon keeps asking for a toothbrush." value={ data.DraftJoke } />
+				</label>
 				<div class="settings-actions">
 					<button class="primary" type="submit">Add prompt</button>
 					<a class="secondary" href="/admin">Back to admin</a>
@@ -56,13 +60,14 @@ templ AdminPromptLibrary(data AdminPromptLibraryData) {
 			} else {
 				<table class="data-table">
 					<thead>
-						<tr><th>ID</th><th>Prompt</th><th>Updated</th><th></th></tr>
+						<tr><th>ID</th><th>Prompt</th><th>Joke</th><th>Updated</th><th></th></tr>
 					</thead>
 					<tbody>
 						for _, prompt := range data.Prompts {
 							<tr>
 								<td>{ prompt.ID }</td>
 								<td><input form={ "prompt-" + utoa(prompt.ID) } name="text" value={ prompt.Text } required /></td>
+								<td><input form={ "prompt-" + utoa(prompt.ID) } name="joke" value={ prompt.Joke } placeholder="Optional narrator joke" /></td>
 								<td>{ formatTime(prompt.UpdatedAt) }</td>
 								<td>
 									<div class="inline-actions">

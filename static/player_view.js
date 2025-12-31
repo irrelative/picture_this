@@ -403,6 +403,12 @@ function renderResults(ctx, results, scores) {
     card.appendChild(image);
     card.appendChild(guesses);
     card.appendChild(votes);
+    if (entry.joke) {
+      const joke = document.createElement("p");
+      joke.className = "result-joke";
+      joke.textContent = entry.joke;
+      card.appendChild(joke);
+    }
     if (els.resultsList) {
       els.resultsList.appendChild(card);
     }

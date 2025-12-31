@@ -12,13 +12,14 @@ import (
 )
 
 const (
-	maxNameLength     = 20
-	maxGuessLength    = 60
-	maxPromptLength   = 140
-	maxChoiceLength   = 140
-	maxDrawingBytes   = 250 * 1024
-	maxRoundsPerGame  = 10
-	maxLobbyPlayers   = 12
+	maxNameLength    = 20
+	maxGuessLength   = 60
+	maxPromptLength  = 140
+	maxChoiceLength  = 140
+	maxJokeLength    = 140
+	maxDrawingBytes  = 250 * 1024
+	maxRoundsPerGame = 10
+	maxLobbyPlayers  = 12
 )
 
 var validatorOnce sync.Once
@@ -70,6 +71,20 @@ func validatePrompt(text string) (string, error) {
 	}
 	if !isSafeText(trimmed) {
 		return "", errors.New("prompt contains unsupported characters")
+	}
+	return trimmed, nil
+}
+
+func validateJoke(text string) (string, error) {
+	trimmed := normalizeText(text)
+	if trimmed == "" {
+		return "", nil
+	}
+	if len(trimmed) > maxJokeLength {
+		return "", fmt.Errorf("joke must be %d characters or fewer", maxJokeLength)
+	}
+	if !isSafeText(trimmed) {
+		return "", errors.New("joke contains unsupported characters")
 	}
 	return trimmed, nil
 }

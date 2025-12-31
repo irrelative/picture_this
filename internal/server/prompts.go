@@ -117,9 +117,10 @@ func (s *Server) assignPrompts(game *Game) error {
 		prompt := prompts[idx]
 		round.Prompts = append(round.Prompts, PromptEntry{
 			PlayerID: player.ID,
-			Text:     prompt,
+			Text:     prompt.Text,
+			Joke:     prompt.Joke,
 		})
-		game.UsedPrompts[prompt] = struct{}{}
+		game.UsedPrompts[prompt.Text] = struct{}{}
 		idx++
 	}
 	if err := s.persistAssignedPrompts(game, round); err != nil {
@@ -132,7 +133,7 @@ func (s *Server) assignPrompts(game *Game) error {
 	return nil
 }
 
-func (s *Server) loadPromptLibrary(limit int, used map[string]struct{}) ([]string, error) {
+func (s *Server) loadPromptLibrary(limit int, used map[string]struct{}) ([]db.PromptLibrary, error) {
 	if s.db == nil {
 		return selectPrompts(fallbackPromptsList(), limit, used), nil
 	}
@@ -148,36 +149,32 @@ func (s *Server) loadPromptLibrary(limit int, used map[string]struct{}) ([]strin
 	if err := query.Order("random()").Limit(limit).Find(&records).Error; err != nil {
 		return nil, err
 	}
-	prompts := make([]string, 0, len(records))
-	for _, record := range records {
-		prompts = append(prompts, record.Text)
-	}
-	return prompts, nil
+	return selectPrompts(records, limit, used), nil
 }
 
-func fallbackPromptsList() []string {
-	return []string{
-		"Draw a llama in a suit",
-		"Draw a castle made of pancakes",
-		"Draw a robot learning to dance",
-		"Draw a pirate cat at a tea party",
-		"Draw a rocket powered skateboard",
-		"Draw a haunted treehouse",
-		"Draw a snowy beach day",
-		"Draw a giant sunflower city",
+func fallbackPromptsList() []db.PromptLibrary {
+	return []db.PromptLibrary{
+		{Text: "A llama in a suit"},
+		{Text: "A castle made of pancakes"},
+		{Text: "A robot learning to dance"},
+		{Text: "A pirate cat at a tea party"},
+		{Text: "A rocket powered skateboard"},
+		{Text: "A haunted treehouse"},
+		{Text: "A snowy beach day"},
+		{Text: "A giant sunflower city"},
 	}
 }
 
-func selectPrompts(pool []string, limit int, used map[string]struct{}) []string {
+func selectPrompts(pool []db.PromptLibrary, limit int, used map[string]struct{}) []db.PromptLibrary {
 	if limit <= 0 {
 		return nil
 	}
-	selected := make([]string, 0, limit)
+	selected := make([]db.PromptLibrary, 0, limit)
 	for _, prompt := range pool {
 		if len(selected) >= limit {
 			break
 		}
-		if _, ok := used[prompt]; ok {
+		if _, ok := used[prompt.Text]; ok {
 			continue
 		}
 		selected = append(selected, prompt)

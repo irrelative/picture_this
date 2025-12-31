@@ -183,6 +183,7 @@ func buildRounds(rounds []db.Round, prompts []db.Prompt, drawings []db.Drawing, 
 			state.Prompts = append(state.Prompts, PromptEntry{
 				PlayerID: int(prompt.PlayerID),
 				Text:     prompt.Text,
+				Joke:     prompt.Joke,
 				DBID:     prompt.ID,
 			})
 			promptTextByID[prompt.ID] = prompt.Text

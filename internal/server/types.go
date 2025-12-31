@@ -69,6 +69,7 @@ type RoundState struct {
 type PromptEntry struct {
 	PlayerID int
 	Text     string
+	Joke     string
 	DBID     uint
 }
 

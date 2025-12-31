@@ -596,6 +596,15 @@ select:focus {
   gap: 6px;
 }
 
+.result-joke {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f8f3e8;
+  font-style: italic;
+  color: #4b3b2b;
+}
+
 .active-panel {
   grid-template-columns: 1fr;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(239, 255, 242, 0.98));

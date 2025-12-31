@@ -273,6 +273,7 @@ func (s *Server) persistAssignedPrompts(game *Game, round *RoundState) error {
 			RoundID:  round.DBID,
 			PlayerID: player.DBID,
 			Text:     entry.Text,
+			Joke:     entry.Joke,
 		}
 		if err := s.db.Create(&record).Error; err != nil {
 			return err

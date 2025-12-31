@@ -104,7 +104,7 @@ templ Admin(gameID string, data AdminData) {
 			<h2>Prompts</h2>
 			<table class="data-table">
 				<thead>
-					<tr><th>ID</th><th>Round</th><th>Player</th><th>Text</th></tr>
+					<tr><th>ID</th><th>Round</th><th>Player</th><th>Text</th><th>Joke</th></tr>
 				</thead>
 				<tbody>
 					for _, prompt := range data.Prompts {
@@ -113,6 +113,7 @@ templ Admin(gameID string, data AdminData) {
 							<td>{ prompt.RoundID }</td>
 							<td>{ prompt.PlayerID }</td>
 							<td>{ prompt.Text }</td>
+							<td>{ prompt.Joke }</td>
 						</tr>
 					}
 				</tbody>
