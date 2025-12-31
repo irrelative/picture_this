@@ -36,6 +36,10 @@ templ JoinView(code string, playerName string) {
 				<button type="submit" class="primary">Join game</button>
 			</form>
 			<div id="joinResult" class="result" role="status" aria-live="polite"></div>
+			<div id="joinAs" class="join-as" hidden>
+				<p class="hint">Game is paused. Claim your seat to rejoin:</p>
+				<div id="joinAsButtons" class="inline-actions"></div>
+			</div>
 		</section>
 	}
 }

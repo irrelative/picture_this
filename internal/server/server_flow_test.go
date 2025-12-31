@@ -3,7 +3,6 @@ package server
 import (
 	"errors"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"picture-this/internal/config"
@@ -11,7 +10,7 @@ import (
 
 func TestAssignPromptsNoRepeat(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
@@ -62,7 +61,7 @@ func TestAssignPromptsNoRepeat(t *testing.T) {
 
 func TestSubmitDrawings(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
@@ -93,7 +92,7 @@ func TestSubmitDrawings(t *testing.T) {
 
 func TestSubmitGuesses(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
@@ -136,7 +135,7 @@ func TestSubmitGuesses(t *testing.T) {
 
 func TestSubmitVotes(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
@@ -289,7 +288,7 @@ func TestSubmitVotes(t *testing.T) {
 
 func TestAutoAdvanceFromDrawings(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)

@@ -31,6 +31,7 @@ load-prompts:
 
 DATABASE_URL_TEST ?= postgres:///picture_this_test?sslmode=disable
 PORT_TEST ?= 8081
+GOCACHE ?= $(CURDIR)/.gocache
 
 e2e-test:
 	@set -e; \

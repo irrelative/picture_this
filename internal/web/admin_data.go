@@ -7,15 +7,20 @@ import (
 )
 
 type AdminData struct {
-	Game     db.Game
-	Players  []db.Player
-	Rounds   []db.Round
-	Prompts  []db.Prompt
-	Drawings []db.Drawing
-	Guesses  []db.Guess
-	Votes    []db.Vote
-	Events   []db.Event
-	Error    string
+	Game           db.Game
+	Players        []db.Player
+	Rounds         []db.Round
+	Prompts        []db.Prompt
+	Drawings       []db.Drawing
+	Guesses        []db.Guess
+	Votes          []db.Vote
+	Events         []db.Event
+	InMemory       bool
+	Paused         bool
+	PausedPhase    string
+	ClaimedPlayers int
+	TotalPlayers   int
+	Error          string
 }
 
 type AdminDBGameSummary struct {
@@ -28,8 +33,9 @@ type AdminDBGameSummary struct {
 }
 
 type AdminPromptLibraryData struct {
-	Prompts       []db.PromptLibrary
-	Error         string
-	Notice        string
-	DraftText     string
+	Prompts              []db.PromptLibrary
+	Error                string
+	Notice               string
+	DraftText            string
+	GenerateInstructions string
 }

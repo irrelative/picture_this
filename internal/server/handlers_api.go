@@ -14,10 +14,10 @@ import (
 )
 
 type settingsRequest struct {
-	PlayerID       int    `json:"player_id" binding:"required,gt=0"`
-	Rounds         int    `json:"rounds" binding:"min=0,max=10"`
-	MaxPlayers     int    `json:"max_players" binding:"min=0,max=12"`
-	LobbyLocked    bool   `json:"lobby_locked"`
+	PlayerID    int  `json:"player_id" binding:"required,gt=0"`
+	Rounds      int  `json:"rounds" binding:"min=0,max=10"`
+	MaxPlayers  int  `json:"max_players" binding:"min=0,max=12"`
+	LobbyLocked bool `json:"lobby_locked"`
 }
 
 type kickRequest struct {
@@ -110,6 +110,9 @@ func (s *Server) handleGetGame(c *gin.Context) {
 	gameID := c.Param("gameID")
 	game, ok := s.store.GetGame(gameID)
 	if !ok {
+		game, ok = s.store.FindGameByJoinCode(gameID)
+	}
+	if !ok {
 		c.Status(http.StatusNotFound)
 		return
 	}
@@ -149,6 +152,10 @@ func (s *Server) handleJoinGame(c *gin.Context) {
 	if err != nil {
 		if err.Error() == "game not found" {
 			c.Status(http.StatusNotFound)
+			return
+		}
+		if err.Error() == "game is paused" {
+			c.JSON(http.StatusConflict, gin.H{"error": "game is paused; enter an existing player name to claim your seat"})
 			return
 		}
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})

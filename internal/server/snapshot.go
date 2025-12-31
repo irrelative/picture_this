@@ -62,6 +62,8 @@ func snapshotWithConfig(game *Game, cfg config.Config) map[string]any {
 		"game_id":            game.ID,
 		"join_code":          game.JoinCode,
 		"phase":              game.Phase,
+		"paused":             game.Phase == phasePaused,
+		"paused_phase":       game.PausedPhase,
 		"phase_started_at":   game.PhaseStartedAt,
 		"phase_duration":     phaseDuration,
 		"phase_ends_at":      phaseEndsAt,

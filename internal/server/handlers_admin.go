@@ -21,6 +21,7 @@ func (s *Server) handleAdminView(c *gin.Context) {
 	}
 	displayID := gameID
 	if data, ok := s.loadAdminDataFromMemory(gameID); ok {
+		s.populateAdminRuntimeState(&data, gameID)
 		templ.Handler(web.Admin(displayID, data)).ServeHTTP(c.Writer, c.Request)
 		return
 	}
@@ -39,6 +40,7 @@ func (s *Server) handleAdminView(c *gin.Context) {
 	if errMsg != "" {
 		data.Error = errMsg
 	}
+	s.populateAdminRuntimeState(&data, displayID)
 	templ.Handler(web.Admin(displayID, data)).ServeHTTP(c.Writer, c.Request)
 }
 
@@ -79,7 +81,7 @@ func (s *Server) loadAdminDataFromMemory(gameID string) (web.AdminData, bool) {
 		data.Error = "Database not configured."
 		return data, true
 	}
-	game, ok := s.store.GetGame(gameID)
+	game, ok := s.findGameInStore(gameID)
 	if !ok || game == nil {
 		return web.AdminData{}, false
 	}
@@ -147,4 +149,21 @@ func (s *Server) loadAdminDataByID(gameDBID uint) (web.AdminData, string) {
 		}
 	}
 	return data, ""
+}
+
+func (s *Server) populateAdminRuntimeState(data *web.AdminData, gameID string) {
+	if data == nil {
+		return
+	}
+	game, ok := s.findGameInStore(gameID)
+	if !ok || game == nil {
+		return
+	}
+	data.InMemory = true
+	data.TotalPlayers = len(game.Players)
+	data.ClaimedPlayers = countClaimed(game.Players)
+	if game.Phase == phasePaused {
+		data.Paused = true
+		data.PausedPhase = game.PausedPhase
+	}
 }

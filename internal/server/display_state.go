@@ -80,6 +80,13 @@ func (s *Server) renderDisplayHTML(game *Game) string {
 
 func buildDisplayStage(game *Game) (string, string, string, []string) {
 	phase := game.Phase
+	if phase == phasePaused {
+		status := "Game is paused. Players should rejoin and claim their name."
+		if game.PausedPhase != "" {
+			status = "Game paused during " + game.PausedPhase + ". Players should rejoin and claim their name."
+		}
+		return "Game paused", status, "", nil
+	}
 	if phase == phaseLobby {
 		return "Waiting for players", "Share the join code so everyone can join.", "", nil
 	}

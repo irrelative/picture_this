@@ -11,6 +11,26 @@ templ Admin(gameID string, data AdminData) {
 			</div>
 		</header>
 
+		<section class="panel">
+			<h2>Runtime state</h2>
+			if data.InMemory {
+				<p>This game is loaded in memory.</p>
+				if data.Paused {
+					<p class="hint">Paused (was { data.PausedPhase }). Claimed { data.ClaimedPlayers } of { data.TotalPlayers } players.</p>
+					<form method="post" action={ "/admin/" + gameID + "/resume" }>
+						<button class="secondary" type="submit" disabled?={ data.ClaimedPlayers != data.TotalPlayers }>Resume game</button>
+					</form>
+				} else {
+					<p class="hint">Live phase: { data.Game.Phase }.</p>
+				}
+			} else {
+				<p>This game is not in memory.</p>
+				<form method="post" action={ "/admin/" + gameID + "/restore" }>
+					<button class="secondary" type="submit">Restore game</button>
+				</form>
+			}
+		</section>
+
 		if data.Error != "" {
 			<div class="panel">
 				<p class="result error">{ data.Error }</p>
@@ -244,7 +264,14 @@ templ AdminHome(active []GameSummary, history []AdminDBGameSummary) {
 								<td>{ game.Players }</td>
 								<td>{ formatTime(game.CreatedAt) }</td>
 								<td>{ formatTime(game.UpdatedAt) }</td>
-								<td><a class="secondary" href={ "/admin/" + game.JoinCode }>Open</a></td>
+								<td>
+									<div class="inline-actions">
+										<a class="secondary" href={ "/admin/" + game.JoinCode }>Open</a>
+										<form method="post" action={ "/admin/" + game.JoinCode + "/restore" }>
+											<button class="secondary" type="submit">Restore</button>
+										</form>
+									</div>
+								</td>
 							</tr>
 						}
 					</tbody>

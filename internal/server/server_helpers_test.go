@@ -97,6 +97,41 @@ func doRequest(t *testing.T, ts *httptest.Server, method, path string, payload a
 	return resp
 }
 
+func doRequestNoRedirect(t *testing.T, ts *httptest.Server, method, path string, payload any) *http.Response {
+	t.Helper()
+	var body *bytes.Reader
+	if payload != nil {
+		data, err := json.Marshal(payload)
+		if err != nil {
+			t.Fatalf("marshal payload: %v", err)
+		}
+		body = bytes.NewReader(data)
+	} else {
+		body = bytes.NewReader(nil)
+	}
+
+	req, err := http.NewRequest(method, ts.URL+path, body)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	if payload != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("do request: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = resp.Body.Close()
+	})
+	return resp
+}
+
 func decodeBody(t *testing.T, resp *http.Response) map[string]any {
 	t.Helper()
 	var body map[string]any

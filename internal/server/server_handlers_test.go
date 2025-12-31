@@ -2,7 +2,6 @@ package server
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"strconv"
 	"testing"
 
@@ -11,7 +10,7 @@ import (
 
 func TestCreateGame(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	resp := doRequest(t, ts, http.MethodPost, "/api/games", nil)
@@ -26,7 +25,7 @@ func TestCreateGame(t *testing.T) {
 
 func TestHomePage(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	resp := doRequest(t, ts, http.MethodGet, "/", nil)
@@ -37,7 +36,7 @@ func TestHomePage(t *testing.T) {
 
 func TestGameView(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
@@ -49,7 +48,7 @@ func TestGameView(t *testing.T) {
 
 func TestDisplayView(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
@@ -61,7 +60,7 @@ func TestDisplayView(t *testing.T) {
 
 func TestAdminHomeView(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	resp := doRequest(t, ts, http.MethodGet, "/admin", nil)
@@ -72,7 +71,7 @@ func TestAdminHomeView(t *testing.T) {
 
 func TestAdminPromptLibraryView(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	resp := doRequest(t, ts, http.MethodGet, "/admin/prompts", nil)
@@ -83,7 +82,7 @@ func TestAdminPromptLibraryView(t *testing.T) {
 
 func TestAdminGameView(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
@@ -93,9 +92,62 @@ func TestAdminGameView(t *testing.T) {
 	}
 }
 
+func TestAdminResumeRequiresClaims(t *testing.T) {
+	srv := New(nil, config.Default())
+	ts := newTestServer(t, srv.Handler())
+	t.Cleanup(ts.Close)
+
+	gameID := createGame(t, ts)
+	_ = joinPlayer(t, ts, gameID, "Ada")
+	_ = joinPlayer(t, ts, gameID, "Bob")
+
+	_, err := srv.store.UpdateGame(gameID, func(game *Game) error {
+		game.Phase = phasePaused
+		game.PausedPhase = phaseDrawings
+		for i := range game.Players {
+			game.Players[i].Claimed = false
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("update game: %v", err)
+	}
+
+	resp := doRequestNoRedirect(t, ts, http.MethodPost, "/admin/"+gameID+"/resume", nil)
+	if resp.StatusCode != http.StatusFound {
+		t.Fatalf("expected status %d, got %d", http.StatusFound, resp.StatusCode)
+	}
+	game, _ := srv.store.GetGame(gameID)
+	if game.Phase != phasePaused {
+		t.Fatalf("expected game to remain paused")
+	}
+
+	resp = doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/join", map[string]string{
+		"name": "Ada",
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+	resp = doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/join", map[string]string{
+		"name": "Bob",
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+
+	resp = doRequestNoRedirect(t, ts, http.MethodPost, "/admin/"+gameID+"/resume", nil)
+	if resp.StatusCode != http.StatusFound {
+		t.Fatalf("expected status %d, got %d", http.StatusFound, resp.StatusCode)
+	}
+	game, _ = srv.store.GetGame(gameID)
+	if game.Phase != phaseDrawings {
+		t.Fatalf("expected game to resume to drawings")
+	}
+}
+
 func TestJoinView(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	resp := doRequest(t, ts, http.MethodGet, "/join", nil)
@@ -111,7 +163,7 @@ func TestJoinView(t *testing.T) {
 
 func TestPlayerView(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
@@ -133,7 +185,7 @@ func TestPlayerView(t *testing.T) {
 
 func TestPlayerViewMissingRedirectsWithSession(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	req, err := http.NewRequest(http.MethodGet, ts.URL+"/play/game-1/1", nil)
@@ -159,7 +211,7 @@ func TestPlayerViewMissingRedirectsWithSession(t *testing.T) {
 
 func TestGetGame(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
@@ -171,7 +223,7 @@ func TestGetGame(t *testing.T) {
 
 func TestJoinGameByCode(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	_, joinCode := createGameWithCode(t, ts)
@@ -186,7 +238,7 @@ func TestJoinGameByCode(t *testing.T) {
 
 func TestJoinGame(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
@@ -201,7 +253,7 @@ func TestJoinGame(t *testing.T) {
 
 func TestJoinGameWithoutAvatar(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
@@ -215,7 +267,7 @@ func TestJoinGameWithoutAvatar(t *testing.T) {
 
 func TestJoinRejectsInvalidName(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
@@ -230,7 +282,7 @@ func TestJoinRejectsInvalidName(t *testing.T) {
 
 func TestGuessRejectsInvalidText(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
@@ -246,16 +298,16 @@ func TestGuessRejectsInvalidText(t *testing.T) {
 
 func TestUpdateSettings(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
 	hostID := joinPlayer(t, ts, gameID, "Ada")
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/settings", map[string]any{
-		"player_id":       hostID,
-		"rounds":          3,
-		"max_players":     4,
-		"lobby_locked":    true,
+		"player_id":    hostID,
+		"rounds":       3,
+		"max_players":  4,
+		"lobby_locked": true,
 	})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
@@ -274,7 +326,7 @@ func TestUpdateSettings(t *testing.T) {
 
 func TestJoinGameLocked(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
@@ -296,7 +348,7 @@ func TestJoinGameLocked(t *testing.T) {
 
 func TestKickPlayerBlocksRejoin(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
@@ -321,7 +373,7 @@ func TestKickPlayerBlocksRejoin(t *testing.T) {
 
 func TestJoinSameNameReturnsSamePlayer(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
@@ -334,7 +386,7 @@ func TestJoinSameNameReturnsSamePlayer(t *testing.T) {
 
 func TestStartGame(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
@@ -350,7 +402,7 @@ func TestStartGame(t *testing.T) {
 
 func TestStartGameConflict(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
@@ -373,7 +425,7 @@ func TestStartGameConflict(t *testing.T) {
 
 func TestAdvanceGame(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
@@ -385,7 +437,7 @@ func TestAdvanceGame(t *testing.T) {
 
 func TestResults(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
@@ -397,7 +449,7 @@ func TestResults(t *testing.T) {
 
 func TestEventsUnavailableWithoutDB(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)

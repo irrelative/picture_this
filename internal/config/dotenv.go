@@ -29,6 +29,10 @@ type Config struct {
 	DBMaxIdleConns           int
 	DBConnMaxLifetimeSeconds int
 	DBConnMaxIdleTimeSeconds int
+	OpenAIAPIKey             string
+	OpenAIModel              string
+	OpenAIPromptSystemPath   string
+	OpenAIPromptUserPath     string
 }
 
 func Default() Config {
@@ -42,6 +46,9 @@ func Default() Config {
 		DBMaxIdleConns:           10,
 		DBConnMaxLifetimeSeconds: 300,
 		DBConnMaxIdleTimeSeconds: 60,
+		OpenAIModel:              "gpt-4o-mini",
+		OpenAIPromptSystemPath:   "prompts/openai_drawing_system.txt",
+		OpenAIPromptUserPath:     "prompts/openai_drawing_user.txt",
 	}
 }
 
@@ -91,6 +98,18 @@ func Load() Config {
 		if value, err := strconv.Atoi(raw); err == nil && value > 0 {
 			cfg.DBConnMaxIdleTimeSeconds = value
 		}
+	}
+	if raw := os.Getenv("OPENAI_API_KEY"); raw != "" {
+		cfg.OpenAIAPIKey = raw
+	}
+	if raw := os.Getenv("OPENAI_MODEL"); raw != "" {
+		cfg.OpenAIModel = raw
+	}
+	if raw := os.Getenv("OPENAI_PROMPT_SYSTEM_PATH"); raw != "" {
+		cfg.OpenAIPromptSystemPath = raw
+	}
+	if raw := os.Getenv("OPENAI_PROMPT_USER_PATH"); raw != "" {
+		cfg.OpenAIPromptUserPath = raw
 	}
 	return cfg
 }

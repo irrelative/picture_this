@@ -111,8 +111,12 @@ func (s *Store) AddPlayer(gameIDOrCode, name string, avatar []byte) (*Game, *Pla
 			if len(avatar) > 0 {
 				game.Players[i].Avatar = avatar
 			}
+			game.Players[i].Claimed = true
 			return game, &game.Players[i], nil
 		}
+	}
+	if game.Phase == phasePaused {
+		return nil, nil, errors.New("game is paused")
 	}
 	if game.Phase != phaseLobby {
 		return nil, nil, errors.New("game already started")
@@ -130,11 +134,12 @@ func (s *Store) AddPlayer(gameIDOrCode, name string, avatar []byte) (*Game, *Pla
 	}
 
 	player := Player{
-		ID:     s.nextPlayerID,
-		Name:   name,
-		Avatar: avatar,
-		IsHost: len(game.Players) == 0,
-		Color:  pickPlayerColor(len(game.Players)),
+		ID:      s.nextPlayerID,
+		Name:    name,
+		Avatar:  avatar,
+		IsHost:  len(game.Players) == 0,
+		Color:   pickPlayerColor(len(game.Players)),
+		Claimed: true,
 	}
 	s.nextPlayerID++
 	game.Players = append(game.Players, player)
@@ -142,6 +147,36 @@ func (s *Store) AddPlayer(gameIDOrCode, name string, avatar []byte) (*Game, *Pla
 		game.HostID = player.ID
 	}
 	return game, &game.Players[len(game.Players)-1], nil
+}
+
+func (s *Store) RestoreGame(game *Game) error {
+	if game == nil {
+		return errors.New("game is nil")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.games[game.ID]; ok {
+		return errors.New("game already running")
+	}
+	for _, existing := range s.games {
+		if existing.JoinCode == game.JoinCode {
+			return errors.New("game already running")
+		}
+	}
+	s.games[game.ID] = game
+	if id := gameSortKey(game.ID); id >= s.nextID {
+		s.nextID = id + 1
+	}
+	maxPlayerID := 0
+	for _, player := range game.Players {
+		if player.ID > maxPlayerID {
+			maxPlayerID = player.ID
+		}
+	}
+	if maxPlayerID >= s.nextPlayerID {
+		s.nextPlayerID = maxPlayerID + 1
+	}
+	return nil
 }
 
 func (s *Store) ListGameSummaries() []GameSummary {

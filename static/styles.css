@@ -218,6 +218,7 @@ p {
   border: none;
   cursor: pointer;
   min-height: 44px;
+  text-decoration: none;
 }
 
 .primary {
@@ -784,6 +785,11 @@ select:focus {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+}
+
+.join-as {
+  display: grid;
+  gap: 8px;
 }
 
 .status-pill {

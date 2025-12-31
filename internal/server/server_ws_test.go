@@ -1,7 +1,6 @@
 package server
 
 import (
-	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -12,7 +11,7 @@ import (
 
 func TestWebsocketUpgradeRequired(t *testing.T) {
 	srv := New(nil, config.Default())
-	ts := httptest.NewServer(srv.Handler())
+	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)

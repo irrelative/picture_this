@@ -8,6 +8,7 @@ const (
 	phaseGuesses    = "guesses"
 	phaseGuessVotes = "guesses-votes"
 	phaseResults    = "results"
+	phasePaused     = "paused"
 	phaseComplete   = "complete"
 )
 
@@ -31,6 +32,7 @@ type Game struct {
 	PhaseStartedAt   time.Time
 	MaxPlayers       int
 	LobbyLocked      bool
+	PausedPhase      string
 	UsedPrompts      map[string]struct{}
 	KickedPlayers    map[string]struct{}
 	HostID           int
@@ -40,12 +42,13 @@ type Game struct {
 }
 
 type Player struct {
-	ID     int
-	Name   string
-	Avatar []byte
-	IsHost bool
-	DBID   uint
-	Color  string
+	ID      int
+	Name    string
+	Avatar  []byte
+	IsHost  bool
+	DBID    uint
+	Color   string
+	Claimed bool
 }
 
 type RoundState struct {

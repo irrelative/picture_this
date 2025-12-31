@@ -52,8 +52,11 @@ func (s *Server) Handler() http.Handler {
 	router.GET("/admin", s.handleAdminHome)
 	router.GET("/admin/prompts", s.handleAdminPromptsView)
 	router.POST("/admin/prompts", s.handleAdminPromptCreate)
+	router.POST("/admin/prompts/generate", s.handleAdminPromptGenerate)
 	router.POST("/admin/prompts/:id", s.handleAdminPromptUpdate)
 	router.POST("/admin/prompts/:id/delete", s.handleAdminPromptDelete)
+	router.POST("/admin/:gameID/restore", s.handleAdminRestoreGame)
+	router.POST("/admin/:gameID/resume", s.handleAdminResumeGame)
 	router.GET("/admin/:gameID", s.handleAdminView)
 
 	api := router.Group("/api")

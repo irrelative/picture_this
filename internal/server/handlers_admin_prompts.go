@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm/clause"
 )
 
 func (s *Server) handleAdminPromptsView(c *gin.Context) {
@@ -44,6 +46,47 @@ func (s *Server) handleAdminPromptCreate(c *gin.Context) {
 	}
 
 	notice := url.QueryEscape("Prompt added.")
+	c.Redirect(http.StatusFound, "/admin/prompts?notice="+notice)
+}
+
+func (s *Server) handleAdminPromptGenerate(c *gin.Context) {
+	if s.db == nil {
+		data := s.loadPromptLibraryData()
+		data.Error = "Database not configured."
+		templ.Handler(web.AdminPromptLibrary(data)).ServeHTTP(c.Writer, c.Request)
+		return
+	}
+	instructions := strings.TrimSpace(c.PostForm("instructions"))
+	if instructions == "" {
+		s.renderPromptLibraryGenerateError(c, "Please provide guidance for the prompt generation.", instructions)
+		return
+	}
+	prompts, err := s.generatePromptsFromOpenAI(c.Request.Context(), instructions)
+	if err != nil {
+		s.renderPromptLibraryGenerateError(c, err.Error(), instructions)
+		return
+	}
+
+	entries := make([]db.PromptLibrary, 0, len(prompts))
+	for _, prompt := range prompts {
+		clean, err := validatePrompt(prompt)
+		if err != nil {
+			continue
+		}
+		entries = append(entries, db.PromptLibrary{Text: clean})
+	}
+	if len(entries) == 0 {
+		s.renderPromptLibraryGenerateError(c, "No valid prompts were generated. Try again.", instructions)
+		return
+	}
+	result := s.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&entries)
+	if result.Error != nil {
+		s.renderPromptLibraryGenerateError(c, "Failed to save generated prompts.", instructions)
+		return
+	}
+
+	added := result.RowsAffected
+	notice := url.QueryEscape(fmt.Sprintf("Added %d prompt(s) to the library.", added))
 	c.Redirect(http.StatusFound, "/admin/prompts?notice="+notice)
 }
 
@@ -124,5 +167,12 @@ func (s *Server) renderPromptLibraryError(c *gin.Context, message, text string) 
 	data := s.loadPromptLibraryData()
 	data.Error = message
 	data.DraftText = text
+	templ.Handler(web.AdminPromptLibrary(data)).ServeHTTP(c.Writer, c.Request)
+}
+
+func (s *Server) renderPromptLibraryGenerateError(c *gin.Context, message, instructions string) {
+	data := s.loadPromptLibraryData()
+	data.Error = message
+	data.GenerateInstructions = instructions
 	templ.Handler(web.AdminPromptLibrary(data)).ServeHTTP(c.Writer, c.Request)
 }
