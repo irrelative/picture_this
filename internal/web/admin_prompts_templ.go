@@ -87,7 +87,7 @@ func AdminPromptLibrary(data AdminPromptLibraryData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, " <section class=\"panel\"><h2>Generate prompts (OpenAI)</h2><p>Generate 10 new prompts with a short theme or instruction.</p><form method=\"post\" action=\"/admin/prompts/generate\" class=\"settings-form\"><label><span class=\"label\">Theme or guidance</span> <textarea name=\"instructions\" rows=\"3\" placeholder=\"Cozy winter scenes, playful and whimsical.\" required>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, " <section class=\"panel\"><h2>Generate prompts (OpenAI)</h2><p>Generate 20 new prompts with a short theme or instruction.</p><form method=\"post\" action=\"/admin/prompts/generate\" class=\"settings-form\"><label><span class=\"label\">Theme or guidance</span> <textarea name=\"instructions\" rows=\"3\" placeholder=\"Cozy winter scenes, playful and whimsical.\" required>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -100,7 +100,7 @@ func AdminPromptLibrary(data AdminPromptLibraryData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</textarea></label><div class=\"settings-actions\"><button class=\"primary\" type=\"submit\">Generate 10 prompts</button> <a class=\"secondary\" href=\"/admin\">Back to admin</a></div></form></section><section class=\"panel\"><h2>Add prompt</h2><form method=\"post\" action=\"/admin/prompts\" class=\"settings-form\"><label><span class=\"label\">Prompt</span> <input name=\"text\" placeholder=\"A llama on a skateboard\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</textarea></label><div class=\"settings-actions\"><button class=\"primary\" type=\"submit\">Generate 20 prompts</button> <a class=\"secondary\" href=\"/admin\">Back to admin</a></div></form></section><section class=\"panel\"><h2>Add prompt</h2><form method=\"post\" action=\"/admin/prompts\" class=\"settings-form\"><label><span class=\"label\">Prompt</span> <input name=\"text\" placeholder=\"A llama on a skateboard\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

@@ -16,20 +16,15 @@ import (
 const openAIUserPlaceholder = "{{instructions}}"
 
 type openAIChatRequest struct {
-	Model          string                `json:"model"`
-	Messages       []openAIChatMessage   `json:"messages"`
-	Temperature    float64               `json:"temperature,omitempty"`
-	MaxTokens      int                   `json:"max_tokens,omitempty"`
-	ResponseFormat *openAIResponseFormat `json:"response_format,omitempty"`
+	Model       string              `json:"model"`
+	Messages    []openAIChatMessage `json:"messages"`
+	Temperature float64             `json:"temperature,omitempty"`
+	MaxTokens   int                 `json:"max_tokens,omitempty"`
 }
 
 type openAIChatMessage struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
-}
-
-type openAIResponseFormat struct {
-	Type string `json:"type"`
 }
 
 type openAIChatResponse struct {
@@ -63,9 +58,8 @@ func (s *Server) generatePromptsFromOpenAI(ctx context.Context, instructions str
 			{Role: "system", Content: systemPrompt},
 			{Role: "user", Content: userPrompt},
 		},
-		Temperature:    0.9,
-		MaxTokens:      450,
-		ResponseFormat: &openAIResponseFormat{Type: "json_object"},
+		Temperature: 0.9,
+		MaxTokens:   700,
 	}
 
 	payload, err := json.Marshal(reqBody)
@@ -125,25 +119,6 @@ func readPromptFile(path string) (string, error) {
 }
 
 func parsePromptList(raw string) []string {
-	text := strings.TrimSpace(raw)
-	text = strings.TrimPrefix(text, "```json")
-	text = strings.TrimPrefix(text, "```")
-	text = strings.TrimSuffix(text, "```")
-	text = strings.TrimSpace(text)
-
-	if text != "" {
-		var obj struct {
-			Prompts []string `json:"prompts"`
-		}
-		if err := json.Unmarshal([]byte(text), &obj); err == nil && len(obj.Prompts) > 0 {
-			return sanitizePromptList(obj.Prompts)
-		}
-		var arr []string
-		if err := json.Unmarshal([]byte(text), &arr); err == nil && len(arr) > 0 {
-			return sanitizePromptList(arr)
-		}
-	}
-
 	lines := strings.Split(raw, "\n")
 	out := make([]string, 0, len(lines))
 	for _, line := range lines {
@@ -155,6 +130,7 @@ func parsePromptList(raw string) []string {
 		if line == "" {
 			continue
 		}
+		line = stripDifficultyTag(line)
 		out = append(out, line)
 	}
 	return sanitizePromptList(out)
@@ -174,9 +150,20 @@ func sanitizePromptList(prompts []string) []string {
 		}
 		unique[key] = struct{}{}
 		out = append(out, clean)
-		if len(out) == 10 {
+		if len(out) == 20 {
 			break
 		}
 	}
 	return out
+}
+
+func stripDifficultyTag(prompt string) string {
+	clean := strings.TrimSpace(prompt)
+	tags := []string{"[E]", "[M]", "[H]", "[A]"}
+	for _, tag := range tags {
+		if strings.HasPrefix(clean, tag) {
+			return strings.TrimSpace(strings.TrimPrefix(clean, tag))
+		}
+	}
+	return clean
 }

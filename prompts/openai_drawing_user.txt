@@ -1,0 +1,4 @@
+Additional guidance from the admin (optional):
+"{{instructions}}"
+
+Follow the system instructions exactly.
