@@ -156,4 +156,5 @@ For now, don't include:
 
 
 ## Ideas
+* Make the jokes snarkier, and the prompts wittier
 

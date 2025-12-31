@@ -58,6 +58,7 @@ Output requirements:
 - Generate 20 total prompts
 - At least 30% (minimum 6) must be [A] Absurdist
 - Balance the remaining prompts across [E], [M], and [H]
+- Only about 10% of prompts should start with "A" or "An"
 - Include narrator jokes for approximately half the prompts
 - Avoid repeating the same animal, profession, or core object unless meaningfully distinct
 - Label each prompt with its difficulty tag
