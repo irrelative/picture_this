@@ -59,7 +59,7 @@ e2e-test:
 
 deploy:
 	@set -eu; \
-	SRC_DIR="/root/picture-this"; \
+	SRC_DIR="$$(pwd)"; \
 	DEST_DIR="/opt/picture-this"; \
 	mkdir -p "$$DEST_DIR/bin"; \
 	rsync -a --delete --exclude ".env" --exclude "bin" "$$SRC_DIR"/ "$$DEST_DIR"/; \
