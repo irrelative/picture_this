@@ -58,7 +58,7 @@ e2e-test:
 	trap - EXIT;
 
 deploy:
-	@set -euo pipefail; \
+	@set -eu; \
 	SRC_DIR="/root/picture-this"; \
 	DEST_DIR="/opt/picture-this"; \
 	mkdir -p "$$DEST_DIR/bin"; \
