@@ -20,7 +20,8 @@ const state = {
   round: null,
   lastPhase: "",
   lastMusicPhase: "",
-  timerEndedKey: ""
+  timerEndedKey: "",
+  connected: false
 };
 
 const phaseMusic = new Map([
@@ -47,6 +48,13 @@ function stopAudio(audio) {
   if (!audio || audio.paused) return;
   audio.pause();
   audio.currentTime = 0;
+}
+
+function stopAllMusic() {
+  phaseMusic.forEach((audio) => {
+    stopAudio(audio);
+  });
+  state.lastMusicPhase = "";
 }
 
 function formatTime(seconds) {
@@ -117,7 +125,9 @@ function syncFromContent() {
   state.playerCount = Number.isNaN(countValue) ? state.playerCount : countValue;
   state.round = Number.isNaN(roundValue) ? state.round : roundValue;
   state.lastPhase = nextPhase;
-  syncPhaseAudio(state.phase);
+  if (state.connected) {
+    syncPhaseAudio(state.phase);
+  }
   renderTimer();
   if (!state.timerHandle) {
     state.timerHandle = setInterval(renderTimer, 1000);
@@ -139,6 +149,11 @@ function connectWS() {
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
   const socket = new WebSocket(`${protocol}://${window.location.host}/ws/games/${encodeURIComponent(gameId)}?role=display`);
 
+  socket.addEventListener("open", () => {
+    state.connected = true;
+    syncFromContent();
+  });
+
   socket.addEventListener("message", (event) => {
     const result = applyHTMLMessage(event.data);
     if (result && result.target) {
@@ -148,10 +163,14 @@ function connectWS() {
   });
 
   socket.addEventListener("close", () => {
+    state.connected = false;
+    stopAllMusic();
     setTimeout(connectWS, 2000);
   });
 
   socket.addEventListener("error", () => {
+    state.connected = false;
+    stopAllMusic();
     socket.close();
   });
 }

@@ -47,9 +47,16 @@ func (s *Server) handleAdminView(c *gin.Context) {
 func (s *Server) handleAdminHome(c *gin.Context) {
 	active := s.homeSummaries()
 	dbGames := make([]web.AdminDBGameSummary, 0)
+	pagination := web.PaginationData{BasePath: "/admin"}
 	if s.db != nil {
+		page, perPage := parsePagination(c, adminGamesDefaultPerPage, adminGamesMaxPerPage)
+		var total int64
+		if err := s.db.Model(&db.Game{}).Count(&total).Error; err == nil {
+			pagination = buildPaginationData("/admin", page, perPage, total)
+		}
 		var records []db.Game
-		if err := s.db.Order("created_at desc").Find(&records).Error; err == nil {
+		offset := (pagination.Page - 1) * pagination.PerPage
+		if err := s.db.Order("created_at desc").Limit(pagination.PerPage).Offset(offset).Find(&records).Error; err == nil {
 			counts := map[uint]int{}
 			type countRow struct {
 				GameID uint
@@ -72,8 +79,18 @@ func (s *Server) handleAdminHome(c *gin.Context) {
 			}
 		}
 	}
-	templ.Handler(web.AdminHome(active, dbGames)).ServeHTTP(c.Writer, c.Request)
+	data := web.AdminHomeData{
+		Active:     active,
+		History:    dbGames,
+		Pagination: pagination,
+	}
+	templ.Handler(web.AdminHome(data)).ServeHTTP(c.Writer, c.Request)
 }
+
+const (
+	adminGamesDefaultPerPage = 20
+	adminGamesMaxPerPage     = 200
+)
 
 func (s *Server) loadAdminDataFromMemory(gameID string) (web.AdminData, bool) {
 	data := web.AdminData{}

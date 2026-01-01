@@ -7,7 +7,7 @@ export function setupCanvas(ctx, onSave) {
 
   ctx2d.lineCap = "round";
   ctx2d.lineJoin = "round";
-  ctx2d.lineWidth = 4;
+  ctx2d.lineWidth = state.brushSize || 4;
   ctx2d.strokeStyle = state.brushColor;
   ctx2d.fillStyle = "#ffffff";
   ctx2d.fillRect(0, 0, state.canvasWidth, state.canvasHeight);

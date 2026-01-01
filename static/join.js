@@ -10,7 +10,8 @@ const avatarState = {
   canvasCtx: null,
   canvasWidth: 800,
   canvasHeight: 600,
-  brushColor: "#1a1a1a"
+  brushColor: "#1a1a1a",
+  brushSize: 12
 };
 
 if (avatarCanvas) {

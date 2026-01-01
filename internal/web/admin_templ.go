@@ -955,7 +955,7 @@ func Admin(gameID string, data AdminData) templ.Component {
 	})
 }
 
-func AdminHome(active []GameSummary, history []AdminDBGameSummary) templ.Component {
+func AdminHome(data AdminHomeData) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -992,7 +992,7 @@ func AdminHome(active []GameSummary, history []AdminDBGameSummary) templ.Compone
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if len(active) == 0 {
+			if len(data.Active) == 0 {
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "<p>No active games in memory.</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -1002,7 +1002,7 @@ func AdminHome(active []GameSummary, history []AdminDBGameSummary) templ.Compone
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				for _, game := range active {
+				for _, game := range data.Active {
 					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 95, "<li class=\"game-card card-surface\"><div><h3>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -1082,7 +1082,7 @@ func AdminHome(active []GameSummary, history []AdminDBGameSummary) templ.Compone
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if len(history) == 0 {
+			if len(data.History) == 0 {
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 103, "<p>No game records found in the database.</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -1092,7 +1092,7 @@ func AdminHome(active []GameSummary, history []AdminDBGameSummary) templ.Compone
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				for _, game := range history {
+				for _, game := range data.History {
 					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 105, "<tr><td>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -1203,6 +1203,10 @@ func AdminHome(active []GameSummary, history []AdminDBGameSummary) templ.Compone
 					}
 				}
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 114, "</tbody></table>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = Pagination(data.Pagination).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

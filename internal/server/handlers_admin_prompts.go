@@ -16,7 +16,8 @@ import (
 )
 
 func (s *Server) handleAdminPromptsView(c *gin.Context) {
-	data := s.loadPromptLibraryData()
+	page, perPage := parsePagination(c, promptLibraryDefaultPerPage, promptLibraryMaxPerPage)
+	data := s.loadPromptLibraryData(page, perPage)
 	if data.Error == "" {
 		if msg := strings.TrimSpace(c.Query("error")); msg != "" {
 			data.Error = msg
@@ -28,7 +29,7 @@ func (s *Server) handleAdminPromptsView(c *gin.Context) {
 
 func (s *Server) handleAdminPromptCreate(c *gin.Context) {
 	if s.db == nil {
-		data := s.loadPromptLibraryData()
+		data := s.loadPromptLibraryData(1, promptLibraryDefaultPerPage)
 		data.Error = "Database not configured."
 		templ.Handler(web.AdminPromptLibrary(data)).ServeHTTP(c.Writer, c.Request)
 		return
@@ -56,7 +57,7 @@ func (s *Server) handleAdminPromptCreate(c *gin.Context) {
 
 func (s *Server) handleAdminPromptGenerate(c *gin.Context) {
 	if s.db == nil {
-		data := s.loadPromptLibraryData()
+		data := s.loadPromptLibraryData(1, promptLibraryDefaultPerPage)
 		data.Error = "Database not configured."
 		templ.Handler(web.AdminPromptLibrary(data)).ServeHTTP(c.Writer, c.Request)
 		return
@@ -101,7 +102,7 @@ func (s *Server) handleAdminPromptGenerate(c *gin.Context) {
 
 func (s *Server) handleAdminPromptUpdate(c *gin.Context) {
 	if s.db == nil {
-		data := s.loadPromptLibraryData()
+		data := s.loadPromptLibraryData(1, promptLibraryDefaultPerPage)
 		data.Error = "Database not configured."
 		templ.Handler(web.AdminPromptLibrary(data)).ServeHTTP(c.Writer, c.Request)
 		return
@@ -142,7 +143,7 @@ func (s *Server) handleAdminPromptUpdate(c *gin.Context) {
 
 func (s *Server) handleAdminPromptDelete(c *gin.Context) {
 	if s.db == nil {
-		data := s.loadPromptLibraryData()
+		data := s.loadPromptLibraryData(1, promptLibraryDefaultPerPage)
 		data.Error = "Database not configured."
 		templ.Handler(web.AdminPromptLibrary(data)).ServeHTTP(c.Writer, c.Request)
 		return
@@ -166,20 +167,29 @@ func (s *Server) handleAdminPromptDelete(c *gin.Context) {
 	c.Redirect(http.StatusFound, "/admin/prompts?notice="+notice)
 }
 
-func (s *Server) loadPromptLibraryData() web.AdminPromptLibraryData {
+func (s *Server) loadPromptLibraryData(page, perPage int) web.AdminPromptLibraryData {
 	data := web.AdminPromptLibraryData{}
 	if s.db == nil {
 		data.Error = "Database not configured."
 		return data
 	}
-	if err := s.db.Order("text asc, id asc").Find(&data.Prompts).Error; err != nil {
+	var total int64
+	if err := s.db.Model(&db.PromptLibrary{}).Count(&total).Error; err != nil {
+		data.Error = "Failed to load prompt library."
+		return data
+	}
+	pagination := buildPaginationData("/admin/prompts", page, perPage, total)
+	offset := (pagination.Page - 1) * pagination.PerPage
+	if err := s.db.Order("text asc, id asc").Limit(pagination.PerPage).Offset(offset).Find(&data.Prompts).Error; err != nil {
 		data.Error = "Failed to load prompt library."
 	}
+	data.Pagination = pagination
 	return data
 }
 
 func (s *Server) renderPromptLibraryError(c *gin.Context, message, text, joke string) {
-	data := s.loadPromptLibraryData()
+	page, perPage := parsePagination(c, promptLibraryDefaultPerPage, promptLibraryMaxPerPage)
+	data := s.loadPromptLibraryData(page, perPage)
 	data.Error = message
 	data.DraftText = text
 	data.DraftJoke = joke
@@ -187,8 +197,14 @@ func (s *Server) renderPromptLibraryError(c *gin.Context, message, text, joke st
 }
 
 func (s *Server) renderPromptLibraryGenerateError(c *gin.Context, message, instructions string) {
-	data := s.loadPromptLibraryData()
+	page, perPage := parsePagination(c, promptLibraryDefaultPerPage, promptLibraryMaxPerPage)
+	data := s.loadPromptLibraryData(page, perPage)
 	data.Error = message
 	data.GenerateInstructions = instructions
 	templ.Handler(web.AdminPromptLibrary(data)).ServeHTTP(c.Writer, c.Request)
 }
+
+const (
+	promptLibraryDefaultPerPage = 20
+	promptLibraryMaxPerPage     = 200
+)

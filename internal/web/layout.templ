@@ -7,9 +7,9 @@ templ Layout(title string, scriptPath string, flash string) {
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>{ title }</title>
-			<link rel="icon" href="/static/favicon.svg" type="image/svg+xml"/>
-			<link rel="stylesheet" href="/static/styles.css"/>
-			<script src="/static/vendor/htmx-2.0.8.js" defer></script>
+			<link rel="icon" href={ assetPath("/static/favicon.svg") } type="image/svg+xml"/>
+			<link rel="stylesheet" href={ assetPath("/static/styles.css") }/>
+			<script src={ assetPath("/static/vendor/htmx-2.0.8.js") } defer></script>
 		</head>
 		<body>
 			<div class="page">
@@ -26,7 +26,7 @@ templ Layout(title string, scriptPath string, flash string) {
 				</main>
 			</div>
 			if scriptPath != "" {
-				<script type="module" src={ scriptPath }></script>
+				<script type="module" src={ assetPath(scriptPath) }></script>
 			}
 		</body>
 	</html>
@@ -39,9 +39,9 @@ templ DisplayLayout(title string, scriptPath string) {
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>{ title }</title>
-			<link rel="icon" href="/static/favicon.svg" type="image/svg+xml"/>
-			<link rel="stylesheet" href="/static/styles.css"/>
-			<script src="/static/vendor/htmx-2.0.8.js" defer></script>
+			<link rel="icon" href={ assetPath("/static/favicon.svg") } type="image/svg+xml"/>
+			<link rel="stylesheet" href={ assetPath("/static/styles.css") }/>
+			<script src={ assetPath("/static/vendor/htmx-2.0.8.js") } defer></script>
 		</head>
 		<body class="display-body">
 			<div class="display-shell confetti-bg">
@@ -52,7 +52,7 @@ templ DisplayLayout(title string, scriptPath string) {
 				{ children... }
 			</div>
 			if scriptPath != "" {
-				<script type="module" src={ scriptPath }></script>
+				<script type="module" src={ assetPath(scriptPath) }></script>
 			}
 		</body>
 	</html>

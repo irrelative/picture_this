@@ -41,20 +41,98 @@ func GameView(gameID string) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<header class=\"hero\"><span class=\"tag\">Game Lobby</span><h1>Gather your players</h1><p>Share the join code below so everyone can jump in.</p></header><section class=\"panel\"><div><h2>Join code</h2><p id=\"joinCode\" class=\"join-code\">Loading...</p></div><div class=\"status\"><span class=\"label\">Status</span><p id=\"gameStatus\" role=\"status\" aria-live=\"polite\">Loading...</p><button type=\"button\" id=\"startGame\" class=\"primary\">Start game</button> <button type=\"button\" id=\"endGame\" class=\"secondary\">End game</button></div></section><section class=\"panel\"><div><h2>Players</h2><p>Waiting for everyone to arrive.</p></div><ul id=\"playerList\" class=\"player-list\"></ul><div id=\"playerActions\" class=\"player-actions\"></div></section><section class=\"panel settings-panel\"><div><h2>Lobby settings</h2><p id=\"lobbyStatus\" role=\"status\" aria-live=\"polite\">Loading lobby settings...</p></div><form id=\"settingsForm\" class=\"settings-form\"><label><span class=\"label\">Rounds</span> <input id=\"roundsInput\" name=\"rounds\" type=\"number\" min=\"1\" max=\"10\" value=\"2\" required></label> <label><span class=\"label\">Max players (0 = unlimited)</span> <input id=\"maxPlayersInput\" name=\"max_players\" type=\"number\" min=\"0\" max=\"12\" value=\"0\" required></label> <label class=\"checkbox\"><input id=\"lobbyLocked\" name=\"lobby_locked\" type=\"checkbox\"> <span>Lock lobby to new players</span></label><div class=\"settings-actions\"><button type=\"submit\" class=\"secondary\">Save settings</button> <span id=\"settingsStatus\" class=\"result\" role=\"status\" aria-live=\"polite\"></span></div></form></section><p id=\"gameError\" class=\"result error\" role=\"alert\"></p><audio id=\"lobbyAudio\" src=\"/static/sounds/MainBkgMusicLoop.ogg\" loop preload=\"auto\"></audio> <audio id=\"drawingAudio\" src=\"/static/sounds/DrawingTimeLoop.ogg\" loop preload=\"auto\"></audio> <audio id=\"writeLieAudio\" src=\"/static/sounds/WriteLieLoop.ogg\" loop preload=\"auto\"></audio> <audio id=\"chooseLieAudio\" src=\"/static/sounds/ChooseLieLoop.ogg\" loop preload=\"auto\"></audio> <audio id=\"questionAudio\" src=\"/static/sounds/QuestionMusicLoop.ogg\" loop preload=\"auto\"></audio> <audio id=\"creditsAudio\" src=\"/static/sounds/Credits.ogg\" loop preload=\"auto\"></audio><div id=\"gameMeta\" data-game-id=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<header class=\"hero\"><span class=\"tag\">Game Lobby</span><h1>Gather your players</h1><p>Share the join code below so everyone can jump in.</p></header><section class=\"panel\"><div><h2>Join code</h2><p id=\"joinCode\" class=\"join-code\">Loading...</p></div><div class=\"status\"><span class=\"label\">Status</span><p id=\"gameStatus\" role=\"status\" aria-live=\"polite\">Loading...</p><button type=\"button\" id=\"startGame\" class=\"primary\">Start game</button> <button type=\"button\" id=\"endGame\" class=\"secondary\">End game</button></div></section><section class=\"panel\"><div><h2>Players</h2><p>Waiting for everyone to arrive.</p></div><ul id=\"playerList\" class=\"player-list\"></ul><div id=\"playerActions\" class=\"player-actions\"></div></section><section class=\"panel settings-panel\"><div><h2>Lobby settings</h2><p id=\"lobbyStatus\" role=\"status\" aria-live=\"polite\">Loading lobby settings...</p></div><form id=\"settingsForm\" class=\"settings-form\"><label><span class=\"label\">Rounds</span> <input id=\"roundsInput\" name=\"rounds\" type=\"number\" min=\"1\" max=\"10\" value=\"2\" required></label> <label><span class=\"label\">Max players (0 = unlimited)</span> <input id=\"maxPlayersInput\" name=\"max_players\" type=\"number\" min=\"0\" max=\"12\" value=\"0\" required></label> <label class=\"checkbox\"><input id=\"lobbyLocked\" name=\"lobby_locked\" type=\"checkbox\"> <span>Lock lobby to new players</span></label><div class=\"settings-actions\"><button type=\"submit\" class=\"secondary\">Save settings</button> <span id=\"settingsStatus\" class=\"result\" role=\"status\" aria-live=\"polite\"></span></div></form></section><p id=\"gameError\" class=\"result error\" role=\"alert\"></p><audio id=\"lobbyAudio\" src=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var3 string
-			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(gameID)
+			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(assetPath("/static/sounds/MainBkgMusicLoop.ogg"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/game.templ`, Line: 65, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/game.templ`, Line: 59, Col: 79}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" loop preload=\"auto\"></audio> <audio id=\"drawingAudio\" src=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var4 string
+			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(assetPath("/static/sounds/DrawingTimeLoop.ogg"))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/game.templ`, Line: 60, Col: 80}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" loop preload=\"auto\"></audio> <audio id=\"writeLieAudio\" src=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var5 string
+			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(assetPath("/static/sounds/WriteLieLoop.ogg"))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/game.templ`, Line: 61, Col: 78}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\" loop preload=\"auto\"></audio> <audio id=\"chooseLieAudio\" src=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var6 string
+			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(assetPath("/static/sounds/ChooseLieLoop.ogg"))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/game.templ`, Line: 62, Col: 80}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\" loop preload=\"auto\"></audio> <audio id=\"questionAudio\" src=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var7 string
+			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(assetPath("/static/sounds/QuestionMusicLoop.ogg"))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/game.templ`, Line: 63, Col: 83}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\" loop preload=\"auto\"></audio> <audio id=\"creditsAudio\" src=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var8 string
+			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(assetPath("/static/sounds/Credits.ogg"))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/game.templ`, Line: 64, Col: 72}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\" loop preload=\"auto\"></audio><div id=\"gameMeta\" data-game-id=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var9 string
+			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(gameID)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/game.templ`, Line: 65, Col: 42}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\"></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

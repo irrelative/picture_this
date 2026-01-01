@@ -217,7 +217,7 @@ templ Admin(gameID string, data AdminData) {
 	}
 }
 
-templ AdminHome(active []GameSummary, history []AdminDBGameSummary) {
+templ AdminHome(data AdminHomeData) {
 	@Layout("Picture This | Admin", "", "") {
 		<header class="hero">
 			<span class="tag">Admin</span>
@@ -230,11 +230,11 @@ templ AdminHome(active []GameSummary, history []AdminDBGameSummary) {
 
 		<section class="panel">
 			<h2>Active games</h2>
-			if len(active) == 0 {
+			if len(data.Active) == 0 {
 				<p>No active games in memory.</p>
 			} else {
 				<ul class="game-list">
-					for _, game := range active {
+					for _, game := range data.Active {
 					<li class="game-card card-surface">
 							<div>
 								<h3>{ game.ID }</h3>
@@ -249,7 +249,7 @@ templ AdminHome(active []GameSummary, history []AdminDBGameSummary) {
 
 		<section class="panel">
 			<h2>Database games</h2>
-			if len(history) == 0 {
+			if len(data.History) == 0 {
 				<p>No game records found in the database.</p>
 			} else {
 				<table class="data-table">
@@ -257,7 +257,7 @@ templ AdminHome(active []GameSummary, history []AdminDBGameSummary) {
 						<tr><th>ID</th><th>Join Code</th><th>Phase</th><th>Players</th><th>Created</th><th>Updated</th><th></th></tr>
 					</thead>
 					<tbody>
-						for _, game := range history {
+						for _, game := range data.History {
 							<tr>
 								<td>{ game.ID }</td>
 								<td>{ game.JoinCode }</td>
@@ -277,6 +277,7 @@ templ AdminHome(active []GameSummary, history []AdminDBGameSummary) {
 						}
 					</tbody>
 				</table>
+				@Pagination(data.Pagination)
 			}
 		</section>
 	}

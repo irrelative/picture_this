@@ -1,0 +1,19 @@
+package web
+
+templ Pagination(data PaginationData) {
+	if data.TotalPages > 1 {
+		<div class="settings-actions pagination">
+			if data.HasPrev {
+				<a class="secondary" href={ pageURL(data.BasePath, data.PrevPage, data.PerPage) }>Previous</a>
+			} else {
+				<span class="hint">Previous</span>
+			}
+			<span class="hint">Page { data.Page } of { data.TotalPages }</span>
+			if data.HasNext {
+				<a class="secondary" href={ pageURL(data.BasePath, data.NextPage, data.PerPage) }>Next</a>
+			} else {
+				<span class="hint">Next</span>
+			}
+		</div>
+	}
+}

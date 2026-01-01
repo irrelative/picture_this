@@ -153,8 +153,10 @@ For now, don't include:
 
 ## TODO
 * Music and SFX generation
+* Make the jokes snarkier, and the prompts wittier
+* Pagination metadata for navigation (# of pages, etc)
+* Search for admin view (prompts)
 
 
 ## Ideas
-* Make the jokes snarkier, and the prompts wittier
-
+* Vectors for prompts to ensure no overlaps

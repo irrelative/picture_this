@@ -32,6 +32,18 @@ type AdminDBGameSummary struct {
 	UpdatedAt time.Time
 }
 
+type PaginationData struct {
+	BasePath   string
+	Page       int
+	PerPage    int
+	Total      int
+	TotalPages int
+	HasPrev    bool
+	HasNext    bool
+	PrevPage   int
+	NextPage   int
+}
+
 type AdminPromptLibraryData struct {
 	Prompts              []db.PromptLibrary
 	Error                string
@@ -39,4 +51,11 @@ type AdminPromptLibraryData struct {
 	DraftText            string
 	DraftJoke            string
 	GenerateInstructions string
+	Pagination           PaginationData
+}
+
+type AdminHomeData struct {
+	Active     []GameSummary
+	History    []AdminDBGameSummary
+	Pagination PaginationData
 }

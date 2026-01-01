@@ -116,16 +116,16 @@ templ DisplayContent(state DisplayState) {
 			}
 		</section>
 		<p id="gameError" class="result error" role="alert"></p>
-		<audio id="lobbyAudio" src="/static/sounds/MainBkgMusicLoop.ogg" loop preload="auto"></audio>
-		<audio id="drawingAudio" src="/static/sounds/DrawingTimeLoop.ogg" loop preload="auto"></audio>
-		<audio id="writeLieAudio" src="/static/sounds/WriteLieLoop.ogg" loop preload="auto"></audio>
-		<audio id="chooseLieAudio" src="/static/sounds/ChooseLieLoop.ogg" loop preload="auto"></audio>
-		<audio id="questionAudio" src="/static/sounds/QuestionMusicLoop.ogg" loop preload="auto"></audio>
-		<audio id="creditsAudio" src="/static/sounds/Credits.ogg" loop preload="auto"></audio>
-		<audio id="joinSound" src="/static/sounds/join.ogg" preload="auto"></audio>
-		<audio id="roundStartSound" src="/static/sounds/round_start.ogg" preload="auto"></audio>
-		<audio id="timerEndSound" src="/static/sounds/timer_end.ogg" preload="auto"></audio>
-		<audio id="votingStartSound" src="/static/sounds/voting_start.mp3" preload="auto"></audio>
+		<audio id="lobbyAudio" src={ assetPath("/static/sounds/MainBkgMusicLoop.ogg") } loop preload="auto"></audio>
+		<audio id="drawingAudio" src={ assetPath("/static/sounds/DrawingTimeLoop.ogg") } loop preload="auto"></audio>
+		<audio id="writeLieAudio" src={ assetPath("/static/sounds/WriteLieLoop.ogg") } loop preload="auto"></audio>
+		<audio id="chooseLieAudio" src={ assetPath("/static/sounds/ChooseLieLoop.ogg") } loop preload="auto"></audio>
+		<audio id="questionAudio" src={ assetPath("/static/sounds/QuestionMusicLoop.ogg") } loop preload="auto"></audio>
+		<audio id="creditsAudio" src={ assetPath("/static/sounds/Credits.ogg") } loop preload="auto"></audio>
+		<audio id="joinSound" src={ assetPath("/static/sounds/join.ogg") } preload="auto"></audio>
+		<audio id="roundStartSound" src={ assetPath("/static/sounds/round_start.ogg") } preload="auto"></audio>
+		<audio id="timerEndSound" src={ assetPath("/static/sounds/timer_end.ogg") } preload="auto"></audio>
+		<audio id="votingStartSound" src={ assetPath("/static/sounds/voting_start.mp3") } preload="auto"></audio>
 	</div>
 }
 

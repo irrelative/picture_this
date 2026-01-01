@@ -59,6 +59,7 @@ const ctx = {
     lastGuessKey: "",
     lastResultsKey: "",
     brushColor: "#1a1a1a",
+    brushSize: 4,
     canvasCtx: null,
     canvasWidth: 800,
     canvasHeight: 600,
@@ -159,7 +160,8 @@ if (ctx.els.avatarCanvas) {
     canvasCtx: null,
     canvasWidth: 800,
     canvasHeight: 600,
-    brushColor: "#1a1a1a"
+    brushColor: "#1a1a1a",
+    brushSize: 12
   };
   setupCanvas(
     {

@@ -51,8 +51,10 @@ Narrator jokes:
   - Be one sentence
   - Reference the prompt's situation, not the players or drawings
   - Not introduce new visual requirements
-  - Not rely on puns, sarcasm, or meta humor
   - Be understandable when read aloud
+- Jokes can:
+  - Be snarky
+  - Reference pop culture, but not politics
 
 Output requirements:
 - Generate 20 total prompts
