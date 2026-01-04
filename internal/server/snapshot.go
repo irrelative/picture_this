@@ -152,14 +152,19 @@ func buildResults(game *Game) []map[string]any {
 		playerNames[player.ID] = player.Name
 	}
 	promptJokes := map[int]string{}
+	promptJokeAudio := map[int]string{}
 	for _, prompt := range round.Prompts {
 		if prompt.Joke != "" {
 			promptJokes[prompt.PlayerID] = prompt.Joke
+		}
+		if prompt.JokeAudioPath != "" {
+			promptJokeAudio[prompt.PlayerID] = prompt.JokeAudioPath
 		}
 	}
 	results := make([]map[string]any, 0, len(round.Drawings))
 	for drawingIndex, drawing := range round.Drawings {
 		joke := promptJokes[drawing.PlayerID]
+		jokeAudio := promptJokeAudio[drawing.PlayerID]
 		guesses := make([]map[string]any, 0)
 		for _, guess := range round.Guesses {
 			if guess.DrawingIndex != drawingIndex {
@@ -190,6 +195,7 @@ func buildResults(game *Game) []map[string]any {
 			"drawing_image":      encodeImageData(drawing.ImageData),
 			"prompt":             drawing.Prompt,
 			"joke":               joke,
+			"joke_audio":         jokeAudio,
 			"guesses":            guesses,
 			"votes":              votes,
 		})

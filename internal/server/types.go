@@ -67,10 +67,11 @@ type RoundState struct {
 }
 
 type PromptEntry struct {
-	PlayerID int
-	Text     string
-	Joke     string
-	DBID     uint
+	PlayerID      int
+	Text          string
+	Joke          string
+	JokeAudioPath string
+	DBID          uint
 }
 
 type DrawingEntry struct {

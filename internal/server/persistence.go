@@ -270,10 +270,11 @@ func (s *Server) persistAssignedPrompts(game *Game, round *RoundState) error {
 			return errors.New("player not found")
 		}
 		record := db.Prompt{
-			RoundID:  round.DBID,
-			PlayerID: player.DBID,
-			Text:     entry.Text,
-			Joke:     entry.Joke,
+			RoundID:       round.DBID,
+			PlayerID:      player.DBID,
+			Text:          entry.Text,
+			Joke:          entry.Joke,
+			JokeAudioPath: entry.JokeAudioPath,
 		}
 		if err := s.db.Create(&record).Error; err != nil {
 			return err

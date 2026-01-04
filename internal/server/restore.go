@@ -181,10 +181,11 @@ func buildRounds(rounds []db.Round, prompts []db.Prompt, drawings []db.Drawing, 
 		promptTextByID := map[uint]string{}
 		for _, prompt := range promptRecords {
 			state.Prompts = append(state.Prompts, PromptEntry{
-				PlayerID: int(prompt.PlayerID),
-				Text:     prompt.Text,
-				Joke:     prompt.Joke,
-				DBID:     prompt.ID,
+				PlayerID:      int(prompt.PlayerID),
+				Text:          prompt.Text,
+				Joke:          prompt.Joke,
+				JokeAudioPath: prompt.JokeAudioPath,
+				DBID:          prompt.ID,
 			})
 			promptTextByID[prompt.ID] = prompt.Text
 		}

@@ -116,9 +116,10 @@ func (s *Server) assignPrompts(game *Game) error {
 	for _, player := range game.Players {
 		prompt := prompts[idx]
 		round.Prompts = append(round.Prompts, PromptEntry{
-			PlayerID: player.ID,
-			Text:     prompt.Text,
-			Joke:     prompt.Joke,
+			PlayerID:      player.ID,
+			Text:          prompt.Text,
+			Joke:          prompt.Joke,
+			JokeAudioPath: prompt.JokeAudioPath,
 		})
 		game.UsedPrompts[prompt.Text] = struct{}{}
 		idx++
