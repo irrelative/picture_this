@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -159,6 +160,9 @@ func sanitizePromptList(prompts []GeneratedPrompt) []GeneratedPrompt {
 		if clean == "" {
 			continue
 		}
+		if !isAllowedGeneratedPrompt(clean) {
+			continue
+		}
 		key := strings.ToLower(clean)
 		if _, exists := unique[key]; exists {
 			continue
@@ -183,4 +187,20 @@ func stripDifficultyTag(prompt string) string {
 		}
 	}
 	return clean
+}
+
+var (
+	disallowedGeneratedPromptStart = regexp.MustCompile(`(?i)^(a|an|the|draw|sketch|picture)\b`)
+	disallowedAnimalChorePrompt    = regexp.MustCompile(`(?i)^(?:[a-z]+ly\s+)?(?:cat|dog|bear|penguin|squirrel|rabbit|monkey|lion|tiger|panda|otter|duck|fox|wolf|cow|horse|goat|chicken|frog|shark|whale|octopus)\s+(?:baking|cooking|cleaning|washing|wearing|riding|holding|eating|drinking|reading|writing|shopping|juggling)\b`)
+)
+
+func isAllowedGeneratedPrompt(prompt string) bool {
+	clean := strings.TrimSpace(prompt)
+	if clean == "" {
+		return false
+	}
+	if disallowedGeneratedPromptStart.MatchString(clean) {
+		return false
+	}
+	return !disallowedAnimalChorePrompt.MatchString(clean)
 }

@@ -1,68 +1,85 @@
 You are generating drawing prompts for a party game like Drawful.
 
 Each prompt must:
-- Be drawable as a single picture (one frozen moment)
-- Describe a concrete object, creature, or physical scene
-- Be interpretable literally (no metaphors, idioms, or wordplay)
-- Avoid requiring text, numbers, or symbols in the drawing
-- Be understandable in under 3 seconds when read aloud
-- Leave room for humorous interpretation through visuals alone
+- Feel like Drawful: odd, punchy, slightly surreal, and socially awkward.
+- Be drawable as a single picture (one frozen moment).
+- Be immediately understandable when read aloud.
+- Suggest a specific visual situation without requiring written words in the drawing.
+- Favor conceptual/comedic scenarios over plain object descriptions.
+- Include a strong hook (status clash, social tension, contradiction, or role mismatch).
 
 Avoid:
-- Abstract concepts (e.g., emotions, opinions, realizations)
-- Social situations without a clear physical focus
-- Puns, sarcasm, or meta humor
-- Prompts that are only adjectives without a subject
-- Multi-step or time-based events
+- Generic "animal doing a task" prompts (example pattern: "bear baking cookies").
+- Starting prompts with articles: "A", "An", or "The".
+- Starting prompts with "Draw", "Sketch", or "Picture".
+- Bare noun phrases with no twist (for example, just "dog on skateboard").
+- Prompts that rely on text, letters, numbers, logos, or speech bubbles.
+- Multi-step timelines or before/after events.
+- Exact repeats of the same core setup (animal, profession, object, location).
+- Template families such as:
+  - "<animal> <verb-ing> <household object>"
+  - "<animal> wearing <thing>"
+  - "<animal> riding <thing>"
+  - "<food> with <adjective>"
 
 Good examples:
-- "A haunted vending machine"
-- "A penguin wearing a backpack"
-- "A dentist for dragons"
-- "A squirrel riding a unicycle"
+- "Midlife crisis at a wizard school"
+- "Overconfident ghost realtor"
+- "Worst possible wedding DJ"
+- "Suspiciously buff librarian"
+- "Corporate retreat for supervillains"
 
 Bad examples:
-- "When you realize it's Monday"
-- "The worst roommate ever"
-- "A lie your boss tells you"
-- "Success, but make it spooky"
+- "A bear baking cookies"
+- "A penguin wearing a backpack"
+- "A haunted vending machine"
+- "Dog riding bike"
+- "The happiest day ever"
 
 Difficulty bands:
 
 [E] Easy
-- Single object, animal, or character
-- Minimal action or accessories
+- Clear scenario with one dominant subject and one twist.
+- Still must include a distinct comedic angle.
 
 [M] Medium
-- Object or character with a role, job, or clear action
+- Two interacting elements or a role-based scene with attitude.
 
 [H] Hard
-- Unusual but still literal combinations of objects, creatures, or settings
+- Conceptual/satirical scene that is still drawable in one frame.
 
 [A] Absurdist
-- Surreal, exaggerated, or unexpected combinations
-- Still concrete and drawable
-- Humor must come from visual contradiction or excess, not wordplay
+- Surreal contradiction pushed further, but still visually interpretable.
+- Weird is good; unreadable is bad.
 
 Narrator jokes:
 - Roughly 50% of prompts should include a short joke
 - Jokes are read after the results are revealed
 - Jokes must:
   - Be one sentence
-  - Reference the prompt's situation, not the players or drawings
-  - Not introduce new visual requirements
-  - Be understandable when read aloud
+  - Be snarky and dry, not goofy.
+  - Reference the prompt's situation, not the players or drawings.
+  - Not introduce new visual requirements.
 - Jokes can:
-  - Be snarky
-  - Reference pop culture, but not politics
+  - Use mild sarcasm.
+  - Reference pop culture, but not politics.
 
 Output requirements:
 - Generate 20 total prompts
-- At least 30% (minimum 6) must be [A] Absurdist
-- Balance the remaining prompts across [E], [M], and [H]
-- Only about 10% of prompts should start with "A" or "An"
-- Include narrator jokes for approximately half the prompts
-- Avoid repeating the same animal, profession, or core object unless meaningfully distinct
+- At least 30% (minimum 6) must be [A] Absurdist.
+- Balance the remaining prompts across [E], [M], and [H].
+- 0 prompts may start with "A", "An", or "The".
+- 0 prompts may start with "Draw", "Sketch", or "Picture".
+- Include narrator jokes for approximately half the prompts.
+- Keep "animal doing normal chore" prompts to at most 1 out of 20.
+- Ensure at least half the list is concept-first (social tension, status, irony, awkwardness) rather than object-first.
+- Ensure at least 12 of 20 are not animal-led prompts.
+- Do not reuse the same opening noun phrase across the list.
 - Label each prompt with its difficulty tag
 - For prompts with jokes, include the joke on the next line prefixed with "Joke:"
 - Return only the list of prompts and jokes, no explanations
+
+Final self-check before output:
+- If any prompt starts with banned starters, rewrite it.
+- If any prompt matches banned template families, rewrite it.
+- If two prompts feel like the same setup with swapped nouns, rewrite one.

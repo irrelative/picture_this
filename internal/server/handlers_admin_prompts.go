@@ -16,8 +16,9 @@ import (
 )
 
 func (s *Server) handleAdminPromptsView(c *gin.Context) {
+	searchQuery := normalizePromptLibraryQuery(c.Query("q"))
 	page, perPage := parsePagination(c, promptLibraryDefaultPerPage, promptLibraryMaxPerPage)
-	data := s.loadPromptLibraryData(page, perPage)
+	data := s.loadPromptLibraryData(page, perPage, searchQuery)
 	if data.Error == "" {
 		if msg := strings.TrimSpace(c.Query("error")); msg != "" {
 			data.Error = msg
@@ -28,48 +29,49 @@ func (s *Server) handleAdminPromptsView(c *gin.Context) {
 }
 
 func (s *Server) handleAdminPromptCreate(c *gin.Context) {
+	searchQuery := normalizePromptLibraryQuery(c.PostForm("q"))
 	if s.db == nil {
-		data := s.loadPromptLibraryData(1, promptLibraryDefaultPerPage)
+		data := s.loadPromptLibraryData(1, promptLibraryDefaultPerPage, searchQuery)
 		data.Error = "Database not configured."
 		templ.Handler(web.AdminPromptLibrary(data)).ServeHTTP(c.Writer, c.Request)
 		return
 	}
 	text, err := validatePrompt(c.PostForm("text"))
 	if err != nil {
-		s.renderPromptLibraryError(c, err.Error(), c.PostForm("text"), c.PostForm("joke"))
+		s.renderPromptLibraryError(c, err.Error(), c.PostForm("text"), c.PostForm("joke"), searchQuery)
 		return
 	}
 	joke, err := validateJoke(c.PostForm("joke"))
 	if err != nil {
-		s.renderPromptLibraryError(c, err.Error(), c.PostForm("text"), c.PostForm("joke"))
+		s.renderPromptLibraryError(c, err.Error(), c.PostForm("text"), c.PostForm("joke"), searchQuery)
 		return
 	}
 
 	entry := db.PromptLibrary{Text: text, Joke: joke}
 	if err := s.db.Create(&entry).Error; err != nil {
-		s.renderPromptLibraryError(c, "Failed to save prompt (it may already exist).", text, joke)
+		s.renderPromptLibraryError(c, "Failed to save prompt (it may already exist).", text, joke, searchQuery)
 		return
 	}
 
-	notice := url.QueryEscape("Prompt added.")
-	c.Redirect(http.StatusFound, "/admin/prompts?notice="+notice)
+	c.Redirect(http.StatusFound, promptLibraryRedirectURL(searchQuery, "Prompt added."))
 }
 
 func (s *Server) handleAdminPromptGenerate(c *gin.Context) {
+	searchQuery := normalizePromptLibraryQuery(c.PostForm("q"))
 	if s.db == nil {
-		data := s.loadPromptLibraryData(1, promptLibraryDefaultPerPage)
+		data := s.loadPromptLibraryData(1, promptLibraryDefaultPerPage, searchQuery)
 		data.Error = "Database not configured."
 		templ.Handler(web.AdminPromptLibrary(data)).ServeHTTP(c.Writer, c.Request)
 		return
 	}
 	instructions := strings.TrimSpace(c.PostForm("instructions"))
 	if instructions == "" {
-		s.renderPromptLibraryGenerateError(c, "Please provide guidance for the prompt generation.", instructions)
+		s.renderPromptLibraryGenerateError(c, "Please provide guidance for the prompt generation.", instructions, searchQuery)
 		return
 	}
 	prompts, err := s.generatePromptsFromOpenAI(c.Request.Context(), instructions)
 	if err != nil {
-		s.renderPromptLibraryGenerateError(c, err.Error(), instructions)
+		s.renderPromptLibraryGenerateError(c, err.Error(), instructions, searchQuery)
 		return
 	}
 
@@ -86,46 +88,46 @@ func (s *Server) handleAdminPromptGenerate(c *gin.Context) {
 		entries = append(entries, db.PromptLibrary{Text: clean, Joke: joke})
 	}
 	if len(entries) == 0 {
-		s.renderPromptLibraryGenerateError(c, "No valid prompts were generated. Try again.", instructions)
+		s.renderPromptLibraryGenerateError(c, "No valid prompts were generated. Try again.", instructions, searchQuery)
 		return
 	}
 	result := s.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&entries)
 	if result.Error != nil {
-		s.renderPromptLibraryGenerateError(c, "Failed to save generated prompts.", instructions)
+		s.renderPromptLibraryGenerateError(c, "Failed to save generated prompts.", instructions, searchQuery)
 		return
 	}
 
 	added := result.RowsAffected
-	notice := url.QueryEscape(fmt.Sprintf("Added %d prompt(s) to the library.", added))
-	c.Redirect(http.StatusFound, "/admin/prompts?notice="+notice)
+	c.Redirect(http.StatusFound, promptLibraryRedirectURL(searchQuery, fmt.Sprintf("Added %d prompt(s) to the library.", added)))
 }
 
 func (s *Server) handleAdminPromptUpdate(c *gin.Context) {
+	searchQuery := normalizePromptLibraryQuery(c.PostForm("q"))
 	if s.db == nil {
-		data := s.loadPromptLibraryData(1, promptLibraryDefaultPerPage)
+		data := s.loadPromptLibraryData(1, promptLibraryDefaultPerPage, searchQuery)
 		data.Error = "Database not configured."
 		templ.Handler(web.AdminPromptLibrary(data)).ServeHTTP(c.Writer, c.Request)
 		return
 	}
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil || id <= 0 {
-		s.renderPromptLibraryError(c, "Invalid prompt id.", "", "")
+		s.renderPromptLibraryError(c, "Invalid prompt id.", "", "", searchQuery)
 		return
 	}
 	text, err := validatePrompt(c.PostForm("text"))
 	if err != nil {
-		s.renderPromptLibraryError(c, err.Error(), c.PostForm("text"), c.PostForm("joke"))
+		s.renderPromptLibraryError(c, err.Error(), c.PostForm("text"), c.PostForm("joke"), searchQuery)
 		return
 	}
 	joke, err := validateJoke(c.PostForm("joke"))
 	if err != nil {
-		s.renderPromptLibraryError(c, err.Error(), c.PostForm("text"), c.PostForm("joke"))
+		s.renderPromptLibraryError(c, err.Error(), c.PostForm("text"), c.PostForm("joke"), searchQuery)
 		return
 	}
 
 	var entry db.PromptLibrary
 	if err := s.db.First(&entry, uint(id)).Error; err != nil {
-		s.renderPromptLibraryError(c, "Prompt not found.", "", "")
+		s.renderPromptLibraryError(c, "Prompt not found.", "", "", searchQuery)
 		return
 	}
 	entry.Text = text
@@ -133,75 +135,107 @@ func (s *Server) handleAdminPromptUpdate(c *gin.Context) {
 		"Text": text,
 		"Joke": joke,
 	}).Error; err != nil {
-		s.renderPromptLibraryError(c, "Failed to update prompt (it may already exist).", text, joke)
+		s.renderPromptLibraryError(c, "Failed to update prompt (it may already exist).", text, joke, searchQuery)
 		return
 	}
 
-	notice := url.QueryEscape("Prompt updated.")
-	c.Redirect(http.StatusFound, "/admin/prompts?notice="+notice)
+	c.Redirect(http.StatusFound, promptLibraryRedirectURL(searchQuery, "Prompt updated."))
 }
 
 func (s *Server) handleAdminPromptDelete(c *gin.Context) {
+	searchQuery := normalizePromptLibraryQuery(c.PostForm("q"))
 	if s.db == nil {
-		data := s.loadPromptLibraryData(1, promptLibraryDefaultPerPage)
+		data := s.loadPromptLibraryData(1, promptLibraryDefaultPerPage, searchQuery)
 		data.Error = "Database not configured."
 		templ.Handler(web.AdminPromptLibrary(data)).ServeHTTP(c.Writer, c.Request)
 		return
 	}
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil || id <= 0 {
-		s.renderPromptLibraryError(c, "Invalid prompt id.", "", "")
+		s.renderPromptLibraryError(c, "Invalid prompt id.", "", "", searchQuery)
 		return
 	}
 	result := s.db.Delete(&db.PromptLibrary{}, uint(id))
 	if result.Error != nil {
-		s.renderPromptLibraryError(c, "Failed to delete prompt.", "", "")
+		s.renderPromptLibraryError(c, "Failed to delete prompt.", "", "", searchQuery)
 		return
 	}
 	if result.RowsAffected == 0 {
-		s.renderPromptLibraryError(c, "Prompt not found.", "", "")
+		s.renderPromptLibraryError(c, "Prompt not found.", "", "", searchQuery)
 		return
 	}
 
-	notice := url.QueryEscape("Prompt deleted.")
-	c.Redirect(http.StatusFound, "/admin/prompts?notice="+notice)
+	c.Redirect(http.StatusFound, promptLibraryRedirectURL(searchQuery, "Prompt deleted."))
 }
 
-func (s *Server) loadPromptLibraryData(page, perPage int) web.AdminPromptLibraryData {
-	data := web.AdminPromptLibraryData{}
+func (s *Server) loadPromptLibraryData(page, perPage int, searchQuery string) web.AdminPromptLibraryData {
+	searchQuery = normalizePromptLibraryQuery(searchQuery)
+	data := web.AdminPromptLibraryData{SearchQuery: searchQuery}
 	if s.db == nil {
 		data.Error = "Database not configured."
 		return data
 	}
+	query := s.db.Model(&db.PromptLibrary{})
+	if searchQuery != "" {
+		pattern := "%" + searchQuery + "%"
+		query = query.Where("text ILIKE ? OR joke ILIKE ?", pattern, pattern)
+	}
 	var total int64
-	if err := s.db.Model(&db.PromptLibrary{}).Count(&total).Error; err != nil {
+	if err := query.Count(&total).Error; err != nil {
 		data.Error = "Failed to load prompt library."
 		return data
 	}
-	pagination := buildPaginationData("/admin/prompts", page, perPage, total)
+	pagination := buildPaginationData(promptLibraryBasePath(searchQuery), page, perPage, total)
 	offset := (pagination.Page - 1) * pagination.PerPage
-	if err := s.db.Order("text asc, id asc").Limit(pagination.PerPage).Offset(offset).Find(&data.Prompts).Error; err != nil {
+	if err := query.Order("text asc, id asc").Limit(pagination.PerPage).Offset(offset).Find(&data.Prompts).Error; err != nil {
 		data.Error = "Failed to load prompt library."
 	}
 	data.Pagination = pagination
 	return data
 }
 
-func (s *Server) renderPromptLibraryError(c *gin.Context, message, text, joke string) {
+func (s *Server) renderPromptLibraryError(c *gin.Context, message, text, joke, searchQuery string) {
 	page, perPage := parsePagination(c, promptLibraryDefaultPerPage, promptLibraryMaxPerPage)
-	data := s.loadPromptLibraryData(page, perPage)
+	data := s.loadPromptLibraryData(page, perPage, searchQuery)
 	data.Error = message
 	data.DraftText = text
 	data.DraftJoke = joke
 	templ.Handler(web.AdminPromptLibrary(data)).ServeHTTP(c.Writer, c.Request)
 }
 
-func (s *Server) renderPromptLibraryGenerateError(c *gin.Context, message, instructions string) {
+func (s *Server) renderPromptLibraryGenerateError(c *gin.Context, message, instructions, searchQuery string) {
 	page, perPage := parsePagination(c, promptLibraryDefaultPerPage, promptLibraryMaxPerPage)
-	data := s.loadPromptLibraryData(page, perPage)
+	data := s.loadPromptLibraryData(page, perPage, searchQuery)
 	data.Error = message
 	data.GenerateInstructions = instructions
 	templ.Handler(web.AdminPromptLibrary(data)).ServeHTTP(c.Writer, c.Request)
+}
+
+func normalizePromptLibraryQuery(raw string) string {
+	return strings.TrimSpace(raw)
+}
+
+func promptLibraryBasePath(searchQuery string) string {
+	searchQuery = normalizePromptLibraryQuery(searchQuery)
+	if searchQuery == "" {
+		return "/admin/prompts"
+	}
+	return "/admin/prompts?q=" + url.QueryEscape(searchQuery)
+}
+
+func promptLibraryRedirectURL(searchQuery, notice string) string {
+	values := url.Values{}
+	if clean := strings.TrimSpace(notice); clean != "" {
+		values.Set("notice", clean)
+	}
+	if clean := normalizePromptLibraryQuery(searchQuery); clean != "" {
+		values.Set("q", clean)
+	}
+	encoded := values.Encode()
+	if encoded == "" {
+		return "/admin/prompts"
+	}
+	return "/admin/prompts?" + encoded
 }
 
 const (

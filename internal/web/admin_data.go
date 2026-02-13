@@ -48,6 +48,7 @@ type AdminPromptLibraryData struct {
 	Prompts              []db.PromptLibrary
 	Error                string
 	Notice               string
+	SearchQuery          string
 	DraftText            string
 	DraftJoke            string
 	GenerateInstructions string

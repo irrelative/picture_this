@@ -576,6 +576,11 @@ select:focus {
   font-weight: 600;
 }
 
+.audio-inline {
+  width: 180px;
+  height: 28px;
+}
+
 .json {
   margin: 0;
   white-space: pre-wrap;
