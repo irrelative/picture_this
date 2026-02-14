@@ -1,4 +1,4 @@
-.PHONY: run build init test migrate migrate-create load-prompts joke-audio-venv joke-audio-deps generate-joke-audio generate-interlude-audio e2e-test deploy
+.PHONY: run build init test migrate migrate-repair migrate-create load-prompts joke-audio-venv joke-audio-deps generate-joke-audio generate-interlude-audio e2e-test deploy
 
 run:
 	templ generate
@@ -21,6 +21,9 @@ test:
 
 migrate:
 	go run ./cmd/migrate
+
+migrate-repair:
+	go run ./cmd/migrate-repair
 
 migrate-create:
 	@if [ -z "$(name)" ]; then echo "usage: make migrate-create name=add_table"; exit 1; fi

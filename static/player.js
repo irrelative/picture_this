@@ -83,7 +83,11 @@ const ctx = {
     timerEndsAt: 0,
     timerHandle: null,
     authToken: "",
-    avatarLocked: false
+    avatarLocked: false,
+    wsConn: null,
+    wsReconnectTimer: null,
+    wsReconnectAttempts: 0,
+    unloading: false
   },
   actions: {}
 };
@@ -160,11 +164,66 @@ function startPolling() {
   ctx.state.pollTimer = setInterval(loadPlayerView, 3000);
 }
 
+function stopPolling() {
+  if (!ctx.state.pollTimer) return;
+  clearInterval(ctx.state.pollTimer);
+  ctx.state.pollTimer = null;
+}
+
+function clearWSReconnectTimer() {
+  if (!ctx.state.wsReconnectTimer) return;
+  clearTimeout(ctx.state.wsReconnectTimer);
+  ctx.state.wsReconnectTimer = null;
+}
+
+function reconnectDelayMs() {
+  const attempt = Math.min(ctx.state.wsReconnectAttempts, 5);
+  return Math.min(15000, 1000 * 2 ** attempt);
+}
+
+function scheduleWSReconnect() {
+  if (ctx.state.unloading || ctx.state.wsReconnectTimer || !ctx.els.meta) {
+    return;
+  }
+  const delayMs = reconnectDelayMs();
+  ctx.state.wsReconnectTimer = setTimeout(() => {
+    ctx.state.wsReconnectTimer = null;
+    ctx.state.wsReconnectAttempts += 1;
+    connectWS();
+  }, delayMs);
+}
+
+function handleWSDisconnect(socket) {
+  if (ctx.state.wsConn === socket) {
+    ctx.state.wsConn = null;
+  }
+  if (ctx.state.unloading) {
+    return;
+  }
+  startPolling();
+  scheduleWSReconnect();
+}
+
 function connectWS() {
   if (!ctx.els.meta) return;
+  const existing = ctx.state.wsConn;
+  if (existing && (existing.readyState === WebSocket.OPEN || existing.readyState === WebSocket.CONNECTING)) {
+    return;
+  }
   const gameId = ctx.els.meta.dataset.gameId;
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
   const socket = new WebSocket(`${protocol}://${window.location.host}/ws/games/${encodeURIComponent(gameId)}`);
+  ctx.state.wsConn = socket;
+
+  socket.addEventListener("open", () => {
+    if (ctx.state.wsConn !== socket) {
+      return;
+    }
+    ctx.state.wsReconnectAttempts = 0;
+    clearWSReconnectTimer();
+    stopPolling();
+    loadPlayerView();
+  });
 
   socket.addEventListener("message", (event) => {
     const htmlResult = applyHTMLMessage(event.data);
@@ -181,11 +240,11 @@ function connectWS() {
   });
 
   socket.addEventListener("close", () => {
-    startPolling();
+    handleWSDisconnect(socket);
   });
 
   socket.addEventListener("error", () => {
-    startPolling();
+    handleWSDisconnect(socket);
   });
 }
 
@@ -468,6 +527,29 @@ setupCanvas(ctx, async (dataUrl) => {
     ctx.els.drawSection.style.display = "none";
   }
   updateFromSnapshot(ctx, data);
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") {
+    return;
+  }
+  loadPlayerView();
+  connectWS();
+});
+
+window.addEventListener("online", () => {
+  loadPlayerView();
+  connectWS();
+});
+
+window.addEventListener("beforeunload", () => {
+  ctx.state.unloading = true;
+  clearWSReconnectTimer();
+  stopPolling();
+  if (ctx.state.wsConn) {
+    ctx.state.wsConn.close();
+    ctx.state.wsConn = null;
+  }
 });
 
 loadPlayerView();

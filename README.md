@@ -49,6 +49,7 @@ When the server starts, it will auto-migrate and load prompts from `prompts.csv`
 - `make build` — generate templ output and build all packages.
 - `make test` — run all tests.
 - `make migrate` — apply SQL migrations in `db/migrations/`.
+- `make migrate-repair` — repair a dirty `schema_migrations` state and re-run migrations.
 - `make migrate-create name=add_table` — create a new migration pair.
 - `make joke-audio-deps` — create a Python 3.11 venv and install joke-audio dependencies.
 - `make generate-joke-audio ARGS="--limit 20"` — generate joke narration audio for prompts.
