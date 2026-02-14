@@ -22,7 +22,7 @@ const (
 	minPasswordLen   = 8
 	maxPasswordLen   = 128
 	maxRoundsPerGame = 10
-	maxLobbyPlayers  = 12
+	maxLobbyPlayers  = 10
 )
 
 var validatorOnce sync.Once

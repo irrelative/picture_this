@@ -69,11 +69,11 @@ templ Home(flash string, playerName string, games []GameSummary, loggedIn bool, 
 				<form id="createGameForm" class="join-form">
 					<label class="field">
 						<span class="label">Minimum players</span>
-						<input name="min_players" type="number" min="2" max="12" value="2" required disabled?={ !loggedIn }/>
+						<input name="min_players" type="number" min="2" max="10" value="2" required disabled?={ !loggedIn }/>
 					</label>
 					<label class="field">
 						<span class="label">Maximum players (0 = unlimited)</span>
-						<input name="max_players" type="number" min="0" max="12" value="0" required disabled?={ !loggedIn }/>
+						<input name="max_players" type="number" min="0" max="10" value="0" required disabled?={ !loggedIn }/>
 					</label>
 					<button id="createGame" class="primary" type="submit" disabled?={ !loggedIn }>Create game</button>
 				</form>

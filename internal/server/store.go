@@ -40,6 +40,12 @@ func (s *Store) CreateGameWithLimits(promptsPerPlayer int, minPlayers int, maxPl
 	if maxPlayers < 0 {
 		maxPlayers = 0
 	}
+	if minPlayers > maxLobbyPlayers {
+		minPlayers = maxLobbyPlayers
+	}
+	if maxPlayers > maxLobbyPlayers {
+		maxPlayers = maxLobbyPlayers
+	}
 	if maxPlayers > 0 && minPlayers > maxPlayers {
 		minPlayers = maxPlayers
 	}

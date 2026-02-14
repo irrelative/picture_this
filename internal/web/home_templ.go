@@ -107,7 +107,7 @@ func Home(flash string, playerName string, games []GameSummary, loggedIn bool, u
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</section><section class=\"panel\"><div><h2>Create a game</h2><p>Generate a new lobby and share the join code with your players. Choose min/max players up front.</p></div><form id=\"createGameForm\" class=\"join-form\"><label class=\"field\"><span class=\"label\">Minimum players</span> <input name=\"min_players\" type=\"number\" min=\"2\" max=\"12\" value=\"2\" required")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</section><section class=\"panel\"><div><h2>Create a game</h2><p>Generate a new lobby and share the join code with your players. Choose min/max players up front.</p></div><form id=\"createGameForm\" class=\"join-form\"><label class=\"field\"><span class=\"label\">Minimum players</span> <input name=\"min_players\" type=\"number\" min=\"2\" max=\"10\" value=\"2\" required")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -117,7 +117,7 @@ func Home(flash string, playerName string, games []GameSummary, loggedIn bool, u
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "></label> <label class=\"field\"><span class=\"label\">Maximum players (0 = unlimited)</span> <input name=\"max_players\" type=\"number\" min=\"0\" max=\"12\" value=\"0\" required")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "></label> <label class=\"field\"><span class=\"label\">Maximum players (0 = unlimited)</span> <input name=\"max_players\" type=\"number\" min=\"0\" max=\"10\" value=\"0\" required")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

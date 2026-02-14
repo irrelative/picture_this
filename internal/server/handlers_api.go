@@ -21,8 +21,8 @@ type settingsRequest struct {
 }
 
 type createGameRequest struct {
-	MinPlayers int `json:"min_players" binding:"min=2,max=12"`
-	MaxPlayers int `json:"max_players" binding:"min=0,max=12"`
+	MinPlayers int `json:"min_players" binding:"min=2,max=10"`
+	MaxPlayers int `json:"max_players" binding:"min=0,max=10"`
 }
 
 type kickRequest struct {

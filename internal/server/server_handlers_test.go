@@ -23,8 +23,17 @@ func TestCreateGame(t *testing.T) {
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("expected status %d, got %d", http.StatusCreated, resp.StatusCode)
 	}
+	createdResp := resp
 
-	body := decodeBody(t, resp)
+	resp = doRequest(t, ts, http.MethodPost, "/api/games", map[string]any{
+		"min_players": 2,
+		"max_players": 11,
+	})
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
+	}
+
+	body := decodeBody(t, createdResp)
 	assertString(t, body["game_id"])
 	assertString(t, body["join_code"])
 }
