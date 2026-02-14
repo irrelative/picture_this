@@ -117,7 +117,7 @@ func Home(flash string, playerName string, games []GameSummary, loggedIn bool, u
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "></label> <label class=\"field\"><span class=\"label\">Maximum players (0 = unlimited)</span> <input name=\"max_players\" type=\"number\" min=\"0\" max=\"10\" value=\"0\" required")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "></label> <label class=\"field\"><span class=\"label\">Maximum players (0 uses the 10-player cap)</span> <input name=\"max_players\" type=\"number\" min=\"0\" max=\"10\" value=\"0\" required")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

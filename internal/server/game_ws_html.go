@@ -51,10 +51,7 @@ func buildPlayerListItems(game *Game) []web.PlayerListItem {
 }
 
 func buildLobbyStatus(game *Game) string {
-	maxPlayers := "∞"
-	if game.MaxPlayers > 0 {
-		maxPlayers = strconv.Itoa(game.MaxPlayers)
-	}
+	maxPlayers := strconv.Itoa(effectiveMaxPlayers(game.MaxPlayers))
 	minPlayers := game.MinPlayers
 	if minPlayers < 2 {
 		minPlayers = 2

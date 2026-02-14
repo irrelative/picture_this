@@ -148,7 +148,7 @@ func (s *Store) AddPlayer(gameIDOrCode, name string, avatar []byte) (*Game, *Pla
 	if game.LobbyLocked {
 		return nil, nil, errors.New("lobby locked")
 	}
-	if game.MaxPlayers > 0 && len(game.Players) >= game.MaxPlayers {
+	if len(game.Players) >= effectiveMaxPlayers(game.MaxPlayers) {
 		return nil, nil, errors.New("lobby full")
 	}
 	if game.KickedPlayers != nil {

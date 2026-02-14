@@ -138,7 +138,7 @@ func snapshotWithConfig(game *Game, cfg config.Config) map[string]any {
 			"guesses":  guessesCount,
 			"votes":    votesCount,
 		},
-		"can_join":       game.Phase == phaseLobby && !game.LobbyLocked && (game.MaxPlayers == 0 || len(game.Players) < game.MaxPlayers),
+		"can_join":       game.Phase == phaseLobby && !game.LobbyLocked && len(game.Players) < effectiveMaxPlayers(game.MaxPlayers),
 		"audience_count": len(game.Audience),
 	}
 }

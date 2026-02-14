@@ -82,7 +82,7 @@ export function updateFromSnapshot(ctx, data) {
     els.lobbyLocked.checked = Boolean(data.lobby_locked);
   }
   if (els.lobbyStatus) {
-    const maxPlayers = data.max_players > 0 ? data.max_players : "∞";
+    const maxPlayers = data.max_players > 0 ? data.max_players : 10;
     const lockedText = data.lobby_locked ? "Locked" : "Open";
     els.lobbyStatus.textContent = `Players: ${players.length}/${maxPlayers}. ${lockedText} lobby.`;
   }

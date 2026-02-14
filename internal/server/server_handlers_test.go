@@ -38,6 +38,24 @@ func TestCreateGame(t *testing.T) {
 	assertString(t, body["join_code"])
 }
 
+func TestJoinGameEnforcesTenPlayerCap(t *testing.T) {
+	srv := New(nil, config.Default())
+	ts := newTestServer(t, srv.Handler())
+	t.Cleanup(ts.Close)
+
+	gameID := createGame(t, ts)
+	for i := 1; i <= 10; i++ {
+		joinPlayer(t, ts, gameID, "Player"+strconv.Itoa(i))
+	}
+
+	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/join", map[string]string{
+		"name": "Player11",
+	})
+	if resp.StatusCode != http.StatusConflict {
+		t.Fatalf("expected status %d, got %d", http.StatusConflict, resp.StatusCode)
+	}
+}
+
 func TestRegisterLoginLogoutFlow(t *testing.T) {
 	srv := New(nil, config.Default())
 	ts := newTestServer(t, srv.Handler())

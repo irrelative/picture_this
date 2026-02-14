@@ -111,7 +111,7 @@ export function updateFromSnapshot(ctx, data) {
   }
   if (els.hostLobbyStatus) {
     const minPlayers = data.min_players > 0 ? data.min_players : 2;
-    const maxPlayers = data.max_players > 0 ? data.max_players : "∞";
+    const maxPlayers = data.max_players > 0 ? data.max_players : 10;
     const lockedText = data.lobby_locked ? "Locked" : "Open";
     els.hostLobbyStatus.textContent = `Players: ${players.length} (min ${minPlayers}, max ${maxPlayers}). ${lockedText} lobby.`;
   }
