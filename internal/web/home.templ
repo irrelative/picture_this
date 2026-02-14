@@ -9,7 +9,7 @@ templ Home(flash string, playerName string, games []GameSummary, loggedIn bool, 
 				<p>Host a game in seconds or jump into a session with your code.</p>
 			</header>
 
-			<section class="panel">
+			<section class="panel account-panel">
 				<div>
 					<h2>Account</h2>
 					if loggedIn {
@@ -27,7 +27,7 @@ templ Home(flash string, playerName string, games []GameSummary, loggedIn bool, 
 					</div>
 				} else {
 					<div class="auth-grid">
-						<form id="registerForm" class="join-form">
+						<form id="registerForm" class="join-form auth-form">
 							<h3>Create account</h3>
 							<label class="field">
 								<span class="label">Email</span>
@@ -44,7 +44,7 @@ templ Home(flash string, playerName string, games []GameSummary, loggedIn bool, 
 							<button type="submit" class="primary">Register</button>
 							<p id="registerResult" class="result" role="status" aria-live="polite"></p>
 						</form>
-						<form id="loginForm" class="join-form">
+						<form id="loginForm" class="join-form auth-form">
 							<h3>Log in</h3>
 							<label class="field">
 								<span class="label">Email</span>
