@@ -337,7 +337,7 @@ func DisplayContent(state DisplayState) templ.Component {
 				}
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "</ul></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "</ul></div><div class=\"display-panel display-flow\" id=\"displayFlowGuide\"><h2>Drawful Flow (Reference)</h2><p class=\"display-status\">Target state transitions for this game mode.</p><ol class=\"display-flow-list\"><li data-flow-key=\"lobby\"><span class=\"flow-step\">Lobby</span> <span class=\"flow-detail\">Players join, host configures rounds, avatars lock in.</span></li><li data-flow-key=\"drawings\"><span class=\"flow-step\">Drawings</span> <span class=\"flow-detail\">Each player draws one assigned prompt.</span></li><li data-flow-key=\"guesses\"><span class=\"flow-step\">Guesses</span> <span class=\"flow-detail\">For each drawing, non-owners submit fake prompt text.</span></li><li data-flow-key=\"guesses-votes\"><span class=\"flow-step\">Votes</span> <span class=\"flow-detail\">For each drawing, non-owners choose the real prompt.</span></li><li data-flow-key=\"results\"><span class=\"flow-step\">Results Loop (per drawing)</span> <span class=\"flow-detail\">Reveal sequence advances in order below.</span></li><li data-flow-key=\"results-guesses\"><span class=\"flow-step\">Results: Guesses Reveal</span> <span class=\"flow-detail\">Show all fake prompts for current drawing.</span></li><li data-flow-key=\"results-votes\"><span class=\"flow-step\">Results: Votes Reveal</span> <span class=\"flow-detail\">Show vote picks and scoring breakdown.</span></li><li data-flow-key=\"results-joke\"><span class=\"flow-step\">Results: Joke (optional)</span> <span class=\"flow-detail\">Play narrator one-liner when available.</span></li><li><span class=\"flow-step\">Branch</span> <span class=\"flow-detail\">After final reveal: next round goes to Drawings, last round goes to Complete.</span></li><li data-flow-key=\"complete\"><span class=\"flow-step\">Complete</span> <span class=\"flow-detail\">Show final standings and game over state.</span></li></ol></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -402,7 +402,7 @@ func DisplayContent(state DisplayState) templ.Component {
 		var templ_7745c5c3_Var21 string
 		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(assetPath("/static/sounds/MainBkgMusicLoop.ogg"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/display_partials.templ`, Line: 122, Col: 79}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/display_partials.templ`, Line: 169, Col: 79}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 		if templ_7745c5c3_Err != nil {
@@ -415,7 +415,7 @@ func DisplayContent(state DisplayState) templ.Component {
 		var templ_7745c5c3_Var22 string
 		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(assetPath("/static/sounds/DrawingTimeLoop.ogg"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/display_partials.templ`, Line: 123, Col: 80}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/display_partials.templ`, Line: 170, Col: 80}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 		if templ_7745c5c3_Err != nil {
@@ -428,7 +428,7 @@ func DisplayContent(state DisplayState) templ.Component {
 		var templ_7745c5c3_Var23 string
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(assetPath("/static/sounds/WriteLieLoop.ogg"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/display_partials.templ`, Line: 124, Col: 78}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/display_partials.templ`, Line: 171, Col: 78}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 		if templ_7745c5c3_Err != nil {
@@ -441,7 +441,7 @@ func DisplayContent(state DisplayState) templ.Component {
 		var templ_7745c5c3_Var24 string
 		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(assetPath("/static/sounds/ChooseLieLoop.ogg"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/display_partials.templ`, Line: 125, Col: 80}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/display_partials.templ`, Line: 172, Col: 80}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 		if templ_7745c5c3_Err != nil {
@@ -454,7 +454,7 @@ func DisplayContent(state DisplayState) templ.Component {
 		var templ_7745c5c3_Var25 string
 		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(assetPath("/static/sounds/QuestionMusicLoop.ogg"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/display_partials.templ`, Line: 126, Col: 83}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/display_partials.templ`, Line: 173, Col: 83}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 		if templ_7745c5c3_Err != nil {
@@ -467,7 +467,7 @@ func DisplayContent(state DisplayState) templ.Component {
 		var templ_7745c5c3_Var26 string
 		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(assetPath("/static/sounds/Credits.ogg"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/display_partials.templ`, Line: 127, Col: 72}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/display_partials.templ`, Line: 174, Col: 72}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 		if templ_7745c5c3_Err != nil {
@@ -480,7 +480,7 @@ func DisplayContent(state DisplayState) templ.Component {
 		var templ_7745c5c3_Var27 string
 		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(assetPath("/static/sounds/join.ogg"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/display_partials.templ`, Line: 128, Col: 66}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/display_partials.templ`, Line: 175, Col: 66}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 		if templ_7745c5c3_Err != nil {
@@ -493,7 +493,7 @@ func DisplayContent(state DisplayState) templ.Component {
 		var templ_7745c5c3_Var28 string
 		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(assetPath("/static/sounds/round_start.ogg"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/display_partials.templ`, Line: 129, Col: 79}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/display_partials.templ`, Line: 176, Col: 79}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 		if templ_7745c5c3_Err != nil {
@@ -506,7 +506,7 @@ func DisplayContent(state DisplayState) templ.Component {
 		var templ_7745c5c3_Var29 string
 		templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(assetPath("/static/sounds/timer_end.ogg"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/display_partials.templ`, Line: 130, Col: 75}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/display_partials.templ`, Line: 177, Col: 75}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 		if templ_7745c5c3_Err != nil {
@@ -519,7 +519,7 @@ func DisplayContent(state DisplayState) templ.Component {
 		var templ_7745c5c3_Var30 string
 		templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(assetPath("/static/sounds/voting_start.mp3"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/display_partials.templ`, Line: 131, Col: 81}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/display_partials.templ`, Line: 178, Col: 81}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 		if templ_7745c5c3_Err != nil {
@@ -572,7 +572,7 @@ func ScoreList(scores []DisplayScore) templ.Component {
 				var templ_7745c5c3_Var32 string
 				templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(entry.Name + ": " + itoa(entry.Score))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/display_partials.templ`, Line: 143, Col: 47}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/display_partials.templ`, Line: 190, Col: 47}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 				if templ_7745c5c3_Err != nil {
