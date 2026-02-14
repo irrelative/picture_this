@@ -172,89 +172,76 @@ def main():
         print(f"Submitted drawings for round {round_number}")
 
         time.sleep(args.sleep)
-        status, snapshot = request_json("GET", f"{base_url}/api/games/{game_id}")
-        assert status == 200, "snapshot failed"
-        phase = normalize_phase(snapshot.get("phase"))
-        assert phase == "guesses", f"expected guesses phase, got {snapshot.get('phase')}"
-
         guard = 0
-        max_guess_turns = max(20, len(players) * len(players) * 4)
-        while normalize_phase(snapshot.get("phase")) == "guesses" and guard < max_guess_turns:
+        max_steps = max(120, len(players) * len(players) * 30)
+        while guard < max_steps:
             guard += 1
-            assignments = snapshot.get("guess_assignments") or []
-            if not assignments:
-                status, snapshot = request_json("GET", f"{base_url}/api/games/{game_id}")
-                assert status == 200, "snapshot failed"
-                continue
-            for assignment in assignments:
-                guesser = int(assignment["player_id"])
-                drawing_index = int(assignment["drawing_index"])
-                status, _ = guess_for(guesser, f"guess-{round_number}-{drawing_index}-{guesser}-{guard}")
-                assert status == 200, f"guess failed for player {guesser}"
             status, snapshot = request_json("GET", f"{base_url}/api/games/{game_id}")
             assert status == 200, "snapshot failed"
+            phase = normalize_phase(snapshot.get("phase"))
 
-        phase = normalize_phase(snapshot.get("phase"))
-        assert phase == "guesses-votes", f"expected guesses-votes phase, got {snapshot.get('phase')}"
-
-        guard = 0
-        max_vote_turns = max(20, len(players) * len(players) * 4)
-        while normalize_phase(snapshot.get("phase")) == "guesses-votes" and guard < max_vote_turns:
-            guard += 1
-            assignments = snapshot.get("vote_assignments") or []
-            if not assignments:
-                status, snapshot = request_json("GET", f"{base_url}/api/games/{game_id}")
-                assert status == 200, "snapshot failed"
+            if phase == "guesses":
+                assignments = snapshot.get("guess_assignments") or []
+                assert assignments, "expected guess assignments during guesses phase"
+                for assignment in assignments:
+                    guesser = int(assignment["player_id"])
+                    drawing_index = int(assignment["drawing_index"])
+                    status, _ = guess_for(guesser, f"guess-{round_number}-{drawing_index}-{guesser}-{guard}")
+                    assert status == 200, f"guess failed for player {guesser}"
                 continue
-            for assignment in assignments:
-                voter = int(assignment["player_id"])
-                options = assignment.get("options") or []
-                assert options, "no vote options"
-                selected = None
-                for option in options:
-                    if not isinstance(option, dict):
-                        selected = {"id": "", "text": str(option), "type": "guess", "owner_id": 0}
-                        break
-                    owner_id = int(option.get("owner_id") or 0)
-                    option_type = str(option.get("type") or "")
-                    # Mirror server rules: allow prompt votes, and disallow voting for your own lie.
-                    if option_type == "prompt" or owner_id != voter:
-                        selected = option
-                        break
-                if selected is None:
-                    raise AssertionError(f"no valid vote option for player {voter}")
-                choice_id = selected.get("id", "")
-                choice_text = selected.get("text", "")
-                status, _ = request_json(
+
+            if phase == "guesses-votes":
+                assignments = snapshot.get("vote_assignments") or []
+                assert assignments, "expected vote assignments during vote phase"
+                for assignment in assignments:
+                    voter = int(assignment["player_id"])
+                    options = assignment.get("options") or []
+                    assert options, "no vote options"
+                    selected = None
+                    for option in options:
+                        if not isinstance(option, dict):
+                            selected = {"id": "", "text": str(option), "type": "guess", "owner_id": 0}
+                            break
+                        owner_id = int(option.get("owner_id") or 0)
+                        option_type = str(option.get("type") or "")
+                        # Mirror server rules: allow prompt votes, and disallow voting for your own lie.
+                        if option_type == "prompt" or owner_id != voter:
+                            selected = option
+                            break
+                    if selected is None:
+                        raise AssertionError(f"no valid vote option for player {voter}")
+                    choice_id = selected.get("id", "")
+                    choice_text = selected.get("text", "")
+                    status, _ = request_json(
+                        "POST",
+                        f"{base_url}/api/games/{game_id}/votes",
+                        {
+                            "player_id": voter,
+                            "choice_id": choice_id,
+                            "choice": choice_text,
+                            "auth_token": player_tokens.get(voter, ""),
+                        },
+                    )
+                    if status != 200:
+                        _, detail = request_json("GET", f"{base_url}/api/games/{game_id}")
+                        raise AssertionError(
+                            f"vote failed for player {voter}: status={status} snapshot_phase={detail.get('phase')}"
+                        )
+                continue
+
+            if phase == "results":
+                status, snapshot = request_json(
                     "POST",
-                    f"{base_url}/api/games/{game_id}/votes",
+                    f"{base_url}/api/games/{game_id}/advance",
                     {
-                        "player_id": voter,
-                        "choice_id": choice_id,
-                        "choice": choice_text,
-                        "auth_token": player_tokens.get(voter, ""),
+                        "player_id": players[0]["player_id"],
+                        "auth_token": player_tokens.get(players[0]["player_id"], ""),
                     },
                 )
-                if status != 200:
-                    _, detail = request_json("GET", f"{base_url}/api/games/{game_id}")
-                    raise AssertionError(
-                        f"vote failed for player {voter}: status={status} snapshot_phase={detail.get('phase')}"
-                    )
-            status, snapshot = request_json("GET", f"{base_url}/api/games/{game_id}")
-            assert status == 200, "snapshot failed"
+                assert status == 200, f"advance failed: {snapshot}"
+                continue
 
-        phase = normalize_phase(snapshot.get("phase"))
-        assert phase == "results", f"expected results phase, got {snapshot.get('phase')}"
-        while normalize_phase(snapshot.get("phase")) == "results":
-            status, snapshot = request_json(
-                "POST",
-                f"{base_url}/api/games/{game_id}/advance",
-                {
-                    "player_id": players[0]["player_id"],
-                    "auth_token": player_tokens.get(players[0]["player_id"], ""),
-                },
-            )
-            assert status == 200, f"advance failed: {snapshot}"
+            break
 
         phase = normalize_phase(snapshot.get("phase"))
         if round_number < total_rounds:

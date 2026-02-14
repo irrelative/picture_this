@@ -240,16 +240,16 @@ function updateGuessPhase(ctx, data, phase) {
     state.lastGuessKey = guessKey;
   }
   if (els.guessStatus) {
-    if (remaining === 0) {
-      els.guessStatus.textContent = "All your guesses are in. Waiting for others.";
+    if (remaining === 0 && !assignment) {
+      els.guessStatus.textContent = "Waiting for the next reveal.";
     } else if (canSubmit) {
-      els.guessStatus.textContent = `Submit your guess now. ${remaining} left this round.`;
+      els.guessStatus.textContent = "Submit your fake prompt now.";
     } else if (isOwnDrawing) {
-      els.guessStatus.textContent = `Skipping your own drawing. ${remaining} guesses left.`;
+      els.guessStatus.textContent = "This is your drawing. Sit tight while others submit.";
     } else if (hasSubmitted) {
-      els.guessStatus.textContent = `Guess submitted. ${remaining} guesses left.`;
+      els.guessStatus.textContent = "Guess submitted. Waiting for others.";
     } else {
-      els.guessStatus.textContent = `Waiting for your next assignment. ${remaining} guesses left.`;
+      els.guessStatus.textContent = "Waiting for your assignment.";
     }
   }
   if (els.guessImage) {
@@ -292,16 +292,16 @@ function updateVotePhase(ctx, data, phase) {
     state.lastVoteKey = voteKey;
   }
   if (els.voteStatus) {
-    if (remaining === 0) {
-      els.voteStatus.textContent = "All your votes are in. Waiting for results.";
+    if (remaining === 0 && !assignment) {
+      els.voteStatus.textContent = "Waiting for the next reveal.";
     } else if (canSubmit) {
-      els.voteStatus.textContent = `Pick the real prompt and vote. ${remaining} left this round.`;
+      els.voteStatus.textContent = "Pick the real prompt and vote.";
     } else if (isOwnDrawing) {
-      els.voteStatus.textContent = `Skipping your own drawing. ${remaining} votes left.`;
+      els.voteStatus.textContent = "This is your drawing. No vote needed.";
     } else if (hasSubmitted) {
-      els.voteStatus.textContent = `Vote submitted. ${remaining} votes left.`;
+      els.voteStatus.textContent = "Vote submitted. Waiting for others.";
     } else {
-      els.voteStatus.textContent = `Waiting for your next assignment. ${remaining} votes left.`;
+      els.voteStatus.textContent = "Waiting for your assignment.";
     }
   }
   if (els.voteImage) {
