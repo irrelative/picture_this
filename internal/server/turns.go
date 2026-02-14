@@ -153,10 +153,9 @@ func activeGuessDrawingIndex(game *Game, round *RoundState) int {
 	if game == nil || round == nil || len(round.Drawings) == 0 {
 		return -1
 	}
-	for drawingIndex := range round.Drawings {
-		if len(pendingGuessersForIndex(game, round, drawingIndex)) > 0 {
-			return drawingIndex
-		}
+	drawingIndex := normalizeDrawingIndex(round)
+	if len(pendingGuessersForIndex(game, round, drawingIndex)) > 0 {
+		return drawingIndex
 	}
 	return -1
 }
@@ -165,10 +164,9 @@ func activeVoteDrawingIndex(game *Game, round *RoundState) int {
 	if game == nil || round == nil || len(round.Drawings) == 0 {
 		return -1
 	}
-	for drawingIndex := range round.Drawings {
-		if len(pendingVotersForIndex(game, round, drawingIndex)) > 0 {
-			return drawingIndex
-		}
+	drawingIndex := normalizeDrawingIndex(round)
+	if len(pendingVotersForIndex(game, round, drawingIndex)) > 0 {
+		return drawingIndex
 	}
 	return -1
 }
@@ -214,6 +212,21 @@ func requiredGuessCount(game *Game, round *RoundState) int {
 	return count
 }
 
+func requiredGuessCountForDrawing(game *Game, round *RoundState, drawingIndex int) int {
+	if game == nil || round == nil || drawingIndex < 0 || drawingIndex >= len(round.Drawings) {
+		return 0
+	}
+	total := 0
+	ownerID := round.Drawings[drawingIndex].PlayerID
+	for _, player := range game.Players {
+		if player.ID == ownerID {
+			continue
+		}
+		total++
+	}
+	return total
+}
+
 func requiredVoteCount(game *Game, round *RoundState) int {
 	if game == nil || round == nil || len(round.Drawings) == 0 {
 		return 0
@@ -228,6 +241,21 @@ func requiredVoteCount(game *Game, round *RoundState) int {
 		}
 	}
 	return count
+}
+
+func requiredVoteCountForDrawing(game *Game, round *RoundState, drawingIndex int) int {
+	if game == nil || round == nil || drawingIndex < 0 || drawingIndex >= len(round.Drawings) {
+		return 0
+	}
+	total := 0
+	ownerID := round.Drawings[drawingIndex].PlayerID
+	for _, player := range game.Players {
+		if player.ID == ownerID {
+			continue
+		}
+		total++
+	}
+	return total
 }
 
 func remainingGuessesForPlayer(game *Game, round *RoundState, playerID int) int {
@@ -275,8 +303,17 @@ func guessRemainingByPlayer(game *Game, round *RoundState) map[int]int {
 	if game == nil || round == nil {
 		return result
 	}
+	drawingIndex := activeGuessDrawingIndex(game, round)
 	for _, player := range game.Players {
-		result[player.ID] = remainingGuessesForPlayer(game, round, player.ID)
+		if drawingIndex < 0 {
+			result[player.ID] = 0
+			continue
+		}
+		if round.Drawings[drawingIndex].PlayerID == player.ID || hasGuessForPlayer(round, drawingIndex, player.ID) {
+			result[player.ID] = 0
+			continue
+		}
+		result[player.ID] = 1
 	}
 	return result
 }
@@ -286,8 +323,17 @@ func voteRemainingByPlayer(game *Game, round *RoundState) map[int]int {
 	if game == nil || round == nil {
 		return result
 	}
+	drawingIndex := activeVoteDrawingIndex(game, round)
 	for _, player := range game.Players {
-		result[player.ID] = remainingVotesForPlayer(game, round, player.ID)
+		if drawingIndex < 0 {
+			result[player.ID] = 0
+			continue
+		}
+		if round.Drawings[drawingIndex].PlayerID == player.ID || hasVoteForPlayer(round, drawingIndex, player.ID) {
+			result[player.ID] = 0
+			continue
+		}
+		result[player.ID] = 1
 	}
 	return result
 }
@@ -415,4 +461,14 @@ func revealHasJoke(round *RoundState) bool {
 		}
 	}
 	return false
+}
+
+func normalizeDrawingIndex(round *RoundState) int {
+	if round == nil || len(round.Drawings) == 0 {
+		return -1
+	}
+	if round.RevealIndex < 0 || round.RevealIndex >= len(round.Drawings) {
+		return 0
+	}
+	return round.RevealIndex
 }

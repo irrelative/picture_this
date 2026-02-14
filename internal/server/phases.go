@@ -64,7 +64,7 @@ var phaseTransitions = map[string]phaseTransition{
 				return "", errors.New("no drawings submitted")
 			}
 			if mode != transitionPreview {
-				initReveal(round, 0)
+				initReveal(round, normalizeDrawingIndex(round))
 			}
 			applyPhase(game, phaseResults, mode, at)
 			return phaseResults, nil
@@ -81,11 +81,8 @@ var phaseTransitions = map[string]phaseTransition{
 				return phaseComplete, nil
 			}
 
-			revealIndex := round.RevealIndex
+			revealIndex := normalizeDrawingIndex(round)
 			revealStage := round.RevealStage
-			if revealIndex < 0 || revealIndex >= len(round.Drawings) {
-				revealIndex = 0
-			}
 
 			nextPhase := phaseResults
 			nextRevealIndex := revealIndex
@@ -105,7 +102,8 @@ var phaseTransitions = map[string]phaseTransition{
 			case revealStageJoke:
 				if revealIndex+1 < len(round.Drawings) {
 					nextRevealIndex = revealIndex + 1
-					nextRevealStage = revealStageGuesses
+					nextRevealStage = ""
+					nextPhase = phaseGuesses
 					break
 				}
 				nextRevealStage = ""
@@ -225,6 +223,11 @@ func (s *Server) tryAdvanceToGuesses(gameID string) (bool, *Game, error) {
 		}
 		if !drawingsComplete(game) {
 			return nil
+		}
+		round := currentRound(game)
+		if round != nil {
+			round.RevealIndex = 0
+			round.RevealStage = ""
 		}
 		setPhase(game, phaseGuesses)
 		return nil

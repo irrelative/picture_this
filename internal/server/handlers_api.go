@@ -896,7 +896,7 @@ func (s *Server) handleVotes(c *gin.Context) {
 		})
 		if activeVoteDrawingIndex(game, round) < 0 {
 			setPhase(game, phaseResults)
-			initReveal(round, 0)
+			initReveal(round, activeDrawing)
 			phaseAdvanced = true
 		}
 		return nil

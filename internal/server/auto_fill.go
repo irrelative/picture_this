@@ -28,21 +28,23 @@ func autoFillMissingGuesses(game *Game) []autoFilledGuess {
 		return nil
 	}
 	filled := make([]autoFilledGuess, 0)
-	for drawingIndex := range round.Drawings {
-		pending := pendingGuessersForIndex(game, round, drawingIndex)
-		for _, playerID := range pending {
-			text := autoGuessText(round, drawingIndex, playerID)
-			round.Guesses = append(round.Guesses, GuessEntry{
-				PlayerID:     playerID,
-				DrawingIndex: drawingIndex,
-				Text:         text,
-			})
-			filled = append(filled, autoFilledGuess{
-				PlayerID:     playerID,
-				DrawingIndex: drawingIndex,
-				Text:         text,
-			})
-		}
+	drawingIndex := activeGuessDrawingIndex(game, round)
+	if drawingIndex < 0 {
+		return filled
+	}
+	pending := pendingGuessersForIndex(game, round, drawingIndex)
+	for _, playerID := range pending {
+		text := autoGuessText(round, drawingIndex, playerID)
+		round.Guesses = append(round.Guesses, GuessEntry{
+			PlayerID:     playerID,
+			DrawingIndex: drawingIndex,
+			Text:         text,
+		})
+		filled = append(filled, autoFilledGuess{
+			PlayerID:     playerID,
+			DrawingIndex: drawingIndex,
+			Text:         text,
+		})
 	}
 	return filled
 }
@@ -56,30 +58,32 @@ func autoFillMissingVotes(game *Game) []autoFilledVote {
 		return nil
 	}
 	filled := make([]autoFilledVote, 0)
-	for drawingIndex := range round.Drawings {
-		pending := pendingVotersForIndex(game, round, drawingIndex)
-		if len(pending) == 0 {
-			continue
-		}
-		choiceText := round.Drawings[drawingIndex].Prompt
-		if choiceText == "" {
-			choiceText = fmt.Sprintf("Prompt %d", drawingIndex+1)
-		}
-		for _, playerID := range pending {
-			round.Votes = append(round.Votes, VoteEntry{
-				PlayerID:     playerID,
-				DrawingIndex: drawingIndex,
-				ChoiceText:   choiceText,
-				ChoiceType:   voteChoicePrompt,
-			})
-			filled = append(filled, autoFilledVote{
-				PlayerID:     playerID,
-				RoundNumber:  round.Number,
-				DrawingIndex: drawingIndex,
-				ChoiceText:   choiceText,
-				ChoiceType:   voteChoicePrompt,
-			})
-		}
+	drawingIndex := activeVoteDrawingIndex(game, round)
+	if drawingIndex < 0 {
+		return filled
+	}
+	pending := pendingVotersForIndex(game, round, drawingIndex)
+	if len(pending) == 0 {
+		return filled
+	}
+	choiceText := round.Drawings[drawingIndex].Prompt
+	if choiceText == "" {
+		choiceText = fmt.Sprintf("Prompt %d", drawingIndex+1)
+	}
+	for _, playerID := range pending {
+		round.Votes = append(round.Votes, VoteEntry{
+			PlayerID:     playerID,
+			DrawingIndex: drawingIndex,
+			ChoiceText:   choiceText,
+			ChoiceType:   voteChoicePrompt,
+		})
+		filled = append(filled, autoFilledVote{
+			PlayerID:     playerID,
+			RoundNumber:  round.Number,
+			DrawingIndex: drawingIndex,
+			ChoiceText:   choiceText,
+			ChoiceType:   voteChoicePrompt,
+		})
 	}
 	return filled
 }
