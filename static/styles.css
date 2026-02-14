@@ -135,6 +135,17 @@ body {
   gap: 12px;
 }
 
+.hero-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.hero-head .secondary {
+  margin-left: auto;
+}
+
 .hero h1 {
   font-size: clamp(2.2rem, 4.6vw, 3.4rem);
   letter-spacing: -0.02em;

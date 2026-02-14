@@ -4,7 +4,12 @@ templ Home(flash string, playerName string, games []GameSummary, loggedIn bool, 
 	@Layout("Picture This", "/static/app.js", flash) {
 		<div class="home">
 			<header class="hero">
-				<span class="tag">Picture This</span>
+				<div class="hero-head">
+					<span class="tag">Picture This</span>
+					if loggedIn {
+						<button id="logoutButton" class="secondary" type="button">Log out</button>
+					}
+				</div>
 				<h1>Draw together. Guess boldly.</h1>
 				<p>Host a game in seconds or jump into a session with your code.</p>
 			</header>
@@ -19,12 +24,11 @@ templ Home(flash string, playerName string, games []GameSummary, loggedIn bool, 
 					}
 				</div>
 				if loggedIn {
-					<div class="inline-actions">
-						<button id="logoutButton" class="secondary" type="button">Log out</button>
-						if isAdmin {
+					if isAdmin {
+						<div class="inline-actions">
 							<a class="secondary" href="/admin">Admin dashboard</a>
-						}
-					</div>
+						</div>
+					}
 				} else {
 					<div class="auth-grid">
 						<form id="registerForm" class="join-form auth-form">
