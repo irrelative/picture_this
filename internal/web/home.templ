@@ -61,12 +61,12 @@ templ Home(flash string, playerName string, games []GameSummary, loggedIn bool, 
 				}
 			</section>
 
-			<section class="panel">
+			<section class="panel create-game-panel">
 				<div>
 					<h2>Create a game</h2>
 					<p>Generate a new lobby and share the join code with your players. Choose min/max players up front.</p>
 				</div>
-				<form id="createGameForm" class="join-form">
+				<form id="createGameForm" class="join-form create-game-form">
 					<label class="field">
 						<span class="label">Minimum players</span>
 						<input name="min_players" type="number" min="2" max="10" value="2" required disabled?={ !loggedIn }/>

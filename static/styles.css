@@ -290,6 +290,20 @@ a:focus-visible {
   justify-self: start;
 }
 
+.create-game-panel {
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+
+.create-game-form {
+  grid-template-columns: 1fr;
+  align-items: end;
+}
+
+.create-game-form .field {
+  max-width: 16rem;
+}
+
 .join-only {
   grid-template-columns: 1fr;
 }
@@ -1089,6 +1103,14 @@ button.primary:disabled {
 
   .join-form {
     grid-template-columns: 1fr 1fr auto;
+  }
+
+  .create-game-form {
+    grid-template-columns: repeat(2, minmax(12rem, 16rem)) auto;
+  }
+
+  .create-game-form .field {
+    max-width: none;
   }
 
   .join-only {
