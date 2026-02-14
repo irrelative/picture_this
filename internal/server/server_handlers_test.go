@@ -448,7 +448,7 @@ func TestUpdateSettings(t *testing.T) {
 	if snapshot["total_rounds"] != float64(3) {
 		t.Fatalf("expected rounds 3, got %v", snapshot["total_rounds"])
 	}
-	if snapshot["max_players"] != float64(0) {
+	if snapshot["max_players"] != float64(10) {
 		t.Fatalf("expected max players unchanged, got %v", snapshot["max_players"])
 	}
 	if snapshot["lobby_locked"] != true {

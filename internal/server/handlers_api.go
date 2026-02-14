@@ -102,7 +102,7 @@ func (s *Server) handleCreateGame(c *gin.Context) {
 	if _, ok := s.requireSessionUser(c); !ok {
 		return
 	}
-	req := createGameRequest{MinPlayers: 2, MaxPlayers: 0}
+	req := createGameRequest{MinPlayers: 2, MaxPlayers: 10}
 	if c.Request.ContentLength > 0 {
 		if !bindJSON(c, &req, bindMessages{
 			"MinPlayers": {
