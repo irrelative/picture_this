@@ -24,6 +24,7 @@ func Migrate(conn *gorm.DB) error {
 		return errors.New("db connection is nil")
 	}
 	if err := conn.AutoMigrate(
+		&User{},
 		&Game{},
 		&Player{},
 		&Round{},

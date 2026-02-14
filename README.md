@@ -3,7 +3,7 @@
 Picture This is a Drawful-style party game with a Go backend, templ-rendered UI, and Postgres persistence. Players join from their phones, receive prompts from a prompt library, draw, guess, and vote while the host runs the lobby on a shared screen.
 
 ## How It Works
-- Host creates a game and shares the join code.
+- A registered user creates a game lobby (min/max players) and shares the join code.
 - Players join from `/join` and receive assigned prompts.
 - Host controls game flow from their player screen at `/play/{game_id}/{player_id}`.
 - In the lobby, each player can save their avatar once; after saving, it is locked for that game, the save button disappears, and a confirmation SFX plays.
@@ -92,6 +92,9 @@ What it does:
 
 ## Server Endpoints
 - `POST /api/games` — create a new game; returns `game_id` and `join_code`.
+- `POST /api/auth/register` — register with email, username, and password.
+- `POST /api/auth/login` — log in and attach your user to the cookie session.
+- `POST /api/auth/logout` — clear the logged-in user from the cookie session.
 - `POST /api/games/{game_id}/join` — join a game with a player name.
 - `POST /api/games/{game_id}/avatar` — save/update your lobby avatar (one-time; locks after save).
 - `POST /api/games/{game_id}/audience` — join as audience.
@@ -101,7 +104,7 @@ What it does:
 - `POST /api/games/{game_id}/drawings` — submit a drawing for a prompt.
 - `POST /api/games/{game_id}/guesses` — submit a guess for a drawing.
 - `POST /api/games/{game_id}/votes` — submit a vote option for the assigned drawing.
-- `POST /api/games/{game_id}/settings` — update lobby settings (rounds, max players, prompt pack, lock).
+- `POST /api/games/{game_id}/settings` — update lobby settings (rounds and lobby lock).
 - `POST /api/games/{game_id}/kick` — host removes a player from the lobby.
 - `POST /api/games/{game_id}/advance` — host/admin advances phase if needed.
 - `GET /api/games/{game_id}/results` — fetch round or final results.

@@ -3,11 +3,14 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -16,16 +19,20 @@ const testAvatarData = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCA
 var (
 	testAuthTokensMu sync.Mutex
 	testAuthTokens   = map[string]string{}
+	testHTTPClients  = map[string]*http.Client{}
+	testUserCounter  uint64
 )
 
 func resetTestAuthTokens() {
 	testAuthTokensMu.Lock()
 	defer testAuthTokensMu.Unlock()
 	testAuthTokens = map[string]string{}
+	testHTTPClients = map[string]*http.Client{}
 }
 
 func createGame(t *testing.T, ts *httptest.Server) string {
 	t.Helper()
+	ensureAuthenticatedUser(t, ts)
 	resp := doRequest(t, ts, http.MethodPost, "/api/games", nil)
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("expected status %d, got %d", http.StatusCreated, resp.StatusCode)
@@ -36,6 +43,7 @@ func createGame(t *testing.T, ts *httptest.Server) string {
 
 func createGameWithCode(t *testing.T, ts *httptest.Server) (string, string) {
 	t.Helper()
+	ensureAuthenticatedUser(t, ts)
 	resp := doRequest(t, ts, http.MethodPost, "/api/games", nil)
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("expected status %d, got %d", http.StatusCreated, resp.StatusCode)
@@ -109,7 +117,7 @@ func doRequest(t *testing.T, ts *httptest.Server, method, path string, payload a
 	if payload != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := testClientForServer(ts).Do(req)
 	if err != nil {
 		t.Fatalf("do request: %v", err)
 	}
@@ -140,7 +148,9 @@ func doRequestNoRedirect(t *testing.T, ts *httptest.Server, method, path string,
 	if payload != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
+	baseClient := testClientForServer(ts)
 	client := &http.Client{
+		Jar: baseClient.Jar,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
@@ -238,4 +248,43 @@ func withInjectedAuthToken(path string, payload any) any {
 	}
 	copyBody["auth_token"] = token
 	return copyBody
+}
+
+func ensureAuthenticatedUser(t *testing.T, ts *httptest.Server) {
+	t.Helper()
+	email := fmt.Sprintf("tester-%d@example.com", atomic.AddUint64(&testUserCounter, 1))
+	resp := doRequest(t, ts, http.MethodPost, "/api/auth/register", map[string]any{
+		"email":    email,
+		"username": "tester",
+		"password": "password123",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		body := decodeBody(t, resp)
+		t.Fatalf("expected status %d, got %d (%v)", http.StatusCreated, resp.StatusCode, body)
+	}
+}
+
+func testClientForServer(ts *httptest.Server) *http.Client {
+	testAuthTokensMu.Lock()
+	defer testAuthTokensMu.Unlock()
+	if client, ok := testHTTPClients[ts.URL]; ok {
+		return client
+	}
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Jar: jar}
+	testHTTPClients[ts.URL] = client
+	return client
+}
+
+func promoteSessionUsersToAdmin(t *testing.T, srv *Server) {
+	t.Helper()
+	if srv == nil || srv.sessions == nil {
+		t.Fatalf("session store is not available")
+	}
+	srv.sessions.mu.Lock()
+	defer srv.sessions.mu.Unlock()
+	for userID, user := range srv.sessions.usersByID {
+		user.IsAdmin = true
+		srv.sessions.usersByID[userID] = user
+	}
 }

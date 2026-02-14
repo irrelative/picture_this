@@ -32,6 +32,8 @@ func TestAdminPromptLibraryViewKeepsSearchQuery(t *testing.T) {
 	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
+	ensureAuthenticatedUser(t, ts)
+	promoteSessionUsersToAdmin(t, srv)
 	resp := doRequest(t, ts, http.MethodGet, "/admin/prompts?q=otter", nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)

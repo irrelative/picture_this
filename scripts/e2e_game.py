@@ -25,6 +25,7 @@ AVATAR_UPDATES = [
     AVATAR_IMAGES[0],
     AVATAR_IMAGES[1],
 ]
+OPENER = urllib.request.build_opener(urllib.request.HTTPCookieProcessor())
 
 
 def request_json(method, url, payload=None):
@@ -35,7 +36,7 @@ def request_json(method, url, payload=None):
         headers["Content-Type"] = "application/json"
     req = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
-        with urllib.request.urlopen(req) as resp:
+        with OPENER.open(req) as resp:
             body = resp.read()
             if body:
                 return resp.status, json.loads(body.decode("utf-8"))
@@ -71,7 +72,18 @@ def main():
 
     base_url = args.base_url.rstrip("/")
 
-    status, game = request_json_with_retry("POST", f"{base_url}/api/games")
+    status, auth = request_json_with_retry(
+        "POST",
+        f"{base_url}/api/auth/register",
+        {
+            "email": f"e2e-{int(time.time() * 1000)}@example.com",
+            "username": "e2e",
+            "password": "password123",
+        },
+    )
+    assert status == 201, f"register failed: {status} {auth}"
+
+    status, game = request_json_with_retry("POST", f"{base_url}/api/games", {"min_players": 2, "max_players": 0})
     assert status == 201, f"create game failed: {status} {game}"
     game_id = game["game_id"]
     print(f"Created game {game_id} join_code={game['join_code']}")

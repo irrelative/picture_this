@@ -1,0 +1,7 @@
+ALTER TABLE IF EXISTS sessions
+    DROP COLUMN IF EXISTS user_id;
+
+ALTER TABLE IF EXISTS games
+    DROP COLUMN IF EXISTS min_players;
+
+DROP TABLE IF EXISTS users;

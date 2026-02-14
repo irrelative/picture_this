@@ -13,11 +13,14 @@ import (
 
 const (
 	maxNameLength    = 20
+	maxEmailLength   = 255
 	maxGuessLength   = 60
 	maxPromptLength  = 140
 	maxChoiceLength  = 140
 	maxJokeLength    = 140
 	maxDrawingBytes  = 250 * 1024
+	minPasswordLen   = 8
+	maxPasswordLen   = 128
 	maxRoundsPerGame = 10
 	maxLobbyPlayers  = 12
 )
@@ -91,6 +94,37 @@ func validateJoke(text string) (string, error) {
 
 func validateChoice(text string) (string, error) {
 	return validateText("choice", text, maxChoiceLength)
+}
+
+func validateEmail(email string) (string, error) {
+	trimmed := strings.ToLower(strings.TrimSpace(email))
+	if trimmed == "" {
+		return "", errors.New("email is required")
+	}
+	if len(trimmed) > maxEmailLength {
+		return "", fmt.Errorf("email must be %d characters or fewer", maxEmailLength)
+	}
+	if strings.Contains(trimmed, " ") {
+		return "", errors.New("email is invalid")
+	}
+	parts := strings.Split(trimmed, "@")
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return "", errors.New("email is invalid")
+	}
+	if !strings.Contains(parts[1], ".") {
+		return "", errors.New("email is invalid")
+	}
+	return trimmed, nil
+}
+
+func validatePassword(password string) error {
+	if len(password) < minPasswordLen {
+		return fmt.Errorf("password must be at least %d characters", minPasswordLen)
+	}
+	if len(password) > maxPasswordLen {
+		return fmt.Errorf("password must be %d characters or fewer", maxPasswordLen)
+	}
+	return nil
 }
 
 func validateText(label, text string, maxLen int) (string, error) {

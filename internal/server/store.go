@@ -27,8 +27,22 @@ func NewStore() *Store {
 }
 
 func (s *Store) CreateGame(promptsPerPlayer int) *Game {
+	return s.CreateGameWithLimits(promptsPerPlayer, 2, 0)
+}
+
+func (s *Store) CreateGameWithLimits(promptsPerPlayer int, minPlayers int, maxPlayers int) *Game {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if minPlayers < 2 {
+		minPlayers = 2
+	}
+	if maxPlayers < 0 {
+		maxPlayers = 0
+	}
+	if maxPlayers > 0 && minPlayers > maxPlayers {
+		minPlayers = maxPlayers
+	}
 
 	id := fmt.Sprintf("game-%d", s.nextID)
 	s.nextID++
@@ -37,7 +51,8 @@ func (s *Store) CreateGame(promptsPerPlayer int) *Game {
 		JoinCode:         newJoinCode(),
 		Phase:            phaseLobby,
 		PhaseStartedAt:   timeNowUTC(),
-		MaxPlayers:       0,
+		MinPlayers:       minPlayers,
+		MaxPlayers:       maxPlayers,
 		LobbyLocked:      false,
 		UsedPrompts:      make(map[string]struct{}),
 		KickedPlayers:    make(map[string]struct{}),

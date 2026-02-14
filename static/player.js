@@ -58,7 +58,6 @@ const ctx = {
     hostLobbyStatus: document.getElementById("hostLobbyStatus"),
     hostSettingsForm: document.getElementById("hostSettingsForm"),
     hostRoundsInput: document.getElementById("hostRoundsInput"),
-    hostMaxPlayersInput: document.getElementById("hostMaxPlayersInput"),
     hostLobbyLocked: document.getElementById("hostLobbyLocked"),
     hostSettingsStatus: document.getElementById("hostSettingsStatus"),
     hostPlayerActions: document.getElementById("hostPlayerActions"),
@@ -393,7 +392,6 @@ if (ctx.els.hostSettingsForm) {
     const gameId = ctx.els.meta.dataset.gameId;
     const playerId = Number(ctx.els.meta.dataset.playerId);
     const rounds = Number(ctx.els.hostRoundsInput?.value || 0);
-    const maxPlayers = Number(ctx.els.hostMaxPlayersInput?.value || 0);
     const locked = Boolean(ctx.els.hostLobbyLocked?.checked);
     if (ctx.els.hostSettingsStatus) {
       ctx.els.hostSettingsStatus.textContent = "Saving...";
@@ -402,7 +400,6 @@ if (ctx.els.hostSettingsForm) {
       player_id: playerId,
       auth_token: ctx.state.authToken,
       rounds,
-      max_players: maxPlayers,
       lobby_locked: locked
     });
     if (!res.ok) {

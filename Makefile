@@ -83,6 +83,19 @@ e2e-test:
 		cat /tmp/picture_this_test.log; \
 		exit 1; \
 	fi; \
+	READY=0; \
+	for _ in $$(seq 1 40); do \
+		if curl -fsS "http://localhost:$$PORT/" >/dev/null 2>&1; then \
+			READY=1; \
+			break; \
+		fi; \
+		sleep 0.25; \
+	done; \
+	if [ "$$READY" -ne 1 ]; then \
+		echo "server failed readiness check; log output:"; \
+		cat /tmp/picture_this_test.log; \
+		exit 1; \
+	fi; \
 	DATABASE_URL="$(DATABASE_URL_TEST)" make load-prompts; \
 	BASE_URL="http://localhost:$$PORT" python3 scripts/e2e_game.py; \
 	kill $$SERVER_PID 2>/dev/null || true; \

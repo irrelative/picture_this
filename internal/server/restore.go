@@ -60,6 +60,7 @@ func (s *Server) restoreGameFromDB(param string) (*Game, string, error) {
 		Phase:            phasePaused,
 		PausedPhase:      record.Phase,
 		PhaseStartedAt:   time.Now().UTC(),
+		MinPlayers:       record.MinPlayers,
 		MaxPlayers:       record.MaxPlayers,
 		LobbyLocked:      record.LobbyLocked,
 		UsedPrompts:      make(map[string]struct{}),

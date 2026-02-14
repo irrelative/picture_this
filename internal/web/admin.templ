@@ -45,6 +45,7 @@ templ Admin(gameID string, data AdminData) {
 					<tr><th>Join Code</th><td>{ data.Game.JoinCode }</td></tr>
 					<tr><th>Phase</th><td>{ data.Game.Phase }</td></tr>
 					<tr><th>Prompts/Player</th><td>{ data.Game.PromptsPerPlayer }</td></tr>
+					<tr><th>Min Players</th><td>{ data.Game.MinPlayers }</td></tr>
 					<tr><th>Max Players</th><td>{ data.Game.MaxPlayers }</td></tr>
 					<tr><th>Lobby Locked</th><td>{ data.Game.LobbyLocked }</td></tr>
 					<tr><th>Created</th><td>{ formatTime(data.Game.CreatedAt) }</td></tr>

@@ -45,6 +45,7 @@ type Game struct {
 	JoinCode         string
 	Phase            string
 	PhaseStartedAt   time.Time
+	MinPlayers       int
 	MaxPlayers       int
 	LobbyLocked      bool
 	PausedPhase      string

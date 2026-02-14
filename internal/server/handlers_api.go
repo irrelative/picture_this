@@ -17,8 +17,12 @@ type settingsRequest struct {
 	PlayerID    int    `json:"player_id" binding:"required,gt=0"`
 	AuthToken   string `json:"auth_token"`
 	Rounds      int    `json:"rounds" binding:"min=0,max=10"`
-	MaxPlayers  int    `json:"max_players" binding:"min=0,max=12"`
 	LobbyLocked bool   `json:"lobby_locked"`
+}
+
+type createGameRequest struct {
+	MinPlayers int `json:"min_players" binding:"min=2,max=12"`
+	MaxPlayers int `json:"max_players" binding:"min=0,max=12"`
 }
 
 type kickRequest struct {
@@ -95,7 +99,31 @@ func (s *Server) handleCreateGame(c *gin.Context) {
 	if !s.enforceRateLimit(c, "create") {
 		return
 	}
-	game := s.store.CreateGame(s.cfg.PromptsPerPlayer)
+	if _, ok := s.requireSessionUser(c); !ok {
+		return
+	}
+	req := createGameRequest{MinPlayers: 2, MaxPlayers: 0}
+	if c.Request.ContentLength > 0 {
+		if !bindJSON(c, &req, bindMessages{
+			"MinPlayers": {
+				"min": "min players must be at least 2",
+				"max": "min players exceeds maximum",
+			},
+			"MaxPlayers": {
+				"max": "max players exceeds maximum",
+			},
+		}, "invalid create game request") {
+			return
+		}
+	}
+	if req.MinPlayers < 2 {
+		req.MinPlayers = 2
+	}
+	if req.MaxPlayers > 0 && req.MinPlayers > req.MaxPlayers {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "min players cannot exceed max players"})
+		return
+	}
+	game := s.store.CreateGameWithLimits(s.cfg.PromptsPerPlayer, req.MinPlayers, req.MaxPlayers)
 	if err := s.persistGame(game); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create game"})
 		return
@@ -495,13 +523,10 @@ func (s *Server) handleSettings(c *gin.Context) {
 		"Rounds": {
 			"max": "rounds exceeds maximum",
 		},
-		"MaxPlayers": {
-			"max": "max players exceeds maximum",
-		},
 	}, "invalid settings") {
 		return
 	}
-	if req.MaxPlayers < 0 || req.Rounds < 0 {
+	if req.Rounds < 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid settings"})
 		return
 	}
@@ -514,12 +539,6 @@ func (s *Server) handleSettings(c *gin.Context) {
 		}
 		if req.Rounds > 0 {
 			game.PromptsPerPlayer = req.Rounds
-		}
-		if req.MaxPlayers >= 0 {
-			if req.MaxPlayers > 0 && req.MaxPlayers < len(game.Players) {
-				return errors.New("max players is below current player count")
-			}
-			game.MaxPlayers = req.MaxPlayers
 		}
 		game.LobbyLocked = req.LobbyLocked
 		return nil
@@ -536,7 +555,7 @@ func (s *Server) handleSettings(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save settings"})
 		return
 	}
-	log.Printf("settings updated game_id=%s rounds=%d max_players=%d locked=%t", game.ID, game.PromptsPerPlayer, game.MaxPlayers, game.LobbyLocked)
+	log.Printf("settings updated game_id=%s rounds=%d locked=%t", game.ID, game.PromptsPerPlayer, game.LobbyLocked)
 	c.JSON(http.StatusOK, s.snapshot(game))
 	s.broadcastGameUpdate(game)
 }
@@ -614,7 +633,11 @@ func (s *Server) handleStartGame(c *gin.Context) {
 		return
 	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
-		if len(game.Players) < 2 {
+		requiredPlayers := game.MinPlayers
+		if requiredPlayers < 2 {
+			requiredPlayers = 2
+		}
+		if len(game.Players) < requiredPlayers {
 			return errors.New("not enough players")
 		}
 		if _, err := s.authenticateHostRequest(c, game, req.PlayerID, req.AuthToken); err != nil {

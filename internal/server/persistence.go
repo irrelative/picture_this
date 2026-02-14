@@ -21,6 +21,7 @@ func (s *Server) persistGame(game *Game) error {
 		JoinCode:         game.JoinCode,
 		Phase:            game.Phase,
 		PromptsPerPlayer: game.PromptsPerPlayer,
+		MinPlayers:       game.MinPlayers,
 		MaxPlayers:       game.MaxPlayers,
 		LobbyLocked:      game.LobbyLocked,
 	}
@@ -143,6 +144,7 @@ func (s *Server) persistSettings(game *Game) error {
 	}
 	updates := map[string]any{
 		"prompts_per_player": game.PromptsPerPlayer,
+		"min_players":        game.MinPlayers,
 		"max_players":        game.MaxPlayers,
 		"lobby_locked":       game.LobbyLocked,
 	}
@@ -151,6 +153,7 @@ func (s *Server) persistSettings(game *Game) error {
 	}
 	return s.persistEvent(game, "settings_updated", EventPayload{
 		PromptsPerPlayer: game.PromptsPerPlayer,
+		MinPlayers:       game.MinPlayers,
 		MaxPlayers:       game.MaxPlayers,
 		LobbyLocked:      game.LobbyLocked,
 	})

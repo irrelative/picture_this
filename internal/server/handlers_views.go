@@ -48,11 +48,21 @@ func (s *Server) handleDisplayView(c *gin.Context) {
 func (s *Server) handleHome(c *gin.Context) {
 	flash := ""
 	name := ""
+	loggedIn := false
+	username := ""
+	email := ""
+	isAdmin := false
 	if s.sessions != nil {
 		flash = s.sessions.PopFlash(c.Writer, c.Request)
 		name = s.sessions.GetName(c.Writer, c.Request)
+		if user, ok := s.sessions.CurrentUser(c.Writer, c.Request); ok {
+			loggedIn = true
+			username = user.Username
+			email = user.Email
+			isAdmin = user.IsAdmin
+		}
 	}
-	templ.Handler(web.Home(flash, name, s.homeSummaries())).ServeHTTP(c.Writer, c.Request)
+	templ.Handler(web.Home(flash, name, s.homeSummaries(), loggedIn, username, email, isAdmin)).ServeHTTP(c.Writer, c.Request)
 }
 
 func (s *Server) handleHomeGamesPartial(c *gin.Context) {

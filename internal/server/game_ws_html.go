@@ -55,11 +55,15 @@ func buildLobbyStatus(game *Game) string {
 	if game.MaxPlayers > 0 {
 		maxPlayers = strconv.Itoa(game.MaxPlayers)
 	}
+	minPlayers := game.MinPlayers
+	if minPlayers < 2 {
+		minPlayers = 2
+	}
 	locked := "Open"
 	if game.LobbyLocked {
 		locked = "Locked"
 	}
-	return "Players: " + strconv.Itoa(len(game.Players)) + "/" + maxPlayers + ". " + locked + " lobby."
+	return "Players: " + strconv.Itoa(len(game.Players)) + " (min " + strconv.Itoa(minPlayers) + ", max " + maxPlayers + "). " + locked + " lobby."
 }
 
 func escapeHTML(value string) string {

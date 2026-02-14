@@ -1,6 +1,6 @@
 package web
 
-templ Home(flash string, playerName string, games []GameSummary) {
+templ Home(flash string, playerName string, games []GameSummary, loggedIn bool, username string, email string, isAdmin bool) {
 	@Layout("Picture This", "/static/app.js", flash) {
 		<div class="home">
 			<header class="hero">
@@ -11,10 +11,72 @@ templ Home(flash string, playerName string, games []GameSummary) {
 
 			<section class="panel">
 				<div>
-					<h2>Create a game</h2>
-					<p>Generate a new lobby and share the join code with your players.</p>
+					<h2>Account</h2>
+					if loggedIn {
+						<p>Signed in as <strong>{ username }</strong> ({ email }).</p>
+					} else {
+						<p>Register or log in to create game lobbies.</p>
+					}
 				</div>
-				<button id="createGame" class="primary">Create game</button>
+				if loggedIn {
+					<div class="inline-actions">
+						<button id="logoutButton" class="secondary" type="button">Log out</button>
+						if isAdmin {
+							<a class="secondary" href="/admin">Admin dashboard</a>
+						}
+					</div>
+				} else {
+					<div class="auth-grid">
+						<form id="registerForm" class="join-form">
+							<h3>Create account</h3>
+							<label class="field">
+								<span class="label">Email</span>
+								<input name="email" type="email" autocomplete="email" required/>
+							</label>
+							<label class="field">
+								<span class="label">Username</span>
+								<input name="username" autocomplete="nickname" placeholder="Defaults from email"/>
+							</label>
+							<label class="field">
+								<span class="label">Password</span>
+								<input name="password" type="password" autocomplete="new-password" required/>
+							</label>
+							<button type="submit" class="primary">Register</button>
+							<p id="registerResult" class="result" role="status" aria-live="polite"></p>
+						</form>
+						<form id="loginForm" class="join-form">
+							<h3>Log in</h3>
+							<label class="field">
+								<span class="label">Email</span>
+								<input name="email" type="email" autocomplete="email" required/>
+							</label>
+							<label class="field">
+								<span class="label">Password</span>
+								<input name="password" type="password" autocomplete="current-password" required/>
+							</label>
+							<button type="submit" class="secondary">Log in</button>
+							<p id="loginResult" class="result" role="status" aria-live="polite"></p>
+						</form>
+					</div>
+				}
+			</section>
+
+			<section class="panel">
+				<div>
+					<h2>Create a game</h2>
+					<p>Generate a new lobby and share the join code with your players. Choose min/max players up front.</p>
+				</div>
+				<form id="createGameForm" class="join-form">
+					<label class="field">
+						<span class="label">Minimum players</span>
+						<input name="min_players" type="number" min="2" max="12" value="2" required disabled?={ !loggedIn }/>
+					</label>
+					<label class="field">
+						<span class="label">Maximum players (0 = unlimited)</span>
+						<input name="max_players" type="number" min="0" max="12" value="0" required disabled?={ !loggedIn }/>
+					</label>
+					<button id="createGame" class="primary" type="submit" disabled?={ !loggedIn }>Create game</button>
+				</form>
 				<div id="createResult" class="result" role="status" aria-live="polite"></div>
 			</section>
 
@@ -45,9 +107,11 @@ templ Home(flash string, playerName string, games []GameSummary) {
 				<div>
 					<h2>Active games</h2>
 					<p>Jump into a lobby or keep an eye on games in progress.</p>
-					<div class="admin-link">
-						<a class="secondary" href="/admin">Admin dashboard</a>
-					</div>
+					if isAdmin {
+						<div class="admin-link">
+							<a class="secondary" href="/admin">Admin dashboard</a>
+						</div>
+					}
 				</div>
 				<div
 					id="activeGamesContent"

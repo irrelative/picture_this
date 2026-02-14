@@ -80,7 +80,8 @@ export function updateFromSnapshot(ctx, data) {
     els.hostSection.style.display = isHost ? "grid" : "none";
   }
   if (els.hostStartGame) {
-    const enoughPlayers = players.length >= 2;
+    const minPlayers = Number(data.min_players || 2);
+    const enoughPlayers = players.length >= minPlayers;
     const canStart = phase === "lobby" && isHost && enoughPlayers;
     els.hostStartGame.disabled = !canStart;
     els.hostStartGame.style.display = isHost ? "inline-flex" : "none";
@@ -97,7 +98,7 @@ export function updateFromSnapshot(ctx, data) {
       } else if (phase !== "lobby") {
         els.hostHelp.textContent = "Use Advance when everyone is ready for the next step.";
       } else if (!enoughPlayers) {
-        els.hostHelp.textContent = "Waiting for at least two players to join.";
+        els.hostHelp.textContent = `Waiting for at least ${minPlayers} players to join.`;
       } else {
         els.hostHelp.textContent = "All players are in. Start when ready.";
       }
@@ -109,15 +110,13 @@ export function updateFromSnapshot(ctx, data) {
     els.hostEndGame.style.display = isHost ? "inline-flex" : "none";
   }
   if (els.hostLobbyStatus) {
+    const minPlayers = data.min_players > 0 ? data.min_players : 2;
     const maxPlayers = data.max_players > 0 ? data.max_players : "∞";
     const lockedText = data.lobby_locked ? "Locked" : "Open";
-    els.hostLobbyStatus.textContent = `Players: ${players.length}/${maxPlayers}. ${lockedText} lobby.`;
+    els.hostLobbyStatus.textContent = `Players: ${players.length} (min ${minPlayers}, max ${maxPlayers}). ${lockedText} lobby.`;
   }
   if (els.hostRoundsInput) {
     els.hostRoundsInput.value = data.total_rounds || data.prompts_per_player || 2;
-  }
-  if (els.hostMaxPlayersInput) {
-    els.hostMaxPlayersInput.value = data.max_players || 0;
   }
   if (els.hostLobbyLocked) {
     els.hostLobbyLocked.checked = Boolean(data.lobby_locked);

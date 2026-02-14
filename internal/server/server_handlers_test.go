@@ -14,6 +14,12 @@ func TestCreateGame(t *testing.T) {
 	t.Cleanup(ts.Close)
 
 	resp := doRequest(t, ts, http.MethodPost, "/api/games", nil)
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, resp.StatusCode)
+	}
+
+	ensureAuthenticatedUser(t, ts)
+	resp = doRequest(t, ts, http.MethodPost, "/api/games", nil)
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("expected status %d, got %d", http.StatusCreated, resp.StatusCode)
 	}
@@ -21,6 +27,52 @@ func TestCreateGame(t *testing.T) {
 	body := decodeBody(t, resp)
 	assertString(t, body["game_id"])
 	assertString(t, body["join_code"])
+}
+
+func TestRegisterLoginLogoutFlow(t *testing.T) {
+	srv := New(nil, config.Default())
+	ts := newTestServer(t, srv.Handler())
+	t.Cleanup(ts.Close)
+
+	resp := doRequest(t, ts, http.MethodPost, "/api/auth/register", map[string]any{
+		"email":    "host@example.com",
+		"username": "Host",
+		"password": "password123",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d", http.StatusCreated, resp.StatusCode)
+	}
+
+	resp = doRequest(t, ts, http.MethodPost, "/api/auth/logout", map[string]any{})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+
+	resp = doRequest(t, ts, http.MethodPost, "/api/games", nil)
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, resp.StatusCode)
+	}
+
+	resp = doRequest(t, ts, http.MethodPost, "/api/auth/login", map[string]any{
+		"email":    "host@example.com",
+		"password": "wrong-password",
+	})
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, resp.StatusCode)
+	}
+
+	resp = doRequest(t, ts, http.MethodPost, "/api/auth/login", map[string]any{
+		"email":    "host@example.com",
+		"password": "password123",
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+
+	resp = doRequest(t, ts, http.MethodPost, "/api/games", nil)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d", http.StatusCreated, resp.StatusCode)
+	}
 }
 
 func TestHomePage(t *testing.T) {
@@ -75,7 +127,14 @@ func TestAdminHomeView(t *testing.T) {
 	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
-	resp := doRequest(t, ts, http.MethodGet, "/admin", nil)
+	resp := doRequestNoRedirect(t, ts, http.MethodGet, "/admin", nil)
+	if resp.StatusCode != http.StatusFound {
+		t.Fatalf("expected status %d, got %d", http.StatusFound, resp.StatusCode)
+	}
+
+	ensureAuthenticatedUser(t, ts)
+	promoteSessionUsersToAdmin(t, srv)
+	resp = doRequest(t, ts, http.MethodGet, "/admin", nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
 	}
@@ -86,6 +145,8 @@ func TestAdminPromptLibraryView(t *testing.T) {
 	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
+	ensureAuthenticatedUser(t, ts)
+	promoteSessionUsersToAdmin(t, srv)
 	resp := doRequest(t, ts, http.MethodGet, "/admin/prompts", nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
@@ -97,6 +158,8 @@ func TestAdminGameView(t *testing.T) {
 	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
+	ensureAuthenticatedUser(t, ts)
+	promoteSessionUsersToAdmin(t, srv)
 	gameID := createGame(t, ts)
 	resp := doRequest(t, ts, http.MethodGet, "/admin/"+gameID, nil)
 	if resp.StatusCode != http.StatusOK {
@@ -109,6 +172,8 @@ func TestAdminResumeRequiresClaims(t *testing.T) {
 	ts := newTestServer(t, srv.Handler())
 	t.Cleanup(ts.Close)
 
+	ensureAuthenticatedUser(t, ts)
+	promoteSessionUsersToAdmin(t, srv)
 	gameID := createGame(t, ts)
 	_ = joinPlayer(t, ts, gameID, "Ada")
 	_ = joinPlayer(t, ts, gameID, "Bob")
@@ -347,7 +412,6 @@ func TestUpdateSettings(t *testing.T) {
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/settings", map[string]any{
 		"player_id":    hostID,
 		"rounds":       3,
-		"max_players":  4,
 		"lobby_locked": true,
 	})
 	if resp.StatusCode != http.StatusOK {
@@ -357,8 +421,8 @@ func TestUpdateSettings(t *testing.T) {
 	if snapshot["total_rounds"] != float64(3) {
 		t.Fatalf("expected rounds 3, got %v", snapshot["total_rounds"])
 	}
-	if snapshot["max_players"] != float64(4) {
-		t.Fatalf("expected max players 4, got %v", snapshot["max_players"])
+	if snapshot["max_players"] != float64(0) {
+		t.Fatalf("expected max players unchanged, got %v", snapshot["max_players"])
 	}
 	if snapshot["lobby_locked"] != true {
 		t.Fatalf("expected lobby locked, got %v", snapshot["lobby_locked"])

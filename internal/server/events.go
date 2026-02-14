@@ -12,6 +12,7 @@ type EventPayload struct {
 	Guess            string `json:"guess,omitempty"`
 	Choice           string `json:"choice,omitempty"`
 	PromptsPerPlayer int    `json:"prompts_per_player,omitempty"`
+	MinPlayers       int    `json:"min_players,omitempty"`
 	MaxPlayers       int    `json:"max_players,omitempty"`
 	LobbyLocked      bool   `json:"lobby_locked,omitempty"`
 	Count            int    `json:"count,omitempty"`

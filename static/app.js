@@ -1,48 +1,122 @@
 import { applyHTMLMessage } from "./ws_html.js";
 
-const createBtn = document.getElementById("createGame");
+const createGameForm = document.getElementById("createGameForm");
 const createResult = document.getElementById("createResult");
 const joinForm = document.getElementById("joinForm");
 const joinResult = document.getElementById("joinResult");
 const activeGames = document.getElementById("activeGames");
+const registerForm = document.getElementById("registerForm");
+const registerResult = document.getElementById("registerResult");
+const loginForm = document.getElementById("loginForm");
+const loginResult = document.getElementById("loginResult");
+const logoutButton = document.getElementById("logoutButton");
 
-if (createBtn) {
-  createBtn.addEventListener("click", async () => {
+async function postJSON(url, payload) {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json().catch(() => ({}));
+  return { res, data };
+}
+
+if (createGameForm) {
+  createGameForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!createResult) return;
     createResult.textContent = "Creating game...";
-      const res = await fetch("/api/games", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) {
-        createResult.textContent = data.error || "Failed to create game.";
-        return;
-      }
+    const minPlayers = Number(createGameForm.elements.min_players?.value || 2);
+    const maxPlayers = Number(createGameForm.elements.max_players?.value || 0);
+    const { res, data } = await postJSON("/api/games", {
+      min_players: minPlayers,
+      max_players: maxPlayers
+    });
+    if (!res.ok) {
+      createResult.textContent = data.error || "Failed to create game.";
+      return;
+    }
     createResult.textContent = "Game created. Join code: " + data.join_code;
     window.location.href = "/display/" + encodeURIComponent(data.game_id);
+  });
+}
+
+if (registerForm) {
+  registerForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (registerResult) {
+      registerResult.textContent = "Creating account...";
+    }
+    const email = registerForm.elements.email.value.trim();
+    const username = registerForm.elements.username.value.trim();
+    const password = registerForm.elements.password.value;
+    const { res, data } = await postJSON("/api/auth/register", {
+      email,
+      username,
+      password
+    });
+    if (!res.ok) {
+      if (registerResult) {
+        registerResult.textContent = data.error || "Unable to register.";
+      }
+      return;
+    }
+    window.location.reload();
+  });
+}
+
+if (loginForm) {
+  loginForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (loginResult) {
+      loginResult.textContent = "Logging in...";
+    }
+    const email = loginForm.elements.email.value.trim();
+    const password = loginForm.elements.password.value;
+    const { res, data } = await postJSON("/api/auth/login", {
+      email,
+      password
+    });
+    if (!res.ok) {
+      if (loginResult) {
+        loginResult.textContent = data.error || "Unable to log in.";
+      }
+      return;
+    }
+    window.location.reload();
+  });
+}
+
+if (logoutButton) {
+  logoutButton.addEventListener("click", async () => {
+    await postJSON("/api/auth/logout", {});
+    window.location.reload();
   });
 }
 
 if (joinForm) {
   joinForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    joinResult.textContent = "Joining game...";
+    if (joinResult) {
+      joinResult.textContent = "Joining game...";
+    }
     const code = joinForm.elements.code.value.trim();
     const name = joinForm.elements.name.value.trim();
-      const res = await fetch("/api/games/" + encodeURIComponent(code) + "/join", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name })
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        joinResult.textContent = data.error || "Failed to join game.";
-        return;
-      }
-      if (data.auth_token && data.game_id && data.player_id) {
-        localStorage.setItem(`pt_auth_${data.game_id}_${data.player_id}`, data.auth_token);
-      }
-      window.location.href = "/play/" + encodeURIComponent(data.game_id) + "/" + encodeURIComponent(data.player_id);
+    const { res, data } = await postJSON("/api/games/" + encodeURIComponent(code) + "/join", {
+      name
     });
+    if (!res.ok) {
+      if (joinResult) {
+        joinResult.textContent = data.error || "Failed to join game.";
+      }
+      return;
+    }
+    if (data.auth_token && data.game_id && data.player_id) {
+      localStorage.setItem(`pt_auth_${data.game_id}_${data.player_id}`, data.auth_token);
+    }
+    window.location.href = "/play/" + encodeURIComponent(data.game_id) + "/" + encodeURIComponent(data.player_id);
+  });
 }
-
 
 if (activeGames) {
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
@@ -71,12 +145,9 @@ if (activeGames) {
     if (resultEl) {
       resultEl.textContent = "Joining game...";
     }
-    const res = await fetch("/api/games/" + encodeURIComponent(joinCode) + "/join", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: playerName })
+    const { res, data } = await postJSON("/api/games/" + encodeURIComponent(joinCode) + "/join", {
+      name: playerName
     });
-    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       if (resultEl) {
         resultEl.textContent = data.error || "Failed to join game.";
