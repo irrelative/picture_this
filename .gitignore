@@ -1,6 +1,12 @@
 .env
 .aider*
 .gocache/
+.cache/
+.venv-joke-audio/
+exp/
+scripts/__pycache__/
+__pycache__/
+.DS_Store
 screenshots/*
 static/sounds/*
 static/audio/
