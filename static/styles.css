@@ -902,6 +902,34 @@ textarea:focus {
   }
 }
 
+@media (max-width: 720px) {
+  #drawSection {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  #drawSection .canvas-wrap {
+    gap: 8px;
+    margin-left: -12px;
+    margin-right: -12px;
+    width: calc(100% + 24px);
+  }
+
+  #drawCanvas {
+    border-left: 0;
+    border-right: 0;
+    border-radius: 0;
+  }
+
+  #drawSection .canvas-actions {
+    padding: 0 12px 2px;
+  }
+
+  #drawSection .canvas-actions button {
+    width: 100%;
+  }
+}
+
 .game-actions {
   display: grid;
   gap: 8px;
