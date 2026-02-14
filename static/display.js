@@ -200,33 +200,6 @@ function queueTransitionInterludes(nextPhase, revealStage, revealDrawingIndex) {
   }
 }
 
-function syncFlowGuide() {
-  const guide = document.getElementById("displayFlowGuide");
-  if (!guide) return;
-  const items = guide.querySelectorAll("[data-flow-key]");
-  items.forEach((item) => item.classList.remove("is-active"));
-
-  let activeKey = state.phase;
-  if (state.phase === "results") {
-    if (state.revealStage === "guesses") {
-      activeKey = "results-guesses";
-    } else if (state.revealStage === "votes") {
-      activeKey = "results-votes";
-    } else if (state.revealStage === "joke") {
-      activeKey = "results-joke";
-    } else {
-      activeKey = "results";
-    }
-  }
-
-  for (const item of items) {
-    if (item.dataset.flowKey === activeKey) {
-      item.classList.add("is-active");
-      break;
-    }
-  }
-}
-
 function handleJokeNarration() {
   if (!jokeNarrationAudio) return;
   if (state.phase !== "results" || state.revealStage !== "joke" || !state.revealJokeAudio) {
@@ -295,7 +268,6 @@ function syncFromContent() {
     handleJokeNarration();
     playNextInterlude();
   }
-  syncFlowGuide();
   renderTimer();
   if (!state.timerHandle) {
     state.timerHandle = setInterval(renderTimer, 1000);

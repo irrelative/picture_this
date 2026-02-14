@@ -82,53 +82,6 @@ templ DisplayContent(state DisplayState) {
 				</ul>
 			</div>
 
-			<div class="display-panel display-flow" id="displayFlowGuide">
-				<h2>Drawful Flow (Reference)</h2>
-				<p class="display-status">Target state transitions for this game mode.</p>
-				<ol class="display-flow-list">
-					<li data-flow-key="lobby">
-						<span class="flow-step">Lobby</span>
-						<span class="flow-detail">Players join, host configures rounds, avatars lock in.</span>
-					</li>
-					<li data-flow-key="drawings">
-						<span class="flow-step">Drawings</span>
-						<span class="flow-detail">Each player draws one assigned prompt.</span>
-					</li>
-					<li data-flow-key="guesses">
-						<span class="flow-step">Guesses</span>
-						<span class="flow-detail">For each drawing, non-owners submit fake prompt text.</span>
-					</li>
-					<li data-flow-key="guesses-votes">
-						<span class="flow-step">Votes</span>
-						<span class="flow-detail">For each drawing, non-owners choose the real prompt.</span>
-					</li>
-					<li data-flow-key="results">
-						<span class="flow-step">Results Loop (per drawing)</span>
-						<span class="flow-detail">Reveal sequence advances in order below.</span>
-					</li>
-					<li data-flow-key="results-guesses">
-						<span class="flow-step">Results: Guesses Reveal</span>
-						<span class="flow-detail">Show all fake prompts for current drawing.</span>
-					</li>
-					<li data-flow-key="results-votes">
-						<span class="flow-step">Results: Votes Reveal</span>
-						<span class="flow-detail">Show vote picks and scoring breakdown.</span>
-					</li>
-					<li data-flow-key="results-joke">
-						<span class="flow-step">Results: Joke (optional)</span>
-						<span class="flow-detail">Play narrator one-liner when available.</span>
-					</li>
-					<li>
-						<span class="flow-step">Branch</span>
-						<span class="flow-detail">After final reveal: next round goes to Drawings, last round goes to Complete.</span>
-					</li>
-					<li data-flow-key="complete">
-						<span class="flow-step">Complete</span>
-						<span class="flow-detail">Show final standings and game over state.</span>
-					</li>
-				</ol>
-			</div>
-
 			if state.ShowScoreboard {
 				<div class="display-panel display-scoreboard" id="displayScoreboard">
 					<h2>Scoreboard</h2>
