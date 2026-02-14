@@ -41,59 +41,72 @@ func PlayerView(gameID string, playerID int, playerName string) templ.Component 
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<header class=\"hero\"><span class=\"tag\">Player View</span><h1>You're in!</h1><p id=\"playerName\">Loading...</p></header><section class=\"panel\"><div><h2>Join code</h2><p id=\"joinCode\" class=\"join-code\">Loading...</p></div><div class=\"status\"><span class=\"label\">Status</span><p id=\"gameStatus\" role=\"status\" aria-live=\"polite\">Loading...</p></div></section><section class=\"panel\"><div><h2>Players</h2><p>You're signed in as <strong>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<header class=\"hero\"><span class=\"tag\">Player View</span><h1>You're in!</h1><p id=\"playerName\">Loading...</p></header><section class=\"panel\"><div><h2>Join code</h2><p id=\"joinCode\" class=\"join-code\">Loading...</p></div><div class=\"status\"><span class=\"label\">Status</span><p id=\"gameStatus\" role=\"status\" aria-live=\"polite\">Loading...</p><span class=\"label\">Time left</span><p id=\"phaseTimer\" class=\"display-timer\">--:--</p></div></section><section class=\"panel\"><div><h2>Players</h2><p>You're signed in as <strong>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(playerName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 25, Col: 47}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 27, Col: 47}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</strong>.</p></div><ul id=\"playerList\" class=\"player-list\"></ul></section><section id=\"avatarSection\" class=\"panel avatar-panel\"><div><h2>Lobby portrait</h2><p>Draw a quick avatar to represent you while everyone joins.</p></div><div class=\"canvas-wrap\"><canvas id=\"avatarCanvas\" class=\"avatar-canvas media-frame\" width=\"800\" height=\"600\" aria-label=\"Avatar canvas\"></canvas><div class=\"canvas-actions\"><button type=\"button\" id=\"saveAvatar\" class=\"secondary\">Save avatar</button></div></div></section><section id=\"scoreboardSection\" class=\"panel scoreboard-panel\"><div><h2>Scoreboard</h2><p id=\"scoreboardStatus\">Round update pending.</p></div><div id=\"scoreboardList\" class=\"results-scores\"></div></section><section id=\"drawSection\" class=\"panel draw-panel\"><div><h2>Draw your prompt</h2><p>Use your finger or mouse to sketch. Resolution is fixed for fair play.</p></div><div class=\"prompt-card card-surface\"><span class=\"label\">Your prompt</span><p id=\"promptText\" class=\"prompt-text\">Loading...</p></div><div class=\"canvas-wrap\"><canvas id=\"drawCanvas\" class=\"media-frame\" width=\"800\" height=\"600\" aria-label=\"Drawing canvas\"></canvas><div class=\"canvas-actions\"><button type=\"button\" id=\"saveCanvas\" class=\"primary\">Save drawing</button></div></div></section><section id=\"guessSection\" class=\"panel guess-panel\"><div><h2>Guess the prompt</h2><p id=\"guessStatus\" role=\"status\" aria-live=\"polite\">Waiting for your turn to guess.</p></div><div class=\"guess-card\"><img id=\"guessImage\" class=\"guess-image media-frame\" alt=\"Drawing to guess\"><form id=\"guessForm\" class=\"guess-form\"><label class=\"field\"><span class=\"label\">Your guess</span> <input id=\"guessInput\" name=\"guess\" placeholder=\"Type your guess\" autocomplete=\"off\" required></label> <button type=\"submit\" class=\"primary\">Submit guess</button></form></div></section><section id=\"voteSection\" class=\"panel vote-panel\"><div><h2>Pick the real prompt</h2><p id=\"voteStatus\" role=\"status\" aria-live=\"polite\">Waiting for your turn to vote.</p></div><div class=\"vote-card\"><img id=\"voteImage\" class=\"guess-image media-frame\" alt=\"Drawing to vote on\"><form id=\"voteForm\" class=\"vote-form\"><div id=\"voteOptions\" class=\"vote-options\"></div><button type=\"submit\" class=\"primary\">Submit vote</button></form></div></section><section id=\"resultsSection\" class=\"panel results-panel\"><div><h2>Results</h2><p>See who guessed what and which prompts won the vote.</p></div><div id=\"revealSection\" class=\"reveal-card\"></div><div id=\"resultsScores\" class=\"results-scores\"></div><div id=\"resultsList\" class=\"results-list\"></div></section><section id=\"hostSection\" class=\"panel host-panel\"><div><h2>Host controls</h2><p>As the host, you can start the game for everyone.</p></div><div class=\"host-actions\"><button type=\"button\" id=\"hostStartGame\" class=\"primary\">Start game</button><p id=\"hostHelp\" class=\"hint\" role=\"status\" aria-live=\"polite\">Waiting for the host.</p></div></section><p id=\"playerError\" class=\"result error\" role=\"alert\"></p><div id=\"playerMeta\" data-game-id=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</strong>.</p></div><ul id=\"playerList\" class=\"player-list\"></ul></section><section id=\"hostSection\" class=\"panel host-panel\" style=\"display:none;\"><div><h2>Host controls</h2><p id=\"hostHelp\" class=\"hint\">Only the host can control game flow.</p><p id=\"hostLobbyStatus\" class=\"hint\"></p></div><div class=\"canvas-actions\"><button type=\"button\" id=\"hostStartGame\" class=\"primary\">Start game</button> <button type=\"button\" id=\"hostAdvanceGame\" class=\"secondary\">Advance</button> <button type=\"button\" id=\"hostEndGame\" class=\"secondary\">End game</button></div><form id=\"hostSettingsForm\" class=\"settings-form\"><label><span class=\"label\">Rounds</span> <input id=\"hostRoundsInput\" name=\"rounds\" type=\"number\" min=\"1\" max=\"10\" value=\"2\" required></label> <label><span class=\"label\">Max players (0 = unlimited)</span> <input id=\"hostMaxPlayersInput\" name=\"max_players\" type=\"number\" min=\"0\" max=\"12\" value=\"0\" required></label> <label class=\"checkbox\"><input id=\"hostLobbyLocked\" name=\"lobby_locked\" type=\"checkbox\"> <span>Lock lobby to new players</span></label><div class=\"settings-actions\"><button type=\"submit\" class=\"secondary\">Save settings</button> <span id=\"hostSettingsStatus\" class=\"result\" role=\"status\" aria-live=\"polite\"></span></div></form><div><h3>Players</h3><div id=\"hostPlayerActions\" class=\"player-actions\"></div></div></section><section id=\"avatarSection\" class=\"panel avatar-panel\"><div><h2>Lobby portrait</h2><p>Draw a quick avatar to represent you while everyone joins. Saving locks it for this game.</p><p id=\"avatarLockedHint\" class=\"hint\" style=\"display:none;\">Avatar saved and locked for this game.</p></div><div id=\"avatarCanvasWrap\" class=\"canvas-wrap\"><canvas id=\"avatarCanvas\" class=\"avatar-canvas media-frame\" width=\"800\" height=\"600\" aria-label=\"Avatar canvas\"></canvas><div class=\"canvas-actions\"><button type=\"button\" id=\"saveAvatar\" class=\"secondary\">Save avatar</button></div></div></section><section id=\"scoreboardSection\" class=\"panel scoreboard-panel\"><div><h2>Scoreboard</h2><p id=\"scoreboardStatus\">Round update pending.</p></div><div id=\"scoreboardList\" class=\"results-scores\"></div></section><section id=\"drawSection\" class=\"panel draw-panel\"><div><h2>Draw your prompt</h2><p>Use your finger or mouse to sketch. Resolution is fixed for fair play.</p></div><div class=\"prompt-card card-surface\"><span class=\"label\">Your prompt</span><p id=\"promptText\" class=\"prompt-text\">Loading...</p></div><div class=\"canvas-wrap\"><canvas id=\"drawCanvas\" class=\"media-frame\" width=\"800\" height=\"600\" aria-label=\"Drawing canvas\"></canvas><div class=\"canvas-actions\"><button type=\"button\" id=\"saveCanvas\" class=\"primary\">Save drawing</button></div></div></section><section id=\"guessSection\" class=\"panel guess-panel\"><div><h2>Guess the prompt</h2><p id=\"guessStatus\" role=\"status\" aria-live=\"polite\">Waiting for your turn to guess.</p></div><div class=\"guess-card\"><img id=\"guessImage\" class=\"guess-image media-frame\" alt=\"Drawing to guess\"><form id=\"guessForm\" class=\"guess-form\"><label class=\"field\"><span class=\"label\">Your guess</span> <input id=\"guessInput\" name=\"guess\" placeholder=\"Type your guess\" autocomplete=\"off\" required></label> <button type=\"submit\" class=\"primary\">Submit guess</button></form></div></section><section id=\"voteSection\" class=\"panel vote-panel\"><div><h2>Pick the real prompt</h2><p id=\"voteStatus\" role=\"status\" aria-live=\"polite\">Waiting for your turn to vote.</p></div><div class=\"vote-card\"><img id=\"voteImage\" class=\"guess-image media-frame\" alt=\"Drawing to vote on\"><form id=\"voteForm\" class=\"vote-form\"><div id=\"voteOptions\" class=\"vote-options\"></div><button type=\"submit\" class=\"primary\">Submit vote</button></form></div></section><section id=\"resultsSection\" class=\"panel results-panel\"><div><h2>Results</h2><p>See who guessed what and which prompts won the vote.</p></div><div id=\"revealSection\" class=\"reveal-card\"></div><div id=\"resultsScores\" class=\"results-scores\"></div><div id=\"resultsList\" class=\"results-list\"></div></section><p id=\"playerError\" class=\"result error\" role=\"alert\"></p><audio id=\"avatarSavedSound\" src=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var4 string
-			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(gameID)
+			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(assetPath("/static/sounds/join.ogg"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 121, Col: 44}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 148, Col: 73}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" data-player-id=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" preload=\"auto\"></audio><div id=\"playerMeta\" data-game-id=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var5 string
-			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(playerID)
+			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(gameID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 121, Col: 72}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 149, Col: 44}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\" data-player-name=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\" data-player-id=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var6 string
-			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(playerName)
+			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(playerID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 121, Col: 104}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 149, Col: 72}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\"></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\" data-player-name=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var7 string
+			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(playerName)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 149, Col: 104}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\"></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

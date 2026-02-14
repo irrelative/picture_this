@@ -13,8 +13,23 @@ const (
 )
 
 const (
+	wsRolePlayer   = "player"
+	wsRoleHost     = "host"
+	wsRoleDisplay  = "display"
+	wsRoleAudience = "audience"
+)
+
+const (
+	voteChoicePrompt   = "prompt"
+	voteChoiceGuess    = "guess"
+	voteOptionIDPrompt = "prompt"
+	voteOptionIDGuess  = "guess:"
+)
+
+const (
 	revealStageGuesses = "guesses"
 	revealStageVotes   = "votes"
+	revealStageJoke    = "joke"
 )
 
 type GameSummary struct {
@@ -36,34 +51,34 @@ type Game struct {
 	UsedPrompts      map[string]struct{}
 	KickedPlayers    map[string]struct{}
 	HostID           int
+	PlayerAuthTokens map[int]string
+	Audience         []AudienceMember
 	Players          []Player
 	Rounds           []RoundState
 	PromptsPerPlayer int
 }
 
 type Player struct {
-	ID      int
-	Name    string
-	Avatar  []byte
-	IsHost  bool
-	DBID    uint
-	Color   string
-	Claimed bool
+	ID           int
+	Name         string
+	Avatar       []byte
+	AvatarLocked bool
+	IsHost       bool
+	DBID         uint
+	Color        string
+	Claimed      bool
 }
 
 type RoundState struct {
-	Number       int
-	DBID         uint
-	Prompts      []PromptEntry
-	Drawings     []DrawingEntry
-	Guesses      []GuessEntry
-	Votes        []VoteEntry
-	GuessTurns   []GuessTurn
-	CurrentGuess int
-	VoteTurns    []VoteTurn
-	CurrentVote  int
-	RevealIndex  int
-	RevealStage  string
+	Number        int
+	DBID          uint
+	Prompts       []PromptEntry
+	Drawings      []DrawingEntry
+	Guesses       []GuessEntry
+	Votes         []VoteEntry
+	AudienceVotes []AudienceVoteEntry
+	RevealIndex   int
+	RevealStage   string
 }
 
 type PromptEntry struct {
@@ -88,11 +103,6 @@ type GuessEntry struct {
 	DBID         uint
 }
 
-type GuessTurn struct {
-	DrawingIndex int
-	GuesserID    int
-}
-
 type VoteEntry struct {
 	PlayerID     int
 	DrawingIndex int
@@ -101,7 +111,24 @@ type VoteEntry struct {
 	DBID         uint
 }
 
-type VoteTurn struct {
+type AudienceVoteEntry struct {
+	AudienceID   int
+	AudienceName string
+	ChoiceID     string
+	ChoiceText   string
+	ChoiceType   string
 	DrawingIndex int
-	VoterID      int
+}
+
+type AudienceMember struct {
+	ID    int
+	Name  string
+	Token string
+}
+
+type VoteOption struct {
+	ID      string
+	Text    string
+	Type    string
+	OwnerID int
 }

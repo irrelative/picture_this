@@ -41,8 +41,8 @@ func TestGameView(t *testing.T) {
 
 	gameID := createGame(t, ts)
 	resp := doRequest(t, ts, http.MethodGet, "/games/"+gameID, nil)
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected status %d, got %d", http.StatusNotFound, resp.StatusCode)
 	}
 }
 
@@ -53,6 +53,18 @@ func TestDisplayView(t *testing.T) {
 
 	gameID := createGame(t, ts)
 	resp := doRequest(t, ts, http.MethodGet, "/display/"+gameID, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+}
+
+func TestAudienceView(t *testing.T) {
+	srv := New(nil, config.Default())
+	ts := newTestServer(t, srv.Handler())
+	t.Cleanup(ts.Close)
+
+	gameID := createGame(t, ts)
+	resp := doRequest(t, ts, http.MethodGet, "/audience/"+gameID, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
 	}
@@ -249,6 +261,10 @@ func TestJoinGame(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
 	}
+	body := decodeBody(t, resp)
+	if _, ok := body["auth_token"].(string); !ok {
+		t.Fatalf("expected auth_token in join response")
+	}
 }
 
 func TestJoinGameWithoutAvatar(t *testing.T) {
@@ -262,6 +278,31 @@ func TestJoinGameWithoutAvatar(t *testing.T) {
 	})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+}
+
+func TestAvatarSaveIsImmutableInLobby(t *testing.T) {
+	srv := New(nil, config.Default())
+	ts := newTestServer(t, srv.Handler())
+	t.Cleanup(ts.Close)
+
+	gameID := createGame(t, ts)
+	playerID := joinPlayer(t, ts, gameID, "Ada")
+
+	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/avatar", map[string]any{
+		"player_id":   playerID,
+		"avatar_data": testAvatarData,
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+
+	resp = doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/avatar", map[string]any{
+		"player_id":   playerID,
+		"avatar_data": testAvatarData,
+	})
+	if resp.StatusCode != http.StatusConflict {
+		t.Fatalf("expected status %d, got %d", http.StatusConflict, resp.StatusCode)
 	}
 }
 
@@ -429,7 +470,11 @@ func TestAdvanceGame(t *testing.T) {
 	t.Cleanup(ts.Close)
 
 	gameID := createGame(t, ts)
-	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/advance", map[string]any{})
+	hostID := joinPlayer(t, ts, gameID, "Ada")
+	joinPlayer(t, ts, gameID, "Ben")
+	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/advance", map[string]any{
+		"player_id": hostID,
+	})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
 	}

@@ -64,23 +64,18 @@ func (s *Server) restoreGameFromDB(param string) (*Game, string, error) {
 		LobbyLocked:      record.LobbyLocked,
 		UsedPrompts:      make(map[string]struct{}),
 		KickedPlayers:    make(map[string]struct{}),
+		PlayerAuthTokens: make(map[int]string),
 		PromptsPerPlayer: record.PromptsPerPlayer,
 	}
 
 	game.Players = buildPlayers(players, game)
+	for _, player := range game.Players {
+		ensurePlayerAuthToken(game, player.ID)
+	}
 	game.Rounds = buildRounds(rounds, prompts, drawings, guesses, votes)
 	game.UsedPrompts = usedPrompts(game.Rounds)
 
 	if round := currentRound(game); round != nil {
-		if len(round.Drawings) > 0 {
-			_ = s.buildGuessTurns(game, round)
-		}
-		if len(round.GuessTurns) > 0 {
-			round.CurrentGuess = minInt(len(round.Guesses), len(round.GuessTurns))
-		}
-		if len(round.VoteTurns) > 0 {
-			round.CurrentVote = minInt(len(round.Votes), len(round.VoteTurns))
-		}
 		if game.PausedPhase == phaseResults {
 			if round.RevealStage == "" {
 				round.RevealStage = revealStageGuesses

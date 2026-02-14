@@ -17,56 +17,6 @@ type phaseTransition struct {
 	advance func(s *Server, game *Game, mode transitionMode, at time.Time) (string, error)
 }
 
-func drawingIndexAtGuess(round *RoundState, index int) int {
-	if round == nil || index < 0 || index >= len(round.GuessTurns) {
-		return -1
-	}
-	return round.GuessTurns[index].DrawingIndex
-}
-
-func drawingIndexAtVote(round *RoundState, index int) int {
-	if round == nil || index < 0 || index >= len(round.VoteTurns) {
-		return -1
-	}
-	return round.VoteTurns[index].DrawingIndex
-}
-
-func endOfGuessBlock(round *RoundState, start int) int {
-	if round == nil || start < 0 || start >= len(round.GuessTurns) {
-		return start
-	}
-	drawingIndex := round.GuessTurns[start].DrawingIndex
-	i := start
-	for i < len(round.GuessTurns) && round.GuessTurns[i].DrawingIndex == drawingIndex {
-		i++
-	}
-	return i
-}
-
-func endOfVoteBlock(round *RoundState, start int) int {
-	if round == nil || start < 0 || start >= len(round.VoteTurns) {
-		return start
-	}
-	drawingIndex := round.VoteTurns[start].DrawingIndex
-	i := start
-	for i < len(round.VoteTurns) && round.VoteTurns[i].DrawingIndex == drawingIndex {
-		i++
-	}
-	return i
-}
-
-func voteTurnStartIndex(round *RoundState, drawingIndex int) int {
-	if round == nil {
-		return -1
-	}
-	for i, turn := range round.VoteTurns {
-		if turn.DrawingIndex == drawingIndex {
-			return i
-		}
-	}
-	return -1
-}
-
 var phaseTransitions = map[string]phaseTransition{
 	phaseLobby: {
 		advance: func(s *Server, game *Game, mode transitionMode, at time.Time) (string, error) {
@@ -83,16 +33,9 @@ var phaseTransitions = map[string]phaseTransition{
 			if round == nil {
 				return "", errors.New("round not started")
 			}
-			if mode == transitionAuto && len(round.Drawings) == 0 {
+			if len(round.Drawings) == 0 {
 				applyPhase(game, phaseComplete, mode, at)
 				return phaseComplete, nil
-			}
-			if mode != transitionPreview {
-				if err := s.buildGuessTurns(game, round); err != nil {
-					return "", err
-				}
-			} else if len(round.Drawings) == 0 {
-				return "", errors.New("no drawings submitted")
 			}
 			applyPhase(game, phaseGuesses, mode, at)
 			return phaseGuesses, nil
@@ -107,30 +50,6 @@ var phaseTransitions = map[string]phaseTransition{
 			if len(round.Drawings) == 0 {
 				return "", errors.New("no drawings submitted")
 			}
-			current := round.CurrentGuess
-			if current >= len(round.GuessTurns) {
-				return "", errors.New("no active guess turn")
-			}
-			drawingIndex := drawingIndexAtGuess(round, current)
-			if drawingIndex < 0 {
-				return "", errors.New("invalid guess turn")
-			}
-			if mode != transitionPreview {
-				round.CurrentGuess = endOfGuessBlock(round, current)
-				if err := s.buildVoteTurns(game, round); err != nil {
-					return "", err
-				}
-				start := voteTurnStartIndex(round, drawingIndex)
-				if start < 0 {
-					return "", errors.New("no vote turns for drawing")
-				}
-				if round.CurrentVote > start {
-					return "", errors.New("vote turns out of sync")
-				}
-				if round.CurrentVote < start {
-					round.CurrentVote = start
-				}
-			}
 			applyPhase(game, phaseGuessVotes, mode, at)
 			return phaseGuessVotes, nil
 		},
@@ -144,17 +63,8 @@ var phaseTransitions = map[string]phaseTransition{
 			if len(round.Drawings) == 0 {
 				return "", errors.New("no drawings submitted")
 			}
-			current := round.CurrentVote
-			if current >= len(round.VoteTurns) {
-				return "", errors.New("no active vote turn")
-			}
-			drawingIndex := drawingIndexAtVote(round, current)
-			if drawingIndex < 0 {
-				return "", errors.New("invalid vote turn")
-			}
 			if mode != transitionPreview {
-				round.CurrentVote = endOfVoteBlock(round, current)
-				initReveal(round, drawingIndex)
+				initReveal(round, 0)
 			}
 			applyPhase(game, phaseResults, mode, at)
 			return phaseResults, nil
@@ -170,28 +80,47 @@ var phaseTransitions = map[string]phaseTransition{
 				applyPhase(game, phaseComplete, mode, at)
 				return phaseComplete, nil
 			}
-			if round.RevealStage == "" {
-				if mode != transitionPreview {
-					round.RevealStage = revealStageGuesses
+
+			revealIndex := round.RevealIndex
+			revealStage := round.RevealStage
+			if revealIndex < 0 || revealIndex >= len(round.Drawings) {
+				revealIndex = 0
+			}
+
+			nextPhase := phaseResults
+			nextRevealIndex := revealIndex
+			nextRevealStage := revealStage
+
+			switch revealStage {
+			case "":
+				nextRevealStage = revealStageGuesses
+			case revealStageGuesses:
+				nextRevealStage = revealStageVotes
+			case revealStageVotes:
+				if revealHasJoke(round) {
+					nextRevealStage = revealStageJoke
+					break
 				}
-				applyPhase(game, phaseResults, mode, at)
-				return phaseResults, nil
-			}
-			if round.RevealStage == revealStageGuesses {
-				if mode != transitionPreview {
-					round.RevealStage = revealStageVotes
+				fallthrough
+			case revealStageJoke:
+				if revealIndex+1 < len(round.Drawings) {
+					nextRevealIndex = revealIndex + 1
+					nextRevealStage = revealStageGuesses
+					break
 				}
-				applyPhase(game, phaseResults, mode, at)
-				return phaseResults, nil
+				nextRevealStage = ""
+				nextRevealIndex = 0
+				nextPhase = phaseComplete
+				if round.Number < game.PromptsPerPlayer {
+					nextPhase = phaseDrawings
+				}
+			default:
+				nextRevealStage = revealStageGuesses
 			}
-			nextPhase := phaseComplete
-			if round.CurrentGuess < len(round.GuessTurns) {
-				nextPhase = phaseGuesses
-			} else if round.Number < game.PromptsPerPlayer {
-				nextPhase = phaseDrawings
-			}
+
 			if mode != transitionPreview {
-				round.RevealStage = ""
+				round.RevealIndex = nextRevealIndex
+				round.RevealStage = nextRevealStage
 				if nextPhase == phaseDrawings {
 					game.Rounds = append(game.Rounds, RoundState{Number: len(game.Rounds) + 1})
 				}
@@ -263,66 +192,19 @@ func initReveal(round *RoundState, drawingIndex int) {
 	if round == nil {
 		return
 	}
+	if drawingIndex < 0 {
+		drawingIndex = 0
+	}
+	if drawingIndex >= len(round.Drawings) {
+		drawingIndex = 0
+	}
+	if len(round.Drawings) == 0 {
+		round.RevealIndex = 0
+		round.RevealStage = ""
+		return
+	}
 	round.RevealIndex = drawingIndex
 	round.RevealStage = revealStageGuesses
-}
-
-func (s *Server) buildGuessTurns(game *Game, round *RoundState) error {
-	if round == nil {
-		return errors.New("round not started")
-	}
-	if len(round.Drawings) == 0 {
-		return errors.New("no drawings submitted")
-	}
-	if len(round.GuessTurns) > 0 {
-		return nil
-	}
-	round.GuessTurns = nil
-	round.CurrentGuess = 0
-	for drawingIndex, drawing := range round.Drawings {
-		for _, player := range game.Players {
-			if player.ID == drawing.PlayerID {
-				continue
-			}
-			round.GuessTurns = append(round.GuessTurns, GuessTurn{
-				DrawingIndex: drawingIndex,
-				GuesserID:    player.ID,
-			})
-		}
-	}
-	if len(round.GuessTurns) == 0 {
-		return errors.New("no guess turns available")
-	}
-	return nil
-}
-
-func (s *Server) buildVoteTurns(game *Game, round *RoundState) error {
-	if round == nil {
-		return errors.New("round not started")
-	}
-	if len(round.Drawings) == 0 {
-		return errors.New("no drawings submitted")
-	}
-	if len(round.VoteTurns) > 0 {
-		return nil
-	}
-	round.VoteTurns = nil
-	round.CurrentVote = 0
-	for drawingIndex, drawing := range round.Drawings {
-		for _, player := range game.Players {
-			if player.ID == drawing.PlayerID {
-				continue
-			}
-			round.VoteTurns = append(round.VoteTurns, VoteTurn{
-				DrawingIndex: drawingIndex,
-				VoterID:      player.ID,
-			})
-		}
-	}
-	if len(round.VoteTurns) == 0 {
-		return errors.New("no vote turns available")
-	}
-	return nil
 }
 
 func drawingsComplete(game *Game) bool {
@@ -343,13 +225,6 @@ func (s *Server) tryAdvanceToGuesses(gameID string) (bool, *Game, error) {
 		}
 		if !drawingsComplete(game) {
 			return nil
-		}
-		round := currentRound(game)
-		if round == nil {
-			return errors.New("round not started")
-		}
-		if err := s.buildGuessTurns(game, round); err != nil {
-			return err
 		}
 		setPhase(game, phaseGuesses)
 		return nil

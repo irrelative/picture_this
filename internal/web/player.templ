@@ -16,6 +16,8 @@ templ PlayerView(gameID string, playerID int, playerName string) {
 			<div class="status">
 				<span class="label">Status</span>
 				<p id="gameStatus" role="status" aria-live="polite">Loading...</p>
+				<span class="label">Time left</span>
+				<p id="phaseTimer" class="display-timer">--:--</p>
 			</div>
 		</section>
 
@@ -27,12 +29,48 @@ templ PlayerView(gameID string, playerID int, playerName string) {
 			<ul id="playerList" class="player-list"></ul>
 		</section>
 
+		<section id="hostSection" class="panel host-panel" style="display:none;">
+			<div>
+				<h2>Host controls</h2>
+				<p id="hostHelp" class="hint">Only the host can control game flow.</p>
+				<p id="hostLobbyStatus" class="hint"></p>
+			</div>
+			<div class="canvas-actions">
+				<button type="button" id="hostStartGame" class="primary">Start game</button>
+				<button type="button" id="hostAdvanceGame" class="secondary">Advance</button>
+				<button type="button" id="hostEndGame" class="secondary">End game</button>
+			</div>
+			<form id="hostSettingsForm" class="settings-form">
+				<label>
+					<span class="label">Rounds</span>
+					<input id="hostRoundsInput" name="rounds" type="number" min="1" max="10" value="2" required/>
+				</label>
+				<label>
+					<span class="label">Max players (0 = unlimited)</span>
+					<input id="hostMaxPlayersInput" name="max_players" type="number" min="0" max="12" value="0" required/>
+				</label>
+				<label class="checkbox">
+					<input id="hostLobbyLocked" name="lobby_locked" type="checkbox"/>
+					<span>Lock lobby to new players</span>
+				</label>
+				<div class="settings-actions">
+					<button type="submit" class="secondary">Save settings</button>
+					<span id="hostSettingsStatus" class="result" role="status" aria-live="polite"></span>
+				</div>
+			</form>
+			<div>
+				<h3>Players</h3>
+				<div id="hostPlayerActions" class="player-actions"></div>
+			</div>
+		</section>
+
 		<section id="avatarSection" class="panel avatar-panel">
 			<div>
 				<h2>Lobby portrait</h2>
-				<p>Draw a quick avatar to represent you while everyone joins.</p>
+				<p>Draw a quick avatar to represent you while everyone joins. Saving locks it for this game.</p>
+				<p id="avatarLockedHint" class="hint" style="display:none;">Avatar saved and locked for this game.</p>
 			</div>
-			<div class="canvas-wrap">
+			<div id="avatarCanvasWrap" class="canvas-wrap">
 				<canvas id="avatarCanvas" class="avatar-canvas media-frame" width="800" height="600" aria-label="Avatar canvas"></canvas>
 				<div class="canvas-actions">
 					<button type="button" id="saveAvatar" class="secondary">Save avatar</button>
@@ -106,18 +144,8 @@ templ PlayerView(gameID string, playerID int, playerName string) {
 			<div id="resultsList" class="results-list"></div>
 		</section>
 
-		<section id="hostSection" class="panel host-panel">
-			<div>
-				<h2>Host controls</h2>
-				<p>As the host, you can start the game for everyone.</p>
-			</div>
-			<div class="host-actions">
-				<button type="button" id="hostStartGame" class="primary">Start game</button>
-				<p id="hostHelp" class="hint" role="status" aria-live="polite">Waiting for the host.</p>
-			</div>
-		</section>
-
 		<p id="playerError" class="result error" role="alert"></p>
+		<audio id="avatarSavedSound" src={ assetPath("/static/sounds/join.ogg") } preload="auto"></audio>
 		<div id="playerMeta" data-game-id={ gameID } data-player-id={ playerID } data-player-name={ playerName }></div>
 	}
 }

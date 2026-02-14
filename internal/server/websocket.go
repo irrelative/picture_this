@@ -65,7 +65,7 @@ func newHomeHub() *homeHub {
 func (h *wsHub) Add(gameID string, conn *websocket.Conn, role string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if role == "display" {
+	if role == wsRoleDisplay {
 		group := h.display[gameID]
 		if group == nil {
 			group = make(map[*websocket.Conn]struct{})
@@ -80,7 +80,7 @@ func (h *wsHub) Add(gameID string, conn *websocket.Conn, role string) {
 		h.groups[gameID] = group
 	}
 	group[conn] = struct{}{}
-	if role == "host" {
+	if role == wsRoleHost {
 		hostGroup := h.hosts[gameID]
 		if hostGroup == nil {
 			hostGroup = make(map[*websocket.Conn]struct{})
@@ -132,7 +132,7 @@ func (h *homeHub) Broadcast(payload any) {
 func (h *wsHub) Remove(gameID string, conn *websocket.Conn, role string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if role == "display" {
+	if role == wsRoleDisplay {
 		group := h.display[gameID]
 		if group == nil {
 			return
@@ -149,18 +149,15 @@ func (h *wsHub) Remove(gameID string, conn *websocket.Conn, role string) {
 		return
 	}
 	delete(group, conn)
+	if hostGroup := h.hosts[gameID]; hostGroup != nil {
+		delete(hostGroup, conn)
+		if len(hostGroup) == 0 {
+			delete(h.hosts, gameID)
+		}
+	}
 	_ = conn.Close()
 	if len(group) == 0 {
 		delete(h.groups, gameID)
-	}
-	if role == "host" {
-		hostGroup := h.hosts[gameID]
-		if hostGroup != nil {
-			delete(hostGroup, conn)
-			if len(hostGroup) == 0 {
-				delete(h.hosts, gameID)
-			}
-		}
 	}
 }
 
@@ -203,14 +200,14 @@ func (h *wsHub) Broadcast(gameID string, payload any) {
 	}
 	for _, conn := range conns {
 		if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
-			h.Remove(gameID, conn, "player")
+			h.Remove(gameID, conn, wsRolePlayer)
 		}
 	}
 }
 
 func (h *wsHub) BroadcastHTML(gameID string, payload any) {
 	h.mu.Lock()
-	group := h.groups[gameID]
+	group := h.hosts[gameID]
 	conns := make([]*websocket.Conn, 0, len(group))
 	for conn := range group {
 		conns = append(conns, conn)
@@ -222,7 +219,7 @@ func (h *wsHub) BroadcastHTML(gameID string, payload any) {
 	}
 	for _, conn := range conns {
 		if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
-			h.Remove(gameID, conn, "player")
+			h.Remove(gameID, conn, wsRoleHost)
 		}
 	}
 }
@@ -241,7 +238,7 @@ func (h *wsHub) BroadcastDisplay(gameID string, payload any) {
 	}
 	for _, conn := range conns {
 		if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
-			h.Remove(gameID, conn, "display")
+			h.Remove(gameID, conn, wsRoleDisplay)
 		}
 	}
 }
@@ -258,6 +255,9 @@ func (s *Server) handleWebsocket(c *gin.Context) {
 	var query wsQuery
 	_ = bindQuery(c, &query)
 	role := query.Role
+	if role == "" {
+		role = wsRolePlayer
+	}
 	upgrader := websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool {
 			return true
@@ -270,11 +270,13 @@ func (s *Server) handleWebsocket(c *gin.Context) {
 	log.Printf("ws connected game_id=%s remote=%s", uri.GameID, c.Request.RemoteAddr)
 	s.ws.Add(uri.GameID, conn, role)
 	if game, ok := s.store.GetGame(uri.GameID); ok {
-		if role == "display" {
+		if role == wsRoleDisplay {
 			s.ws.SendDisplay(conn, htmlMessage("#displayContent", "outer", s.renderDisplayHTML(game)))
 		} else {
 			s.ws.Send(conn, s.snapshot(game))
-			s.ws.SendHTML(conn, s.renderGameHTMLMessages(game))
+			if role == wsRoleHost {
+				s.ws.SendHTML(conn, s.renderGameHTMLMessages(game))
+			}
 		}
 	}
 	go s.readWS(uri.GameID, conn, role)

@@ -1,4 +1,5 @@
 import {
+  postAdvance,
   fetchSnapshot,
   postEndGame,
   postKick,
@@ -17,6 +18,7 @@ const ctx = {
     playerActions: document.getElementById("playerActions"),
     gameError: document.getElementById("gameError"),
     startGame: document.getElementById("startGame"),
+    advanceGame: document.getElementById("advanceGame"),
     endGame: document.getElementById("endGame"),
     displayTimer: document.getElementById("displayTimer"),
     displayRound: document.getElementById("displayRound"),
@@ -66,6 +68,14 @@ const phaseMusic = new Map([
   ["complete", creditsAudio]
 ]);
 
+function hostAuthToken() {
+  if (!ctx.els.meta) return "";
+  const gameId = ctx.els.meta.dataset.gameId || "";
+  const hostId = Number(ctx.state.hostId || 0);
+  if (!gameId || !hostId) return "";
+  return localStorage.getItem(`pt_auth_${gameId}_${hostId}`) || "";
+}
+
 function playAudio(audio) {
   if (!audio) return;
   if (!audio.paused) return;
@@ -111,7 +121,7 @@ function formatTime(seconds) {
 
 function renderTimer() {
   if (!ctx.els.displayTimer) return;
-  if (ctx.state.timerPhase !== "drawings" || !ctx.state.timerEndsAt) {
+  if (!ctx.state.timerEndsAt) {
     ctx.els.displayTimer.textContent = "--:--";
     return;
   }
@@ -196,7 +206,7 @@ if (ctx.els.startGame) {
       return;
     }
     const gameId = ctx.els.meta.dataset.gameId;
-    const { res, data } = await postStartGame(gameId, ctx.state.hostId || 0);
+    const { res, data } = await postStartGame(gameId, ctx.state.hostId || 0, hostAuthToken());
     if (!res.ok) {
       if (ctx.els.gameError) {
         ctx.els.gameError.textContent = data.error || "Unable to start game.";
@@ -213,8 +223,14 @@ if (ctx.els.startGame) {
 if (ctx.els.endGame) {
   ctx.els.endGame.addEventListener("click", async () => {
     if (!ctx.els.meta) return;
+    if (!ctx.state.hostId) {
+      if (ctx.els.gameError) {
+        ctx.els.gameError.textContent = "Host not ready yet. Refresh in a moment.";
+      }
+      return;
+    }
     const gameId = ctx.els.meta.dataset.gameId;
-    const { res, data } = await postEndGame(gameId);
+    const { res, data } = await postEndGame(gameId, ctx.state.hostId || 0, hostAuthToken());
     if (!res.ok) {
       if (ctx.els.gameError) {
         ctx.els.gameError.textContent = data.error || "Unable to end game.";
@@ -225,6 +241,31 @@ if (ctx.els.endGame) {
       ctx.els.gameError.textContent = "";
     }
     updateFromSnapshot(ctx, data);
+  });
+}
+
+if (ctx.els.advanceGame) {
+  ctx.els.advanceGame.addEventListener("click", async () => {
+    if (!ctx.els.meta) return;
+    if (!ctx.state.hostId) {
+      if (ctx.els.gameError) {
+        ctx.els.gameError.textContent = "Host not ready yet. Refresh in a moment.";
+      }
+      return;
+    }
+    const gameId = ctx.els.meta.dataset.gameId;
+    const { res, data } = await postAdvance(gameId, ctx.state.hostId || 0, hostAuthToken());
+    if (!res.ok) {
+      if (ctx.els.gameError) {
+        ctx.els.gameError.textContent = data.error || "Unable to advance game.";
+      }
+      return;
+    }
+    if (ctx.els.gameError) {
+      ctx.els.gameError.textContent = "";
+    }
+    updateFromSnapshot(ctx, data);
+    syncTimer(data);
   });
 }
 
@@ -247,6 +288,7 @@ if (ctx.els.settingsForm) {
     }
     const { res, data } = await postSettings(gameId, {
       player_id: ctx.state.hostId || 0,
+      auth_token: hostAuthToken(),
       rounds,
       max_players: maxPlayers,
       lobby_locked: locked
@@ -284,6 +326,7 @@ if (ctx.els.playerActions) {
     }
     const { res, data } = await postKick(gameId, {
       player_id: ctx.state.hostId || 0,
+      auth_token: hostAuthToken(),
       target_id: playerId
     });
     if (!res.ok) {

@@ -2,7 +2,10 @@ package server
 
 import (
 	"errors"
+	"hash/fnv"
 	"log"
+	"sort"
+	"strconv"
 	"strings"
 
 	"picture-this/internal/db"
@@ -44,15 +47,29 @@ func drawingPrompt(round *RoundState, drawingIndex int) string {
 }
 
 func voteOptionsForDrawing(round *RoundState, drawingIndex int) []string {
+	entries := voteOptionEntries(round, drawingIndex)
+	options := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		options = append(options, entry.Text)
+	}
+	return options
+}
+
+func voteOptionEntries(round *RoundState, drawingIndex int) []VoteOption {
 	if round == nil || drawingIndex < 0 || drawingIndex >= len(round.Drawings) {
 		return nil
 	}
-	options := make([]string, 0)
+	options := make([]VoteOption, 0)
 	seen := make(map[string]struct{})
 	prompt := round.Drawings[drawingIndex].Prompt
 	if prompt != "" {
 		seen[prompt] = struct{}{}
-		options = append(options, prompt)
+		options = append(options, VoteOption{
+			ID:      voteOptionIDPrompt,
+			Text:    prompt,
+			Type:    voteChoicePrompt,
+			OwnerID: round.Drawings[drawingIndex].PlayerID,
+		})
 	}
 	for _, guess := range round.Guesses {
 		if guess.DrawingIndex != drawingIndex {
@@ -62,9 +79,33 @@ func voteOptionsForDrawing(round *RoundState, drawingIndex int) []string {
 			continue
 		}
 		seen[guess.Text] = struct{}{}
-		options = append(options, guess.Text)
+		options = append(options, VoteOption{
+			ID:      voteOptionIDGuess + strconv.Itoa(guess.PlayerID),
+			Text:    guess.Text,
+			Type:    voteChoiceGuess,
+			OwnerID: guess.PlayerID,
+		})
+	}
+	if len(options) > 1 {
+		seed := prompt + ":" + strconv.Itoa(drawingIndex)
+		sort.Slice(options, func(i, j int) bool {
+			left := optionOrderKey(options[i].ID+":"+options[i].Text, seed)
+			right := optionOrderKey(options[j].ID+":"+options[j].Text, seed)
+			if left == right {
+				return options[i].ID < options[j].ID
+			}
+			return left < right
+		})
 	}
 	return options
+}
+
+func optionOrderKey(option string, seed string) uint64 {
+	hasher := fnv.New64a()
+	_, _ = hasher.Write([]byte(seed))
+	_, _ = hasher.Write([]byte{0})
+	_, _ = hasher.Write([]byte(option))
+	return hasher.Sum64()
 }
 
 func containsOption(options []string, choice string) bool {
@@ -74,6 +115,31 @@ func containsOption(options []string, choice string) bool {
 		}
 	}
 	return false
+}
+
+func selectVoteOption(options []VoteOption, choiceID string, choiceText string) (VoteOption, bool) {
+	if len(options) == 0 {
+		return VoteOption{}, false
+	}
+	normalizedID := strings.TrimSpace(choiceID)
+	normalizedText := normalizeText(choiceText)
+	if normalizedID != "" {
+		for _, option := range options {
+			if option.ID == normalizedID {
+				return option, true
+			}
+		}
+		return VoteOption{}, false
+	}
+	if normalizedText == "" {
+		return VoteOption{}, false
+	}
+	for _, option := range options {
+		if option.Text == normalizedText {
+			return option, true
+		}
+	}
+	return VoteOption{}, false
 }
 
 func guessOwner(round *RoundState, drawingIndex int, text string) int {

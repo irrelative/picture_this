@@ -5,6 +5,9 @@ templ DisplayContent(state DisplayState) {
 		id="displayContent"
 		data-phase={ state.Phase }
 		data-phase-ends-at={ state.PhaseEndsAt }
+		data-reveal-stage={ state.RevealStage }
+		data-reveal-joke-audio={ state.RevealJokeAudio }
+		data-reveal-drawing-index={ itoa(state.RevealDrawingIndex) }
 		data-game-id={ state.GameID }
 		data-player-count={ itoa(state.PlayerCount) }
 		data-round={ itoa(state.CurrentRound) }
@@ -126,6 +129,7 @@ templ DisplayContent(state DisplayState) {
 		<audio id="roundStartSound" src={ assetPath("/static/sounds/round_start.ogg") } preload="auto"></audio>
 		<audio id="timerEndSound" src={ assetPath("/static/sounds/timer_end.ogg") } preload="auto"></audio>
 		<audio id="votingStartSound" src={ assetPath("/static/sounds/voting_start.mp3") } preload="auto"></audio>
+		<audio id="jokeNarrationAudio" preload="none"></audio>
 	</div>
 }
 

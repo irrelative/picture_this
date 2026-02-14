@@ -19,21 +19,24 @@ type DisplayScore struct {
 }
 
 type DisplayState struct {
-	GameID         string
-	JoinCode       string
-	Phase          string
-	PhaseEndsAt    string
-	RoundLabel     string
-	StageTitle     string
-	StageStatus    string
-	StageImage     string
-	Options        []string
-	Players        []DisplayPlayer
-	Scores         []DisplayScore
-	ShowScoreboard bool
-	ShowFinal      bool
-	PlayerCount    int
-	CurrentRound   int
+	GameID             string
+	JoinCode           string
+	Phase              string
+	PhaseEndsAt        string
+	RevealStage        string
+	RevealJokeAudio    string
+	RevealDrawingIndex int
+	RoundLabel         string
+	StageTitle         string
+	StageStatus        string
+	StageImage         string
+	Options            []string
+	Players            []DisplayPlayer
+	Scores             []DisplayScore
+	ShowScoreboard     bool
+	ShowFinal          bool
+	PlayerCount        int
+	CurrentRound       int
 }
 
 type PlayerListItem struct {

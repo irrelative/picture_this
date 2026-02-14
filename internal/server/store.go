@@ -1,6 +1,7 @@
 package server
 
 import (
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"sort"
@@ -40,6 +41,7 @@ func (s *Store) CreateGame(promptsPerPlayer int) *Game {
 		LobbyLocked:      false,
 		UsedPrompts:      make(map[string]struct{}),
 		KickedPlayers:    make(map[string]struct{}),
+		PlayerAuthTokens: make(map[int]string),
 		PromptsPerPlayer: promptsPerPlayer,
 	}
 	s.games[id] = game
@@ -108,10 +110,11 @@ func (s *Store) AddPlayer(gameIDOrCode, name string, avatar []byte) (*Game, *Pla
 
 	for i := range game.Players {
 		if game.Players[i].Name == name {
-			if len(avatar) > 0 {
+			if len(avatar) > 0 && !game.Players[i].AvatarLocked {
 				game.Players[i].Avatar = avatar
 			}
 			game.Players[i].Claimed = true
+			ensurePlayerAuthToken(game, game.Players[i].ID)
 			return game, &game.Players[i], nil
 		}
 	}
@@ -146,6 +149,7 @@ func (s *Store) AddPlayer(gameIDOrCode, name string, avatar []byte) (*Game, *Pla
 	if player.IsHost {
 		game.HostID = player.ID
 	}
+	ensurePlayerAuthToken(game, player.ID)
 	return game, &game.Players[len(game.Players)-1], nil
 }
 
@@ -235,4 +239,27 @@ func (s *Store) FindPlayer(game *Game, playerID int) (*Player, bool) {
 
 func timeNowUTC() time.Time {
 	return time.Now().UTC()
+}
+
+func ensurePlayerAuthToken(game *Game, playerID int) string {
+	if game == nil || playerID <= 0 {
+		return ""
+	}
+	if game.PlayerAuthTokens == nil {
+		game.PlayerAuthTokens = make(map[int]string)
+	}
+	if token := strings.TrimSpace(game.PlayerAuthTokens[playerID]); token != "" {
+		return token
+	}
+	token := newAuthToken()
+	game.PlayerAuthTokens[playerID] = token
+	return token
+}
+
+func newAuthToken() string {
+	buf := make([]byte, 24)
+	if _, err := rand.Read(buf); err != nil {
+		return fmt.Sprintf("tok-%d", time.Now().UnixNano())
+	}
+	return fmt.Sprintf("%x", buf)
 }

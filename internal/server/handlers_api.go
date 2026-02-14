@@ -1,8 +1,8 @@
 package server
 
 import (
+	"crypto/subtle"
 	"errors"
-	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -14,15 +14,17 @@ import (
 )
 
 type settingsRequest struct {
-	PlayerID    int  `json:"player_id" binding:"required,gt=0"`
-	Rounds      int  `json:"rounds" binding:"min=0,max=10"`
-	MaxPlayers  int  `json:"max_players" binding:"min=0,max=12"`
-	LobbyLocked bool `json:"lobby_locked"`
+	PlayerID    int    `json:"player_id" binding:"required,gt=0"`
+	AuthToken   string `json:"auth_token"`
+	Rounds      int    `json:"rounds" binding:"min=0,max=10"`
+	MaxPlayers  int    `json:"max_players" binding:"min=0,max=12"`
+	LobbyLocked bool   `json:"lobby_locked"`
 }
 
 type kickRequest struct {
-	PlayerID int `json:"player_id" binding:"required,gt=0"`
-	TargetID int `json:"target_id" binding:"required,gt=0"`
+	PlayerID  int    `json:"player_id" binding:"required,gt=0"`
+	TargetID  int    `json:"target_id" binding:"required,gt=0"`
+	AuthToken string `json:"auth_token"`
 }
 
 type playerPromptURI struct {
@@ -35,29 +37,58 @@ type joinRequest struct {
 	AvatarData string `json:"avatar_data"`
 }
 
+type audienceJoinRequest struct {
+	Name  string `json:"name" binding:"required,name"`
+	Token string `json:"token"`
+}
+
+type audienceVoteRequest struct {
+	AudienceID   int    `json:"audience_id" binding:"required,gt=0"`
+	Token        string `json:"token" binding:"required"`
+	DrawingIndex int    `json:"drawing_index"`
+	Choice       string `json:"choice"`
+	ChoiceID     string `json:"choice_id"`
+}
+
 type startRequest struct {
-	PlayerID int `json:"player_id"`
+	PlayerID  int    `json:"player_id" binding:"required,gt=0"`
+	AuthToken string `json:"auth_token"`
 }
 
 type avatarRequest struct {
 	PlayerID   int    `json:"player_id" binding:"required,gt=0"`
 	AvatarData string `json:"avatar_data" binding:"required"`
+	AuthToken  string `json:"auth_token"`
 }
 type drawingsRequest struct {
 	PlayerID  int    `json:"player_id" binding:"required,gt=0"`
 	ImageData string `json:"image_data" binding:"required"`
 	Prompt    string `json:"prompt" binding:"required,prompt"`
+	AuthToken string `json:"auth_token"`
 }
 
 type guessesRequest struct {
-	PlayerID int    `json:"player_id" binding:"required,gt=0"`
-	Guess    string `json:"guess" binding:"required,guess"`
+	PlayerID  int    `json:"player_id" binding:"required,gt=0"`
+	Guess     string `json:"guess" binding:"required,guess"`
+	AuthToken string `json:"auth_token"`
 }
 
 type votesRequest struct {
-	PlayerID int    `json:"player_id" binding:"required,gt=0"`
-	Choice   string `json:"choice"`
-	Guess    string `json:"guess"`
+	PlayerID  int    `json:"player_id" binding:"required,gt=0"`
+	Choice    string `json:"choice"`
+	ChoiceID  string `json:"choice_id"`
+	Guess     string `json:"guess"`
+	AuthToken string `json:"auth_token"`
+}
+
+type advanceRequest struct {
+	PlayerID  int    `json:"player_id" binding:"required,gt=0"`
+	AuthToken string `json:"auth_token"`
+}
+
+type endRequest struct {
+	PlayerID  int    `json:"player_id" binding:"required,gt=0"`
+	AuthToken string `json:"auth_token"`
 }
 
 func (s *Server) handleCreateGame(c *gin.Context) {
@@ -87,6 +118,10 @@ func (s *Server) handlePlayerPrompt(c *gin.Context) {
 	game, player, ok := s.store.GetPlayer(uri.GameID, uri.PlayerID)
 	if !ok || game == nil || player == nil {
 		c.Status(http.StatusNotFound)
+		return
+	}
+	if _, err := s.authenticatePlayerRequest(c, game, player.ID, c.Query("auth_token")); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 	round := currentRound(game)
@@ -174,6 +209,7 @@ func (s *Server) handleJoinGame(c *gin.Context) {
 		"join_code": game.JoinCode,
 	}
 	resp["player_id"] = playerID
+	resp["auth_token"] = ensurePlayerAuthToken(game, playerID)
 	c.JSON(http.StatusOK, resp)
 	log.Printf("player joined game_id=%s player_id=%d player_name=%s", game.ID, playerID, name)
 
@@ -181,6 +217,158 @@ func (s *Server) handleJoinGame(c *gin.Context) {
 		s.sessions.SetName(c.Writer, c.Request, name)
 	}
 
+	s.broadcastGameUpdate(game)
+}
+
+func (s *Server) handleAudienceJoin(c *gin.Context) {
+	gameID := c.Param("gameID")
+	if !s.enforceRateLimit(c, "audience-join") {
+		return
+	}
+	var req audienceJoinRequest
+	if !bindJSON(c, &req, bindMessages{
+		"Name": {
+			"required": "name is required",
+			"name":     "name is invalid",
+		},
+	}, "name is required") {
+		return
+	}
+	name := normalizeText(req.Name)
+	token := strings.TrimSpace(req.Token)
+	var joined AudienceMember
+	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+		if game.Phase == phaseComplete {
+			return errors.New("game already ended")
+		}
+		if token != "" {
+			for i := range game.Audience {
+				existingToken := strings.TrimSpace(game.Audience[i].Token)
+				if existingToken == "" {
+					continue
+				}
+				if subtle.ConstantTimeCompare([]byte(existingToken), []byte(token)) != 1 {
+					continue
+				}
+				if name != "" && game.Audience[i].Name != name {
+					game.Audience[i].Name = name
+				}
+				joined = game.Audience[i]
+				return nil
+			}
+		}
+		nextID := 1
+		for _, audience := range game.Audience {
+			if audience.ID >= nextID {
+				nextID = audience.ID + 1
+			}
+		}
+		joined = AudienceMember{
+			ID:    nextID,
+			Name:  name,
+			Token: newAuthToken(),
+		}
+		game.Audience = append(game.Audience, joined)
+		return nil
+	})
+	if err != nil {
+		if err.Error() == "game not found" {
+			c.Status(http.StatusNotFound)
+			return
+		}
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, map[string]any{
+		"game_id":       game.ID,
+		"audience_id":   joined.ID,
+		"audience_name": joined.Name,
+		"token":         joined.Token,
+	})
+	s.broadcastGameUpdate(game)
+}
+
+func (s *Server) handleAudienceVote(c *gin.Context) {
+	gameID := c.Param("gameID")
+	if !s.enforceRateLimit(c, "audience-vote") {
+		return
+	}
+	var req audienceVoteRequest
+	if !bindJSON(c, &req, bindMessages{
+		"AudienceID": {
+			"required": "audience_id is required",
+			"gt":       "audience_id is required",
+		},
+		"Token": {
+			"required": "token is required",
+		},
+	}, "invalid audience vote") {
+		return
+	}
+	choiceID := strings.TrimSpace(req.ChoiceID)
+	choiceText := normalizeText(req.Choice)
+	if choiceID == "" && choiceText == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "votes are required"})
+		return
+	}
+	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+		if game.Phase != phaseGuessVotes {
+			return errors.New("votes not accepted in this phase")
+		}
+		var audience *AudienceMember
+		for i := range game.Audience {
+			if game.Audience[i].ID == req.AudienceID {
+				audience = &game.Audience[i]
+				break
+			}
+		}
+		if audience == nil {
+			return errors.New("audience member not found")
+		}
+		if strings.TrimSpace(audience.Token) == "" || subtle.ConstantTimeCompare([]byte(audience.Token), []byte(strings.TrimSpace(req.Token))) != 1 {
+			return errors.New("invalid audience authentication")
+		}
+		round := currentRound(game)
+		if round == nil {
+			return errors.New("round not started")
+		}
+		drawingIndex := req.DrawingIndex
+		if drawingIndex < 0 || drawingIndex >= len(round.Drawings) {
+			_, fallback, ok := firstAssignmentByOrder(game, buildVoteAssignments(game, round))
+			if !ok {
+				return errors.New("no active vote drawing")
+			}
+			drawingIndex = fallback
+		}
+		for _, vote := range round.AudienceVotes {
+			if vote.AudienceID == req.AudienceID && vote.DrawingIndex == drawingIndex {
+				return errors.New("vote already submitted")
+			}
+		}
+		options := voteOptionEntries(round, drawingIndex)
+		selected, ok := selectVoteOption(options, choiceID, choiceText)
+		if !ok {
+			return errors.New("invalid vote option")
+		}
+		round.AudienceVotes = append(round.AudienceVotes, AudienceVoteEntry{
+			AudienceID:   audience.ID,
+			AudienceName: audience.Name,
+			DrawingIndex: drawingIndex,
+			ChoiceID:     selected.ID,
+			ChoiceText:   selected.Text,
+			ChoiceType:   selected.Type,
+		})
+		return nil
+	})
+	if err != nil {
+		if err.Error() == "game not found" {
+			c.Status(http.StatusNotFound)
+			return
+		}
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, s.snapshot(game))
 	s.broadcastGameUpdate(game)
 }
 
@@ -214,11 +402,15 @@ func (s *Server) handleAvatar(c *gin.Context) {
 		if game.Phase != phaseLobby {
 			return errors.New("avatars only available in lobby")
 		}
-		player, ok := s.store.FindPlayer(game, req.PlayerID)
-		if !ok {
-			return errors.New("player not found")
+		player, err := s.authenticatePlayerRequest(c, game, req.PlayerID, req.AuthToken)
+		if err != nil {
+			return err
+		}
+		if player.AvatarLocked {
+			return errors.New("avatar is already locked for this game")
 		}
 		player.Avatar = avatar
+		player.AvatarLocked = true
 		return nil
 	})
 	if err != nil {
@@ -317,8 +509,8 @@ func (s *Server) handleSettings(c *gin.Context) {
 		if game.Phase != phaseLobby {
 			return errors.New("settings only available in lobby")
 		}
-		if game.HostID != 0 && req.PlayerID != game.HostID {
-			return errors.New("only host can update settings")
+		if _, err := s.authenticateHostRequest(c, game, req.PlayerID, req.AuthToken); err != nil {
+			return err
 		}
 		if req.Rounds > 0 {
 			game.PromptsPerPlayer = req.Rounds
@@ -371,8 +563,8 @@ func (s *Server) handleKick(c *gin.Context) {
 		if game.Phase != phaseLobby {
 			return errors.New("kick only available in lobby")
 		}
-		if game.HostID != 0 && req.PlayerID != game.HostID {
-			return errors.New("only host can remove players")
+		if _, err := s.authenticateHostRequest(c, game, req.PlayerID, req.AuthToken); err != nil {
+			return err
 		}
 		if req.TargetID == game.HostID {
 			return errors.New("cannot remove host")
@@ -413,16 +605,20 @@ func (s *Server) handleStartGame(c *gin.Context) {
 		return
 	}
 	var req startRequest
-	if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+	if !bindJSON(c, &req, bindMessages{
+		"PlayerID": {
+			"required": "player_id is required",
+			"gt":       "player_id is required",
+		},
+	}, "player_id is required") {
 		return
 	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
 		if len(game.Players) < 2 {
 			return errors.New("not enough players")
 		}
-		if game.HostID != 0 && req.PlayerID != 0 && req.PlayerID != game.HostID {
-			return errors.New("only host can start")
+		if _, err := s.authenticateHostRequest(c, game, req.PlayerID, req.AuthToken); err != nil {
+			return err
 		}
 		if game.Phase != phaseLobby {
 			return errors.New("game already started")
@@ -494,9 +690,9 @@ func (s *Server) handleDrawings(c *gin.Context) {
 		if game.Phase != phaseDrawings {
 			return errors.New("drawings not accepted in this phase")
 		}
-		player, ok := s.store.FindPlayer(game, req.PlayerID)
-		if !ok {
-			return errors.New("player not found")
+		player, err := s.authenticatePlayerRequest(c, game, req.PlayerID, req.AuthToken)
+		if err != nil {
+			return err
 		}
 		round := currentRound(game)
 		if round == nil {
@@ -567,46 +763,39 @@ func (s *Server) handleGuesses(c *gin.Context) {
 		return
 	}
 	guessText := normalizeText(req.Guess)
+	drawingIndex := -1
+	phaseAdvanced := false
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
 		if game.Phase != phaseGuesses {
 			return errors.New("guesses not accepted in this phase")
 		}
-		player, ok := s.store.FindPlayer(game, req.PlayerID)
-		if !ok {
-			return errors.New("player not found")
+		player, err := s.authenticatePlayerRequest(c, game, req.PlayerID, req.AuthToken)
+		if err != nil {
+			return err
 		}
 		round := currentRound(game)
 		if round == nil {
 			return errors.New("round not started")
 		}
-		if round.CurrentGuess >= len(round.GuessTurns) {
-			return errors.New("no active guess turn")
+		assignedDrawing, ok := nextGuessAssignment(game, round, player.ID)
+		if !ok {
+			return errors.New("no guess assignment")
 		}
-		turn := round.GuessTurns[round.CurrentGuess]
-		if turn.GuesserID != player.ID {
-			return errors.New("not your turn")
+		if hasGuessForPlayer(round, assignedDrawing, player.ID) {
+			return errors.New("guess already submitted")
 		}
+		if hasGuessText(round, assignedDrawing, guessText) {
+			return errors.New("guess already used for this drawing")
+		}
+		drawingIndex = assignedDrawing
 		round.Guesses = append(round.Guesses, GuessEntry{
 			PlayerID:     player.ID,
-			DrawingIndex: turn.DrawingIndex,
+			DrawingIndex: assignedDrawing,
 			Text:         guessText,
 		})
-		round.CurrentGuess++
-		if round.CurrentGuess >= len(round.GuessTurns) || round.GuessTurns[round.CurrentGuess].DrawingIndex != turn.DrawingIndex {
-			if err := s.buildVoteTurns(game, round); err != nil {
-				return err
-			}
-			start := voteTurnStartIndex(round, turn.DrawingIndex)
-			if start < 0 {
-				return errors.New("no vote turns for drawing")
-			}
-			if round.CurrentVote > start {
-				return errors.New("vote turns out of sync")
-			}
-			if round.CurrentVote < start {
-				round.CurrentVote = start
-			}
+		if activeGuessDrawingIndex(game, round) < 0 {
 			setPhase(game, phaseGuessVotes)
+			phaseAdvanced = true
 		}
 		return nil
 	})
@@ -618,19 +807,11 @@ func (s *Server) handleGuesses(c *gin.Context) {
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	}
-	turnIndex := 0
-	if round := currentRound(game); round != nil && round.CurrentGuess > 0 {
-		turnIndex = round.CurrentGuess - 1
-	}
-	drawingIndex := -1
-	if round := currentRound(game); round != nil && turnIndex < len(round.GuessTurns) {
-		drawingIndex = round.GuessTurns[turnIndex].DrawingIndex
-	}
 	if err := s.persistGuess(game, req.PlayerID, drawingIndex, guessText); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save guesses"})
 		return
 	}
-	if game.Phase == phaseGuessVotes {
+	if phaseAdvanced && game.Phase == phaseGuessVotes {
 		if err := s.persistPhase(game, "game_advanced", EventPayload{Phase: game.Phase}); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to advance game"})
 			return
@@ -640,7 +821,9 @@ func (s *Server) handleGuesses(c *gin.Context) {
 	log.Printf("guess submitted game_id=%s player_id=%d", game.ID, req.PlayerID)
 	c.JSON(http.StatusOK, s.snapshot(game))
 	s.broadcastGameUpdate(game)
-	s.schedulePhaseTimer(game)
+	if phaseAdvanced {
+		s.schedulePhaseTimer(game)
+	}
 }
 
 func (s *Server) handleVotes(c *gin.Context) {
@@ -661,63 +844,60 @@ func (s *Server) handleVotes(c *gin.Context) {
 	if choiceText == "" {
 		choiceText = normalizeText(req.Guess)
 	}
-	if choiceText == "" {
+	choiceID := strings.TrimSpace(req.ChoiceID)
+	if choiceID == "" && choiceText == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "votes are required"})
-		return
-	}
-	choiceText, err := validateChoice(choiceText)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	voteRoundNumber := 0
 	voteDrawingIndex := -1
-	voteChoiceType := "guess"
+	voteChoiceText := ""
+	voteChoiceType := voteChoiceGuess
+	phaseAdvanced := false
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
 		if game.Phase != phaseGuessVotes {
 			return errors.New("votes not accepted in this phase")
 		}
-		player, ok := s.store.FindPlayer(game, req.PlayerID)
-		if !ok {
-			return errors.New("player not found")
+		player, err := s.authenticatePlayerRequest(c, game, req.PlayerID, req.AuthToken)
+		if err != nil {
+			return err
 		}
 		round := currentRound(game)
 		if round == nil {
 			return errors.New("round not started")
 		}
-		if round.CurrentVote >= len(round.VoteTurns) {
-			return errors.New("no active vote turn")
+		activeDrawing, ok := nextVoteAssignment(game, round, player.ID)
+		if !ok {
+			return errors.New("no vote assignment")
 		}
-		turn := round.VoteTurns[round.CurrentVote]
-		if turn.VoterID != player.ID {
-			return errors.New("not your turn")
+		if hasVoteForPlayer(round, activeDrawing, player.ID) {
+			return errors.New("vote already submitted")
 		}
-		for _, vote := range round.Votes {
-			if vote.PlayerID == player.ID && vote.DrawingIndex == turn.DrawingIndex {
-				return errors.New("vote already submitted")
-			}
-		}
-		options := voteOptionsForDrawing(round, turn.DrawingIndex)
-		if !containsOption(options, choiceText) {
+		options := voteOptionEntries(round, activeDrawing)
+		if len(options) == 0 {
 			return errors.New("invalid vote option")
 		}
-		choiceType := "guess"
-		if drawingPrompt(round, turn.DrawingIndex) == choiceText {
-			choiceType = "prompt"
+		selected, ok := selectVoteOption(options, choiceID, choiceText)
+		if !ok {
+			return errors.New("invalid vote option")
+		}
+		if selected.Type == voteChoiceGuess && selected.OwnerID == player.ID {
+			return errors.New("cannot vote for your own lie")
 		}
 		voteRoundNumber = round.Number
-		voteDrawingIndex = turn.DrawingIndex
-		voteChoiceType = choiceType
+		voteDrawingIndex = activeDrawing
+		voteChoiceText = selected.Text
+		voteChoiceType = selected.Type
 		round.Votes = append(round.Votes, VoteEntry{
 			PlayerID:     player.ID,
-			DrawingIndex: turn.DrawingIndex,
-			ChoiceText:   choiceText,
-			ChoiceType:   choiceType,
+			DrawingIndex: activeDrawing,
+			ChoiceText:   selected.Text,
+			ChoiceType:   selected.Type,
 		})
-		round.CurrentVote++
-		if round.CurrentVote >= len(round.VoteTurns) || round.VoteTurns[round.CurrentVote].DrawingIndex != turn.DrawingIndex {
+		if activeVoteDrawingIndex(game, round) < 0 {
 			setPhase(game, phaseResults)
-			initReveal(round, turn.DrawingIndex)
+			initReveal(round, 0)
+			phaseAdvanced = true
 		}
 		return nil
 	})
@@ -729,12 +909,12 @@ func (s *Server) handleVotes(c *gin.Context) {
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	}
-	if err := s.persistVote(game, req.PlayerID, voteRoundNumber, voteDrawingIndex, choiceText, voteChoiceType); err != nil {
+	if err := s.persistVote(game, req.PlayerID, voteRoundNumber, voteDrawingIndex, voteChoiceText, voteChoiceType); err != nil {
 		log.Printf("persist vote failed game_id=%s player_id=%d error=%v", game.ID, req.PlayerID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save votes"})
 		return
 	}
-	if game.Phase == phaseResults {
+	if phaseAdvanced && game.Phase == phaseResults {
 		if err := s.persistPhase(game, "game_advanced", EventPayload{Phase: game.Phase}); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to advance game"})
 			return
@@ -744,7 +924,9 @@ func (s *Server) handleVotes(c *gin.Context) {
 	log.Printf("vote submitted game_id=%s player_id=%d", game.ID, req.PlayerID)
 	c.JSON(http.StatusOK, s.snapshot(game))
 	s.broadcastGameUpdate(game)
-	s.schedulePhaseTimer(game)
+	if phaseAdvanced {
+		s.schedulePhaseTimer(game)
+	}
 }
 
 func (s *Server) handleAdvance(c *gin.Context) {
@@ -752,9 +934,29 @@ func (s *Server) handleAdvance(c *gin.Context) {
 	if !s.enforceRateLimit(c, "advance") {
 		return
 	}
+	var req advanceRequest
+	if !bindJSON(c, &req, bindMessages{
+		"PlayerID": {
+			"required": "player_id is required",
+			"gt":       "player_id is required",
+		},
+	}, "player_id is required") {
+		return
+	}
 	prevPhase := ""
+	filledGuesses := make([]autoFilledGuess, 0)
+	filledVotes := make([]autoFilledVote, 0)
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+		if _, err := s.authenticateHostRequest(c, game, req.PlayerID, req.AuthToken); err != nil {
+			return err
+		}
 		prevPhase = game.Phase
+		if game.Phase == phaseGuesses {
+			filledGuesses = append(filledGuesses, autoFillMissingGuesses(game)...)
+		}
+		if game.Phase == phaseGuessVotes {
+			filledVotes = append(filledVotes, autoFillMissingVotes(game)...)
+		}
 		_, err := s.advancePhase(game, transitionManual, time.Time{})
 		return err
 	})
@@ -765,6 +967,20 @@ func (s *Server) handleAdvance(c *gin.Context) {
 		}
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
+	}
+	for _, filled := range filledGuesses {
+		if err := s.persistGuess(game, filled.PlayerID, filled.DrawingIndex, filled.Text); err != nil {
+			log.Printf("manual advance persist guess failed game_id=%s player_id=%d error=%v", game.ID, filled.PlayerID, err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save guesses"})
+			return
+		}
+	}
+	for _, filled := range filledVotes {
+		if err := s.persistVote(game, filled.PlayerID, filled.RoundNumber, filled.DrawingIndex, filled.ChoiceText, filled.ChoiceType); err != nil {
+			log.Printf("manual advance persist vote failed game_id=%s player_id=%d error=%v", game.ID, filled.PlayerID, err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save votes"})
+			return
+		}
 	}
 	if game.Phase == phaseDrawings && prevPhase != phaseDrawings {
 		if err := s.persistRound(game); err != nil {
@@ -793,7 +1009,19 @@ func (s *Server) handleEndGame(c *gin.Context) {
 	if !s.enforceRateLimit(c, "end") {
 		return
 	}
+	var req endRequest
+	if !bindJSON(c, &req, bindMessages{
+		"PlayerID": {
+			"required": "player_id is required",
+			"gt":       "player_id is required",
+		},
+	}, "player_id is required") {
+		return
+	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+		if _, err := s.authenticateHostRequest(c, game, req.PlayerID, req.AuthToken); err != nil {
+			return err
+		}
 		if game.Phase == phaseComplete {
 			return errors.New("game already ended")
 		}

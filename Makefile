@@ -1,4 +1,4 @@
-.PHONY: run build init deploy
+.PHONY: run build init test migrate migrate-create load-prompts joke-audio-venv joke-audio-deps generate-joke-audio e2e-test deploy
 
 run:
 	templ generate
@@ -17,7 +17,7 @@ init:
 	curl -L -o static/sounds/voting_start.mp3 https://opengameart.org/sites/default/files/Accept.mp3
 
 test:
-	go test ./...
+	GOCACHE="$(GOCACHE)" go test ./...
 
 migrate:
 	go run ./cmd/migrate
@@ -28,6 +28,29 @@ migrate-create:
 
 load-prompts:
 	go run ./cmd/load-prompts -file prompts.csv
+
+JOKE_AUDIO_VENV ?= .venv-joke-audio
+JOKE_AUDIO_REQUIREMENTS ?= scripts/requirements-joke-audio.txt
+JOKE_AUDIO_PYTHON ?= $(JOKE_AUDIO_VENV)/bin/python
+
+joke-audio-venv:
+	@if ! command -v python3.11 >/dev/null 2>&1; then \
+		echo "python3.11 is required (brew install python@3.11)"; \
+		exit 1; \
+	fi
+	@if [ ! -x "$(JOKE_AUDIO_PYTHON)" ]; then \
+		python3.11 -m venv "$(JOKE_AUDIO_VENV)"; \
+	fi
+
+joke-audio-deps: joke-audio-venv
+	"$(JOKE_AUDIO_PYTHON)" -m pip install --upgrade pip setuptools
+	"$(JOKE_AUDIO_PYTHON)" -m pip install -r "$(JOKE_AUDIO_REQUIREMENTS)"
+
+generate-joke-audio: joke-audio-deps
+	@set -a; \
+	if [ -f .env ]; then . ./.env; fi; \
+	set +a; \
+	"$(JOKE_AUDIO_PYTHON)" scripts/generate_joke_audio.py $(ARGS)
 
 DATABASE_URL_TEST ?= postgres:///picture_this_test?sslmode=disable
 PORT_TEST ?= 8081

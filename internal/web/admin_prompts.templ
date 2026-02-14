@@ -2,112 +2,118 @@ package web
 
 templ AdminPromptLibrary(data AdminPromptLibraryData) {
 	@Layout("Picture This | Prompt Library", "", "") {
-		<header class="hero">
-			<span class="tag">Admin</span>
-			<h1>Prompt Library</h1>
-			<p>Create, update, and delete prompts for the game library.</p>
-		</header>
+		<div class="admin-prompts-page">
+			<header class="hero">
+				<span class="tag">Admin</span>
+				<h1>Prompt Library</h1>
+				<p>Create, update, and delete prompts for the game library.</p>
+			</header>
 
-		if data.Error != "" {
-			<div class="panel">
-				<p class="result error">{ data.Error }</p>
-			</div>
-		}
-
-		if data.Notice != "" {
-			<div class="panel">
-				<p class="result">{ data.Notice }</p>
-			</div>
-		}
-
-		<section class="panel">
-			<h2>Generate prompts (OpenAI)</h2>
-			<p>Generate 20 new prompts with a short theme or instruction.</p>
-			<form method="post" action="/admin/prompts/generate" class="settings-form">
-				<input type="hidden" name="q" value={ data.SearchQuery } />
-				<label>
-					<span class="label">Theme or guidance</span>
-					<textarea name="instructions" rows="3" placeholder="Cozy winter scenes, playful and whimsical." required>{ data.GenerateInstructions }</textarea>
-				</label>
-				<div class="settings-actions">
-					<button class="primary" type="submit">Generate 20 prompts</button>
-					<a class="secondary" href="/admin">Back to admin</a>
+			if data.Error != "" {
+				<div class="panel">
+					<p class="result error">{ data.Error }</p>
 				</div>
-			</form>
-		</section>
-
-		<section class="panel">
-			<h2>Add prompt</h2>
-			<form method="post" action="/admin/prompts" class="settings-form">
-				<input type="hidden" name="q" value={ data.SearchQuery } />
-				<label>
-					<span class="label">Prompt</span>
-					<input name="text" placeholder="A llama on a skateboard" value={ data.DraftText } required />
-				</label>
-				<label>
-					<span class="label">Joke (optional)</span>
-					<input name="joke" placeholder="The dragon keeps asking for a toothbrush." value={ data.DraftJoke } />
-				</label>
-				<div class="settings-actions">
-					<button class="primary" type="submit">Add prompt</button>
-					<a class="secondary" href="/admin">Back to admin</a>
-				</div>
-			</form>
-		</section>
-
-		<section class="panel">
-			<h2>Library</h2>
-			<form method="get" action="/admin/prompts" class="settings-form">
-				<label>
-					<span class="label">Search prompts</span>
-					<input name="q" placeholder="Search prompt text or joke" value={ data.SearchQuery } />
-				</label>
-				<div class="settings-actions">
-					<button class="secondary" type="submit">Search</button>
-					if data.SearchQuery != "" {
-						<a class="secondary" href="/admin/prompts">Clear</a>
-					}
-				</div>
-			</form>
-			if len(data.Prompts) == 0 {
-				<p>No prompts found yet.</p>
-			} else {
-				<table class="data-table">
-					<thead>
-						<tr><th>ID</th><th>Prompt</th><th>Joke</th><th>Joke Audio</th><th>Updated</th><th></th></tr>
-					</thead>
-					<tbody>
-						for _, prompt := range data.Prompts {
-							<tr>
-								<td>{ prompt.ID }</td>
-								<td><input form={ "prompt-" + utoa(prompt.ID) } name="text" value={ prompt.Text } required /></td>
-								<td><input form={ "prompt-" + utoa(prompt.ID) } name="joke" value={ prompt.Joke } placeholder="Optional narrator joke" /></td>
-								<td>
-									if prompt.JokeAudioPath != "" {
-										<audio class="audio-inline" controls preload="none" src={ prompt.JokeAudioPath }></audio>
-									} else {
-										<span class="hint">None</span>
-									}
-								</td>
-								<td>{ formatTime(prompt.UpdatedAt) }</td>
-								<td>
-									<div class="inline-actions">
-										<form id={ "prompt-" + utoa(prompt.ID) } method="post" action={ "/admin/prompts/" + utoa(prompt.ID) }>
-											<input type="hidden" name="q" value={ data.SearchQuery } />
-											<button class="secondary" type="submit">Save</button>
-										</form>
-										<form method="post" action={ "/admin/prompts/" + utoa(prompt.ID) + "/delete" }>
-											<input type="hidden" name="q" value={ data.SearchQuery } />
-											<button class="secondary" type="submit">Delete</button>
-										</form>
-									</div>
-								</td>
-							</tr>
-						}
-					</tbody>
-				</table>
-				@Pagination(data.Pagination)
 			}
-		</section>
+
+			if data.Notice != "" {
+				<div class="panel">
+					<p class="result">{ data.Notice }</p>
+				</div>
+			}
+
+			<div class="admin-prompts-editor-grid">
+				<section class="panel admin-prompts-section">
+					<h2>Generate prompts (OpenAI)</h2>
+					<p>Generate 20 new prompts with a short theme or instruction.</p>
+					<form method="post" action="/admin/prompts/generate" class="settings-form admin-prompts-form">
+						<input type="hidden" name="q" value={ data.SearchQuery } />
+						<label>
+							<span class="label">Theme or guidance</span>
+							<textarea name="instructions" rows="5" placeholder="Cozy winter scenes, playful and whimsical." required>{ data.GenerateInstructions }</textarea>
+						</label>
+						<div class="settings-actions">
+							<button class="primary" type="submit">Generate 20 prompts</button>
+							<a class="secondary" href="/admin">Back to admin</a>
+						</div>
+					</form>
+				</section>
+
+				<section class="panel admin-prompts-section">
+					<h2>Add prompt</h2>
+					<form method="post" action="/admin/prompts" class="settings-form admin-prompts-form">
+						<input type="hidden" name="q" value={ data.SearchQuery } />
+						<label>
+							<span class="label">Prompt</span>
+							<input name="text" placeholder="A llama on a skateboard" value={ data.DraftText } required />
+						</label>
+						<label>
+							<span class="label">Joke (optional)</span>
+							<input name="joke" placeholder="The dragon keeps asking for a toothbrush." value={ data.DraftJoke } />
+						</label>
+						<div class="settings-actions">
+							<button class="primary" type="submit">Add prompt</button>
+							<a class="secondary" href="/admin">Back to admin</a>
+						</div>
+					</form>
+				</section>
+			</div>
+
+			<section class="panel admin-prompts-section">
+				<h2>Library</h2>
+				<form method="get" action="/admin/prompts" class="settings-form admin-prompts-search-form">
+					<label class="admin-prompts-search-label">
+						<span class="label">Search prompts</span>
+						<input name="q" placeholder="Search prompt text or joke" value={ data.SearchQuery } />
+					</label>
+					<div class="settings-actions admin-prompts-search-actions">
+						<button class="secondary" type="submit">Search</button>
+						if data.SearchQuery != "" {
+							<a class="secondary" href="/admin/prompts">Clear</a>
+						}
+					</div>
+				</form>
+				if len(data.Prompts) == 0 {
+					<p>No prompts found yet.</p>
+				} else {
+					<div class="admin-prompts-table-wrap">
+						<table class="data-table admin-prompts-table">
+							<thead>
+								<tr><th>ID</th><th>Prompt</th><th>Joke</th><th>Joke Audio</th><th>Updated</th><th></th></tr>
+							</thead>
+							<tbody>
+								for _, prompt := range data.Prompts {
+									<tr>
+										<td>{ prompt.ID }</td>
+										<td><input form={ "prompt-" + utoa(prompt.ID) } name="text" value={ prompt.Text } required /></td>
+										<td><input form={ "prompt-" + utoa(prompt.ID) } name="joke" value={ prompt.Joke } placeholder="Optional narrator joke" /></td>
+										<td>
+											if prompt.JokeAudioPath != "" {
+												<audio class="audio-inline" controls preload="none" src={ prompt.JokeAudioPath }></audio>
+											} else {
+												<span class="hint">None</span>
+											}
+										</td>
+										<td>{ formatTime(prompt.UpdatedAt) }</td>
+										<td>
+											<div class="inline-actions">
+												<form id={ "prompt-" + utoa(prompt.ID) } method="post" action={ "/admin/prompts/" + utoa(prompt.ID) }>
+													<input type="hidden" name="q" value={ data.SearchQuery } />
+													<button class="secondary" type="submit">Save</button>
+												</form>
+												<form method="post" action={ "/admin/prompts/" + utoa(prompt.ID) + "/delete" }>
+													<input type="hidden" name="q" value={ data.SearchQuery } />
+													<button class="secondary" type="submit">Delete</button>
+												</form>
+											</div>
+										</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+					@Pagination(data.Pagination)
+				}
+			</section>
+		</div>
 	}
 }

@@ -22,10 +22,11 @@ type GeneratedPrompt struct {
 }
 
 type openAIChatRequest struct {
-	Model       string              `json:"model"`
-	Messages    []openAIChatMessage `json:"messages"`
-	Temperature float64             `json:"temperature,omitempty"`
-	MaxTokens   int                 `json:"max_tokens,omitempty"`
+	Model               string              `json:"model"`
+	Messages            []openAIChatMessage `json:"messages"`
+	Temperature         float64             `json:"temperature,omitempty"`
+	MaxTokens           int                 `json:"max_tokens,omitempty"`
+	MaxCompletionTokens int                 `json:"max_completion_tokens,omitempty"`
 }
 
 type openAIChatMessage struct {
@@ -58,14 +59,19 @@ func (s *Server) generatePromptsFromOpenAI(ctx context.Context, instructions str
 	}
 	userPrompt := strings.ReplaceAll(userTemplate, openAIUserPlaceholder, instructions)
 
+	model := strings.TrimSpace(s.cfg.OpenAIModel)
 	reqBody := openAIChatRequest{
-		Model: s.cfg.OpenAIModel,
+		Model: model,
 		Messages: []openAIChatMessage{
 			{Role: "system", Content: systemPrompt},
 			{Role: "user", Content: userPrompt},
 		},
 		Temperature: 0.9,
-		MaxTokens:   700,
+	}
+	if requiresMaxCompletionTokens(model) {
+		reqBody.MaxCompletionTokens = 700
+	} else {
+		reqBody.MaxTokens = 700
 	}
 
 	payload, err := json.Marshal(reqBody)
@@ -95,6 +101,9 @@ func (s *Server) generatePromptsFromOpenAI(ctx context.Context, instructions str
 		return nil, fmt.Errorf("failed to read OpenAI response")
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		if msg := parseOpenAIErrorMessage(body); msg != "" {
+			return nil, fmt.Errorf("OpenAI request failed (%d): %s", resp.StatusCode, msg)
+		}
 		return nil, fmt.Errorf("OpenAI request failed (%d)", resp.StatusCode)
 	}
 
@@ -187,6 +196,25 @@ func stripDifficultyTag(prompt string) string {
 		}
 	}
 	return clean
+}
+
+func parseOpenAIErrorMessage(body []byte) string {
+	if len(body) == 0 {
+		return ""
+	}
+	var envelope struct {
+		Error *struct {
+			Message string `json:"message"`
+		} `json:"error,omitempty"`
+	}
+	if err := json.Unmarshal(body, &envelope); err == nil && envelope.Error != nil {
+		return strings.TrimSpace(envelope.Error.Message)
+	}
+	return strings.TrimSpace(string(body))
+}
+
+func requiresMaxCompletionTokens(model string) bool {
+	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(model)), "gpt-5")
 }
 
 var (

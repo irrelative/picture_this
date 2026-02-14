@@ -1,9 +1,13 @@
 import {
   fetchSnapshot,
   fetchPrompt,
+  postAdvance,
   postAvatar,
+  postEndGame,
   postDrawing,
   postGuess,
+  postKick,
+  postSettings,
   postStartGame,
   postVote
 } from "./player_api.js";
@@ -24,8 +28,11 @@ const ctx = {
     scoreboardList: document.getElementById("scoreboardList"),
     drawSection: document.getElementById("drawSection"),
     avatarSection: document.getElementById("avatarSection"),
+    avatarCanvasWrap: document.getElementById("avatarCanvasWrap"),
     avatarCanvas: document.getElementById("avatarCanvas"),
+    avatarLockedHint: document.getElementById("avatarLockedHint"),
     saveAvatar: document.getElementById("saveAvatar"),
+    avatarSavedSound: document.getElementById("avatarSavedSound"),
     promptText: document.getElementById("promptText"),
     canvas: document.getElementById("drawCanvas"),
     saveCanvas: document.getElementById("saveCanvas"),
@@ -45,7 +52,17 @@ const ctx = {
     revealSection: document.getElementById("revealSection"),
     hostSection: document.getElementById("hostSection"),
     hostStartGame: document.getElementById("hostStartGame"),
-    hostHelp: document.getElementById("hostHelp")
+    hostAdvanceGame: document.getElementById("hostAdvanceGame"),
+    hostEndGame: document.getElementById("hostEndGame"),
+    hostHelp: document.getElementById("hostHelp"),
+    hostLobbyStatus: document.getElementById("hostLobbyStatus"),
+    hostSettingsForm: document.getElementById("hostSettingsForm"),
+    hostRoundsInput: document.getElementById("hostRoundsInput"),
+    hostMaxPlayersInput: document.getElementById("hostMaxPlayersInput"),
+    hostLobbyLocked: document.getElementById("hostLobbyLocked"),
+    hostSettingsStatus: document.getElementById("hostSettingsStatus"),
+    hostPlayerActions: document.getElementById("hostPlayerActions"),
+    phaseTimer: document.getElementById("phaseTimer")
   },
   state: {
     pollTimer: null,
@@ -54,7 +71,6 @@ const ctx = {
     hostId: 0,
     drawingSubmitted: false,
     lastPhase: "",
-    showScoreboard: false,
     lastVoteKey: "",
     lastGuessKey: "",
     lastResultsKey: "",
@@ -63,7 +79,11 @@ const ctx = {
     canvasCtx: null,
     canvasWidth: 800,
     canvasHeight: 600,
-    avatarCtx: null
+    avatarCtx: null,
+    timerEndsAt: 0,
+    timerHandle: null,
+    authToken: "",
+    avatarLocked: false
   },
   actions: {}
 };
@@ -77,9 +97,48 @@ ctx.actions.applyAvatarColor = () => {
 ctx.actions.fetchPrompt = () => fetchPromptForPlayer();
 ctx.actions.clearCanvas = () => clearCanvas(ctx);
 
+function formatTime(seconds) {
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
+}
+
+function playAudio(audio) {
+  if (!audio) return;
+  const playPromise = audio.play();
+  if (playPromise && typeof playPromise.catch === "function") {
+    playPromise.catch(() => {
+      // Ignore autoplay failures.
+    });
+  }
+}
+
+function renderTimer() {
+  if (!ctx.els.phaseTimer) return;
+  if (!ctx.state.timerEndsAt) {
+    ctx.els.phaseTimer.textContent = "--:--";
+    return;
+  }
+  const remaining = Math.max(0, Math.round((ctx.state.timerEndsAt - Date.now()) / 1000));
+  ctx.els.phaseTimer.textContent = formatTime(remaining);
+}
+
+function syncTimer(data) {
+  const endsAt = data.phase_ends_at ? Date.parse(data.phase_ends_at) : 0;
+  ctx.state.timerEndsAt = Number.isNaN(endsAt) ? 0 : endsAt;
+  renderTimer();
+  if (!ctx.state.timerHandle) {
+    ctx.state.timerHandle = setInterval(renderTimer, 1000);
+  }
+}
+
 async function loadPlayerView() {
   if (!ctx.els.meta) return;
   const gameId = ctx.els.meta.dataset.gameId;
+  const playerId = ctx.els.meta.dataset.playerId;
+  if (!ctx.state.authToken) {
+    ctx.state.authToken = localStorage.getItem(`pt_auth_${gameId}_${playerId}`) || "";
+  }
   const { res, data } = await fetchSnapshot(gameId);
   if (!res.ok) {
     ctx.els.joinCode.textContent = "Unavailable";
@@ -93,6 +152,7 @@ async function loadPlayerView() {
     ctx.els.playerError.textContent = "";
   }
   updateFromSnapshot(ctx, data);
+  syncTimer(data);
 }
 
 function startPolling() {
@@ -114,6 +174,7 @@ function connectWS() {
     try {
       const data = JSON.parse(event.data);
       updateFromSnapshot(ctx, data);
+      syncTimer(data);
     } catch {
       // ignore invalid payloads
     }
@@ -174,14 +235,50 @@ if (ctx.els.avatarCanvas) {
 
 if (ctx.els.saveAvatar) {
   ctx.els.saveAvatar.addEventListener("click", async () => {
+    if (ctx.state.avatarLocked) {
+      return;
+    }
     if (!ctx.els.meta || !ctx.els.avatarCanvas) return;
     const gameId = ctx.els.meta.dataset.gameId;
     const playerId = Number(ctx.els.meta.dataset.playerId);
     const avatarData = ctx.els.avatarCanvas.toDataURL("image/png");
     const { res, data } = await postAvatar(gameId, playerId, avatarData);
     if (!res.ok) {
+      const avatarLocked = res.status === 409 && typeof data.error === "string" && data.error.includes("locked");
+      if (avatarLocked) {
+        ctx.state.avatarLocked = true;
+        if (ctx.els.saveAvatar) {
+          ctx.els.saveAvatar.style.display = "none";
+          ctx.els.saveAvatar.disabled = true;
+        }
+      }
       if (ctx.els.playerError) {
         ctx.els.playerError.textContent = data.error || "Unable to save avatar.";
+      }
+      return;
+    }
+    if (ctx.els.playerError) {
+      ctx.els.playerError.textContent = "";
+    }
+    ctx.state.avatarLocked = true;
+    if (ctx.els.saveAvatar) {
+      ctx.els.saveAvatar.style.display = "none";
+      ctx.els.saveAvatar.disabled = true;
+    }
+    playAudio(ctx.els.avatarSavedSound);
+    updateFromSnapshot(ctx, data);
+  });
+}
+
+if (ctx.els.hostStartGame) {
+  ctx.els.hostStartGame.addEventListener("click", async () => {
+    if (!ctx.els.meta) return;
+    const gameId = ctx.els.meta.dataset.gameId;
+    const playerId = Number(ctx.els.meta.dataset.playerId);
+    const { res, data } = await postStartGame(gameId, playerId, ctx.state.authToken);
+    if (!res.ok) {
+      if (ctx.els.playerError) {
+        ctx.els.playerError.textContent = data.error || "Unable to start game.";
       }
       return;
     }
@@ -192,15 +289,102 @@ if (ctx.els.saveAvatar) {
   });
 }
 
-if (ctx.els.hostStartGame) {
-  ctx.els.hostStartGame.addEventListener("click", async () => {
+if (ctx.els.hostAdvanceGame) {
+  ctx.els.hostAdvanceGame.addEventListener("click", async () => {
     if (!ctx.els.meta) return;
     const gameId = ctx.els.meta.dataset.gameId;
     const playerId = Number(ctx.els.meta.dataset.playerId);
-    const { res, data } = await postStartGame(gameId, playerId);
+    const { res, data } = await postAdvance(gameId, playerId, ctx.state.authToken);
     if (!res.ok) {
       if (ctx.els.playerError) {
-        ctx.els.playerError.textContent = data.error || "Unable to start game.";
+        ctx.els.playerError.textContent = data.error || "Unable to advance game.";
+      }
+      return;
+    }
+    if (ctx.els.playerError) {
+      ctx.els.playerError.textContent = "";
+    }
+    updateFromSnapshot(ctx, data);
+  });
+}
+
+if (ctx.els.hostEndGame) {
+  ctx.els.hostEndGame.addEventListener("click", async () => {
+    if (!ctx.els.meta) return;
+    const gameId = ctx.els.meta.dataset.gameId;
+    const playerId = Number(ctx.els.meta.dataset.playerId);
+    const { res, data } = await postEndGame(gameId, playerId, ctx.state.authToken);
+    if (!res.ok) {
+      if (ctx.els.playerError) {
+        ctx.els.playerError.textContent = data.error || "Unable to end game.";
+      }
+      return;
+    }
+    if (ctx.els.playerError) {
+      ctx.els.playerError.textContent = "";
+    }
+    updateFromSnapshot(ctx, data);
+  });
+}
+
+if (ctx.els.hostSettingsForm) {
+  ctx.els.hostSettingsForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!ctx.els.meta) return;
+    const gameId = ctx.els.meta.dataset.gameId;
+    const playerId = Number(ctx.els.meta.dataset.playerId);
+    const rounds = Number(ctx.els.hostRoundsInput?.value || 0);
+    const maxPlayers = Number(ctx.els.hostMaxPlayersInput?.value || 0);
+    const locked = Boolean(ctx.els.hostLobbyLocked?.checked);
+    if (ctx.els.hostSettingsStatus) {
+      ctx.els.hostSettingsStatus.textContent = "Saving...";
+    }
+    const { res, data } = await postSettings(gameId, {
+      player_id: playerId,
+      auth_token: ctx.state.authToken,
+      rounds,
+      max_players: maxPlayers,
+      lobby_locked: locked
+    });
+    if (!res.ok) {
+      if (ctx.els.hostSettingsStatus) {
+        ctx.els.hostSettingsStatus.textContent = data.error || "Unable to save settings.";
+      }
+      return;
+    }
+    if (ctx.els.hostSettingsStatus) {
+      ctx.els.hostSettingsStatus.textContent = "Settings saved.";
+    }
+    if (ctx.els.playerError) {
+      ctx.els.playerError.textContent = "";
+    }
+    updateFromSnapshot(ctx, data);
+  });
+}
+
+if (ctx.els.hostPlayerActions) {
+  ctx.els.hostPlayerActions.addEventListener("click", async (event) => {
+    const target = event.target;
+    if (!target || target.tagName !== "BUTTON") {
+      return;
+    }
+    if (target.disabled || !ctx.els.meta) {
+      return;
+    }
+    const targetID = Number(target.dataset.playerId || 0);
+    if (!targetID) {
+      return;
+    }
+    const gameId = ctx.els.meta.dataset.gameId;
+    const playerId = Number(ctx.els.meta.dataset.playerId);
+    const { res, data } = await postKick(gameId, {
+      player_id: playerId,
+      auth_token: ctx.state.authToken,
+      target_id: targetID
+    });
+    if (!res.ok) {
+      if (ctx.els.playerError) {
+        ctx.els.playerError.textContent = data.error || "Unable to remove player.";
       }
       return;
     }
@@ -248,7 +432,10 @@ if (ctx.els.voteForm) {
     }
     const gameId = ctx.els.meta.dataset.gameId;
     const playerId = Number(ctx.els.meta.dataset.playerId);
-    const { res, data } = await postVote(gameId, playerId, selected.value);
+    const { res, data } = await postVote(gameId, playerId, {
+      choice_id: selected.value,
+      choice: selected.dataset.choiceText || ""
+    });
     if (!res.ok) {
       if (ctx.els.playerError) {
         ctx.els.playerError.textContent = data.error || "Unable to submit vote.";

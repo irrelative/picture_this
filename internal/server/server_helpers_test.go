@@ -6,10 +6,23 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
+	"sync"
 	"testing"
 )
 
 const testAvatarData = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMBAp4pWZkAAAAASUVORK5CYII="
+
+var (
+	testAuthTokensMu sync.Mutex
+	testAuthTokens   = map[string]string{}
+)
+
+func resetTestAuthTokens() {
+	testAuthTokensMu.Lock()
+	defer testAuthTokensMu.Unlock()
+	testAuthTokens = map[string]string{}
+}
 
 func createGame(t *testing.T, ts *httptest.Server) string {
 	t.Helper()
@@ -41,12 +54,20 @@ func joinPlayer(t *testing.T, ts *httptest.Server, gameID, name string) int {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
 	}
 	body := decodeBody(t, resp)
-	return int(body["player_id"].(float64))
+	playerID := int(body["player_id"].(float64))
+	if token, ok := body["auth_token"].(string); ok && strings.TrimSpace(token) != "" {
+		setTestAuthToken(gameID, playerID, token)
+	}
+	return playerID
 }
 
 func fetchPrompt(t *testing.T, ts *httptest.Server, gameID string, playerID int) string {
 	t.Helper()
-	resp := doRequest(t, ts, http.MethodGet, "/api/games/"+gameID+"/players/"+strconv.Itoa(playerID)+"/prompt", nil)
+	query := ""
+	if token := getTestAuthToken(gameID, playerID); token != "" {
+		query = "?auth_token=" + token
+	}
+	resp := doRequest(t, ts, http.MethodGet, "/api/games/"+gameID+"/players/"+strconv.Itoa(playerID)+"/prompt"+query, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
 	}
@@ -69,6 +90,7 @@ func fetchSnapshot(t *testing.T, ts *httptest.Server, gameID string) map[string]
 
 func doRequest(t *testing.T, ts *httptest.Server, method, path string, payload any) *http.Response {
 	t.Helper()
+	payload = withInjectedAuthToken(path, payload)
 	var body *bytes.Reader
 	if payload != nil {
 		data, err := json.Marshal(payload)
@@ -99,6 +121,7 @@ func doRequest(t *testing.T, ts *httptest.Server, method, path string, payload a
 
 func doRequestNoRedirect(t *testing.T, ts *httptest.Server, method, path string, payload any) *http.Response {
 	t.Helper()
+	payload = withInjectedAuthToken(path, payload)
 	var body *bytes.Reader
 	if payload != nil {
 		data, err := json.Marshal(payload)
@@ -146,4 +169,73 @@ func assertString(t *testing.T, value any) {
 	if _, ok := value.(string); !ok {
 		t.Fatalf("expected string, got %T", value)
 	}
+}
+
+func authKey(gameID string, playerID int) string {
+	return gameID + ":" + strconv.Itoa(playerID)
+}
+
+func setTestAuthToken(gameID string, playerID int, token string) {
+	testAuthTokensMu.Lock()
+	defer testAuthTokensMu.Unlock()
+	testAuthTokens[authKey(gameID, playerID)] = token
+}
+
+func getTestAuthToken(gameID string, playerID int) string {
+	testAuthTokensMu.Lock()
+	defer testAuthTokensMu.Unlock()
+	return testAuthTokens[authKey(gameID, playerID)]
+}
+
+func extractGameIDFromPath(path string) string {
+	parts := strings.Split(path, "/")
+	for i := 0; i < len(parts)-2; i++ {
+		if parts[i] == "api" && parts[i+1] == "games" {
+			gameID := strings.Split(parts[i+2], "?")[0]
+			if gameID != "" {
+				return gameID
+			}
+		}
+	}
+	return ""
+}
+
+func withInjectedAuthToken(path string, payload any) any {
+	body, ok := payload.(map[string]any)
+	if !ok || body == nil {
+		return payload
+	}
+	if _, exists := body["auth_token"]; exists {
+		return payload
+	}
+	playerRaw, hasPlayer := body["player_id"]
+	if !hasPlayer {
+		return payload
+	}
+	playerID := 0
+	switch value := playerRaw.(type) {
+	case int:
+		playerID = value
+	case float64:
+		playerID = int(value)
+	default:
+		return payload
+	}
+	if playerID <= 0 {
+		return payload
+	}
+	gameID := extractGameIDFromPath(path)
+	if gameID == "" {
+		return payload
+	}
+	token := getTestAuthToken(gameID, playerID)
+	if token == "" {
+		return payload
+	}
+	copyBody := make(map[string]any, len(body)+1)
+	for key, value := range body {
+		copyBody[key] = value
+	}
+	copyBody["auth_token"] = token
+	return copyBody
 }

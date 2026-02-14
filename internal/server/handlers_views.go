@@ -31,7 +31,6 @@ func (s *Server) handleGameView(c *gin.Context) {
 	}
 	templ.Handler(web.GameView(uri.GameID)).ServeHTTP(c.Writer, c.Request)
 }
-
 func (s *Server) handleDisplayView(c *gin.Context) {
 	var uri gameURI
 	if !bindURI(c, &uri) {
@@ -67,6 +66,24 @@ func (s *Server) handleJoinView(c *gin.Context) {
 		name = s.sessions.GetName(c.Writer, c.Request)
 	}
 	templ.Handler(web.JoinView(code, name)).ServeHTTP(c.Writer, c.Request)
+}
+
+func (s *Server) handleAudienceView(c *gin.Context) {
+	var uri gameURI
+	if !bindURI(c, &uri) {
+		return
+	}
+	game, ok := s.store.GetGame(uri.GameID)
+	if !ok {
+		log.Printf("audience view missing game_id=%s", uri.GameID)
+		c.Redirect(http.StatusFound, "/")
+		return
+	}
+	name := ""
+	if s.sessions != nil {
+		name = s.sessions.GetName(c.Writer, c.Request)
+	}
+	templ.Handler(web.AudienceView(game.ID, name)).ServeHTTP(c.Writer, c.Request)
 }
 
 func (s *Server) handleReplayView(c *gin.Context) {

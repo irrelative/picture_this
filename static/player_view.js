@@ -8,7 +8,6 @@ function normalizePhase(phase) {
 export function updateFromSnapshot(ctx, data) {
   const { els, state, actions } = ctx;
   const phase = normalizePhase(data.phase);
-  const prevPhase = state.lastPhase || "";
   els.joinCode.textContent = data.join_code || "Unavailable";
   els.gameStatus.textContent = phase || "Unknown";
   els.playerList.innerHTML = "";
@@ -21,6 +20,7 @@ export function updateFromSnapshot(ctx, data) {
   }
   const colorMap = data.player_colors || {};
   const avatarMap = data.player_avatars || {};
+  const avatarLocks = data.player_avatar_locks || {};
   const playerIDs = Array.isArray(data.player_ids) ? data.player_ids : [];
   players.forEach((player, index) => {
     const item = document.createElement("li");
@@ -63,15 +63,6 @@ export function updateFromSnapshot(ctx, data) {
     }
   }
 
-  if (phase === "drawings" && prevPhase === "guesses-votes" && roundNumber > 1) {
-    state.showScoreboard = true;
-  }
-  if (phase !== "drawings") {
-    state.showScoreboard = false;
-  }
-  if (state.drawingSubmitted) {
-    state.showScoreboard = false;
-  }
   state.lastPhase = phase;
 
   state.hostId = data.host_id || 0;
@@ -80,24 +71,31 @@ export function updateFromSnapshot(ctx, data) {
   const isHost = playerId !== 0 && playerId === state.hostId;
   if (els.playerName && playerNameValue) {
     if (isHost) {
-      els.playerName.textContent = `Signed in as ${playerNameValue}. You're the host — start the game when at least two players have joined.`;
+      els.playerName.textContent = `Signed in as ${playerNameValue}. You're the host.`;
     } else {
       els.playerName.textContent = `Signed in as ${playerNameValue}. Waiting for the host to begin.`;
     }
   }
   if (els.hostSection) {
-    els.hostSection.style.display = "grid";
+    els.hostSection.style.display = isHost ? "grid" : "none";
   }
   if (els.hostStartGame) {
     const enoughPlayers = players.length >= 2;
     const canStart = phase === "lobby" && isHost && enoughPlayers;
     els.hostStartGame.disabled = !canStart;
     els.hostStartGame.style.display = isHost ? "inline-flex" : "none";
+    if (els.hostAdvanceGame) {
+      const canAdvance = phase !== "lobby" && phase !== "complete" && isHost;
+      els.hostAdvanceGame.disabled = !canAdvance;
+      els.hostAdvanceGame.style.display = isHost ? "inline-flex" : "none";
+    }
     if (els.hostHelp) {
-      if (phase !== "lobby") {
-        els.hostHelp.textContent = "Game already started.";
-      } else if (!isHost) {
-        els.hostHelp.textContent = "Only the host can start the game.";
+      if (!isHost) {
+        els.hostHelp.textContent = "Only the host can control game flow.";
+      } else if (phase === "complete") {
+        els.hostHelp.textContent = "Game complete.";
+      } else if (phase !== "lobby") {
+        els.hostHelp.textContent = "Use Advance when everyone is ready for the next step.";
       } else if (!enoughPlayers) {
         els.hostHelp.textContent = "Waiting for at least two players to join.";
       } else {
@@ -105,9 +103,56 @@ export function updateFromSnapshot(ctx, data) {
       }
     }
   }
+  if (els.hostEndGame) {
+    const canEnd = isHost && phase !== "complete";
+    els.hostEndGame.disabled = !canEnd;
+    els.hostEndGame.style.display = isHost ? "inline-flex" : "none";
+  }
+  if (els.hostLobbyStatus) {
+    const maxPlayers = data.max_players > 0 ? data.max_players : "∞";
+    const lockedText = data.lobby_locked ? "Locked" : "Open";
+    els.hostLobbyStatus.textContent = `Players: ${players.length}/${maxPlayers}. ${lockedText} lobby.`;
+  }
+  if (els.hostRoundsInput) {
+    els.hostRoundsInput.value = data.total_rounds || data.prompts_per_player || 2;
+  }
+  if (els.hostMaxPlayersInput) {
+    els.hostMaxPlayersInput.value = data.max_players || 0;
+  }
+  if (els.hostLobbyLocked) {
+    els.hostLobbyLocked.checked = Boolean(data.lobby_locked);
+  }
+  if (els.hostSettingsForm) {
+    const disabled = phase !== "lobby" || !isHost;
+    Array.from(els.hostSettingsForm.elements).forEach((el) => {
+      if (el.tagName === "BUTTON") return;
+      el.disabled = disabled;
+    });
+    const submitButton = els.hostSettingsForm.querySelector("button");
+    if (submitButton) {
+      submitButton.disabled = disabled;
+    }
+  }
+  if (els.hostPlayerActions) {
+    renderHostPlayerActions(ctx, players, playerIDs, phase, isHost, state.hostId);
+  }
 
   if (els.avatarSection) {
     els.avatarSection.style.display = phase === "lobby" ? "grid" : "none";
+  }
+  state.avatarLocked = Boolean(avatarLocks[String(playerId)] || avatarLocks[playerId]);
+  if (els.avatarCanvasWrap) {
+    const showCanvas = phase === "lobby" && !state.avatarLocked;
+    els.avatarCanvasWrap.style.display = showCanvas ? "grid" : "none";
+  }
+  if (els.avatarLockedHint) {
+    const showLockedHint = phase === "lobby" && state.avatarLocked;
+    els.avatarLockedHint.style.display = showLockedHint ? "block" : "none";
+  }
+  if (els.saveAvatar) {
+    const canSaveAvatar = phase === "lobby" && !state.avatarLocked;
+    els.saveAvatar.style.display = canSaveAvatar ? "inline-flex" : "none";
+    els.saveAvatar.disabled = !canSaveAvatar;
   }
 
   if (els.drawSection) {
@@ -140,6 +185,36 @@ export function updateFromSnapshot(ctx, data) {
   updateResultsPhase(ctx, data, phase);
 }
 
+function renderHostPlayerActions(ctx, players, playerIDs, phase, isHost, hostId) {
+  const { els } = ctx;
+  if (!els.hostPlayerActions) return;
+  els.hostPlayerActions.innerHTML = "";
+  if (!isHost) {
+    return;
+  }
+  players.forEach((playerName, index) => {
+    const playerID = Number(playerIDs[index] || 0);
+    if (!playerID) {
+      return;
+    }
+    const row = document.createElement("div");
+    row.className = "player-action-row card-surface";
+    const label = document.createElement("span");
+    label.textContent = playerID === hostId ? `${playerName}*` : playerName;
+    const kickButton = document.createElement("button");
+    kickButton.type = "button";
+    kickButton.className = "secondary";
+    kickButton.textContent = "Remove";
+    kickButton.dataset.playerId = String(playerID);
+    if (playerID === hostId || phase !== "lobby") {
+      kickButton.disabled = true;
+    }
+    row.appendChild(label);
+    row.appendChild(kickButton);
+    els.hostPlayerActions.appendChild(row);
+  });
+}
+
 function updateGuessPhase(ctx, data, phase) {
   const { els, state } = ctx;
   if (!els.guessSection) return;
@@ -149,11 +224,15 @@ function updateGuessPhase(ctx, data, phase) {
   }
   els.guessSection.style.display = "grid";
   const playerId = Number(els.meta?.dataset.playerId || 0);
-  const turn = data.guess_turn || null;
-  const isTurn = turn && turn.guesser_id === playerId;
-  const isOwnDrawing = turn && turn.drawing_owner === playerId;
-  const drawingImage = turn ? turn.drawing_image : "";
-  const guessKey = `${turn ? turn.guesser_id : "none"}-${turn ? turn.drawing_index : "none"}`;
+  const assignments = Array.isArray(data.guess_assignments) ? data.guess_assignments : [];
+  const assignment = assignments.find((entry) => Number(entry.player_id) === playerId) || null;
+  const isOwnDrawing = assignment && Number(assignment.drawing_owner) === playerId;
+  const canSubmit = Boolean(assignment) && !isOwnDrawing;
+  const remainingMap = data.guess_remaining || {};
+  const remaining = Number(remainingMap[String(playerId)] || 0);
+  const hasSubmitted = !assignment || remaining === 0;
+  const drawingImage = assignment ? assignment.drawing_image : "";
+  const guessKey = `${assignment ? assignment.drawing_index : "none"}`;
   if (guessKey !== state.lastGuessKey) {
     if (els.guessInput) {
       els.guessInput.value = "";
@@ -161,10 +240,16 @@ function updateGuessPhase(ctx, data, phase) {
     state.lastGuessKey = guessKey;
   }
   if (els.guessStatus) {
-    if (isOwnDrawing) {
-      els.guessStatus.textContent = "This is your drawing, no guessing needed.";
+    if (remaining === 0) {
+      els.guessStatus.textContent = "All your guesses are in. Waiting for others.";
+    } else if (canSubmit) {
+      els.guessStatus.textContent = `Submit your guess now. ${remaining} left this round.`;
+    } else if (isOwnDrawing) {
+      els.guessStatus.textContent = `Skipping your own drawing. ${remaining} guesses left.`;
+    } else if (hasSubmitted) {
+      els.guessStatus.textContent = `Guess submitted. ${remaining} guesses left.`;
     } else {
-      els.guessStatus.textContent = isTurn ? "Your turn to guess." : "Waiting for the next guess.";
+      els.guessStatus.textContent = `Waiting for your next assignment. ${remaining} guesses left.`;
     }
   }
   if (els.guessImage) {
@@ -172,7 +257,7 @@ function updateGuessPhase(ctx, data, phase) {
     els.guessImage.style.display = drawingImage ? "block" : "none";
   }
   if (els.guessForm) {
-    const showForm = isTurn && !isOwnDrawing;
+    const showForm = canSubmit;
     els.guessForm.style.display = showForm ? "grid" : "none";
     const submitButton = els.guessForm.querySelector("button");
     if (submitButton) {
@@ -193,29 +278,39 @@ function updateVotePhase(ctx, data, phase) {
   }
   els.voteSection.style.display = "grid";
   const playerId = Number(els.meta?.dataset.playerId || 0);
-  const turn = data.vote_turn || null;
-  const isTurn = turn && turn.voter_id === playerId;
-  const isOwnDrawing = turn && turn.drawing_owner === playerId;
-  const voteKey = `${turn ? turn.voter_id : "none"}-${turn ? turn.drawing_index : "none"}`;
+  const assignments = Array.isArray(data.vote_assignments) ? data.vote_assignments : [];
+  const assignment = assignments.find((entry) => Number(entry.player_id) === playerId) || null;
+  const isOwnDrawing = assignment && Number(assignment.drawing_owner) === playerId;
+  const remainingMap = data.vote_remaining || {};
+  const remaining = Number(remainingMap[String(playerId)] || 0);
+  const hasSubmitted = !assignment || remaining === 0;
+  const canSubmit = Boolean(assignment) && !isOwnDrawing;
+  const voteKey = `${assignment ? assignment.drawing_index : "none"}`;
   if (voteKey !== state.lastVoteKey) {
-    const note = isOwnDrawing ? "This is your drawing, no voting needed." : "";
-    renderVoteOptions(ctx, turn ? turn.options : [], note);
+    const note = isOwnDrawing ? "This is your drawing. No vote needed." : "";
+    renderVoteOptions(ctx, assignment ? assignment.options : [], note);
     state.lastVoteKey = voteKey;
   }
   if (els.voteStatus) {
-    if (isOwnDrawing) {
-      els.voteStatus.textContent = "This is your drawing, no voting needed.";
+    if (remaining === 0) {
+      els.voteStatus.textContent = "All your votes are in. Waiting for results.";
+    } else if (canSubmit) {
+      els.voteStatus.textContent = `Pick the real prompt and vote. ${remaining} left this round.`;
+    } else if (isOwnDrawing) {
+      els.voteStatus.textContent = `Skipping your own drawing. ${remaining} votes left.`;
+    } else if (hasSubmitted) {
+      els.voteStatus.textContent = `Vote submitted. ${remaining} votes left.`;
     } else {
-      els.voteStatus.textContent = isTurn ? "Your turn to vote." : "Waiting for the next vote.";
+      els.voteStatus.textContent = `Waiting for your next assignment. ${remaining} votes left.`;
     }
   }
   if (els.voteImage) {
-    const drawingImage = turn ? turn.drawing_image : "";
+    const drawingImage = assignment ? assignment.drawing_image : "";
     els.voteImage.src = drawingImage || "";
     els.voteImage.style.display = drawingImage ? "block" : "none";
   }
   if (els.voteForm) {
-    const showForm = isTurn && !isOwnDrawing;
+    const showForm = canSubmit;
     els.voteForm.style.display = showForm ? "grid" : "none";
     const submitButton = els.voteForm.querySelector("button");
     if (submitButton) {
@@ -253,7 +348,9 @@ function updateScoreboard(ctx, data, phase) {
   if (!els.scoreboardSection || !els.scoreboardList) return;
   const scores = Array.isArray(data.scores) ? data.scores : [];
   const roundNumber = data.current_round || 0;
-  const shouldShow = state.showScoreboard && phase === "drawings" && scores.length > 0;
+  const drawingsCount = data.counts ? data.counts.drawings || 0 : 0;
+  const betweenRounds = phase === "drawings" && roundNumber > 1 && drawingsCount === 0;
+  const shouldShow = betweenRounds && !state.drawingSubmitted && scores.length > 0;
   els.scoreboardSection.style.display = shouldShow ? "grid" : "none";
   if (!shouldShow) {
     return;
@@ -288,6 +385,7 @@ function renderScoreList(container, scores) {
 
 function renderVoteOptions(ctx, options, noteText) {
   const { els } = ctx;
+  const playerId = Number(els.meta?.dataset.playerId || 0);
   if (!els.voteOptions) return;
   els.voteOptions.innerHTML = "";
   if (noteText) {
@@ -304,18 +402,26 @@ function renderVoteOptions(ctx, options, noteText) {
     els.voteOptions.appendChild(note);
     return;
   }
-  options.forEach((option, index) => {
+  options.forEach((option) => {
+    const choice = option && typeof option === "object" ? option : { id: option, text: option, type: "guess" };
     const label = document.createElement("label");
     label.className = "vote-option card-surface";
     const input = document.createElement("input");
     input.type = "radio";
     input.name = "voteOption";
-    input.value = option;
-    if (index === 0) {
-      input.checked = true;
+    input.value = choice.id || choice.text || "";
+    input.dataset.choiceText = choice.text || "";
+    if (choice.type === "guess" && Number(choice.owner_id || 0) === playerId) {
+      input.disabled = true;
     }
     const span = document.createElement("span");
-    span.textContent = option;
+    span.textContent = choice.text || "";
+    if (input.disabled) {
+      span.textContent = `${choice.text || ""} (your lie)`;
+    }
+    if (choice.type === "prompt") {
+      label.classList.add("vote-option-prompt");
+    }
     label.appendChild(input);
     label.appendChild(span);
     els.voteOptions.appendChild(label);
@@ -392,17 +498,62 @@ function renderResults(ctx, results, scores) {
     votes.appendChild(votesTitle);
     const votesList = document.createElement("ul");
     votesList.className = "reveal-list";
-    (entry.votes || []).forEach((vote) => {
-      const item = document.createElement("li");
-      item.textContent = `${vote.player_name || "Player"}: ${vote.text}`;
-      votesList.appendChild(item);
-    });
+    const options = Array.isArray(entry.options) ? entry.options : [];
+    if (options.length > 0) {
+      options.forEach((option) => {
+        const item = document.createElement("li");
+        const optionType = option.type || "";
+        const optionText = option.text || "";
+        const ownerName = option.owner_name || "Player";
+        let text = optionType === "prompt" ? `Prompt: ${optionText}` : `${ownerName} wrote: ${optionText}`;
+        const playerVotes = Array.isArray(option.player_votes) ? option.player_votes : [];
+        if (playerVotes.length > 0) {
+          const voters = playerVotes.map((vote) => vote.player_name || "Player");
+          text += ` | Picked by: ${voters.join(", ")}`;
+        }
+        const audienceCount = Number(option.audience_count || 0);
+        if (audienceCount > 0) {
+          text += ` | Audience: ${audienceCount}`;
+        }
+        item.textContent = text;
+        votesList.appendChild(item);
+      });
+    } else {
+      (entry.votes || []).forEach((vote) => {
+        const item = document.createElement("li");
+        item.textContent = `${vote.player_name || "Player"}: ${vote.text}`;
+        votesList.appendChild(item);
+      });
+      if (Array.isArray(entry.audience_votes) && entry.audience_votes.length > 0) {
+        const audience = document.createElement("p");
+        audience.className = "meta";
+        const parts = entry.audience_votes.map((vote) => `${vote.text} (${vote.count})`);
+        audience.textContent = `Audience: ${parts.join(", ")}`;
+        votes.appendChild(audience);
+      }
+    }
     votes.appendChild(votesList);
 
     card.appendChild(header);
     card.appendChild(image);
     card.appendChild(guesses);
     card.appendChild(votes);
+    if (Array.isArray(entry.score_deltas) && entry.score_deltas.length > 0) {
+      const deltaBlock = document.createElement("div");
+      deltaBlock.className = "result-block";
+      const deltaTitle = document.createElement("h4");
+      deltaTitle.textContent = "Score changes";
+      const deltaList = document.createElement("ul");
+      deltaList.className = "reveal-list";
+      entry.score_deltas.forEach((delta) => {
+        const item = document.createElement("li");
+        item.textContent = `${delta.player_name || "Player"}: +${delta.delta || 0}`;
+        deltaList.appendChild(item);
+      });
+      deltaBlock.appendChild(deltaTitle);
+      deltaBlock.appendChild(deltaList);
+      card.appendChild(deltaBlock);
+    }
     if (entry.joke) {
       const joke = document.createElement("p");
       joke.className = "result-joke";
@@ -433,7 +584,13 @@ function renderReveal(ctx, reveal) {
   title.textContent = `Drawing ${reveal.drawing_index + 1}`;
   const stage = document.createElement("p");
   stage.className = "meta";
-  stage.textContent = reveal.stage === "guesses" ? "Guesses" : "Votes";
+  if (reveal.stage === "guesses") {
+    stage.textContent = "Guesses";
+  } else if (reveal.stage === "joke") {
+    stage.textContent = "Joke";
+  } else {
+    stage.textContent = "Votes";
+  }
   header.appendChild(title);
   header.appendChild(stage);
 
@@ -448,6 +605,7 @@ function renderReveal(ctx, reveal) {
 
   const list = document.createElement("ul");
   list.className = "reveal-list";
+  let promptEl = null;
   if (reveal.stage === "guesses") {
     (reveal.guesses || []).forEach((guess) => {
       const item = document.createElement("li");
@@ -458,16 +616,66 @@ function renderReveal(ctx, reveal) {
     const prompt = document.createElement("p");
     prompt.className = "prompt-text";
     prompt.textContent = `Prompt: ${reveal.prompt || ""}`;
-    els.revealSection.appendChild(prompt);
-    (reveal.votes || []).forEach((vote) => {
-      const item = document.createElement("li");
-      item.textContent = `${vote.player_name || "Player"}: ${vote.text}`;
-      list.appendChild(item);
-    });
+    promptEl = prompt;
+    const options = Array.isArray(reveal.options) ? reveal.options : [];
+    if (options.length > 0) {
+      options.forEach((option) => {
+        const item = document.createElement("li");
+        const optionType = option.type || "";
+        const optionText = option.text || "";
+        const ownerName = option.owner_name || "Player";
+        let text = optionType === "prompt" ? `Prompt: ${optionText}` : `${ownerName} wrote: ${optionText}`;
+        const playerVotes = Array.isArray(option.player_votes) ? option.player_votes : [];
+        if (playerVotes.length > 0) {
+          const voters = playerVotes.map((vote) => vote.player_name || "Player");
+          text += ` | Picked by: ${voters.join(", ")}`;
+        }
+        const audienceCount = Number(option.audience_count || 0);
+        if (audienceCount > 0) {
+          text += ` | Audience: ${audienceCount}`;
+        }
+        item.textContent = text;
+        list.appendChild(item);
+      });
+    } else {
+      const votes = Array.isArray(reveal.votes) ? reveal.votes : [];
+      votes.forEach((vote) => {
+        const item = document.createElement("li");
+        item.textContent = `${vote.player_name || "Player"}: ${vote.text}`;
+        list.appendChild(item);
+      });
+      const audienceVotes = Array.isArray(reveal.audience_votes) ? reveal.audience_votes : [];
+      if (audienceVotes.length > 0) {
+        const audience = document.createElement("p");
+        audience.className = "meta";
+        const parts = audienceVotes.map((vote) => `${vote.text} (${vote.count})`);
+        audience.textContent = `Audience: ${parts.join(", ")}`;
+        list.appendChild(audience);
+      }
+    }
   }
 
   els.revealSection.appendChild(header);
   els.revealSection.appendChild(image);
   els.revealSection.appendChild(owner);
+  if (promptEl) {
+    els.revealSection.appendChild(promptEl);
+  }
   els.revealSection.appendChild(list);
+  if (reveal.stage === "joke" && reveal.joke) {
+    const joke = document.createElement("p");
+    joke.className = "result-joke";
+    joke.textContent = reveal.joke;
+    els.revealSection.appendChild(joke);
+  }
+  if (Array.isArray(reveal.score_deltas) && reveal.score_deltas.length > 0) {
+    const deltas = document.createElement("ul");
+    deltas.className = "reveal-list";
+    reveal.score_deltas.forEach((entry) => {
+      const item = document.createElement("li");
+      item.textContent = `${entry.player_name || "Player"}: +${entry.delta || 0}`;
+      deltas.appendChild(item);
+    });
+    els.revealSection.appendChild(deltas);
+  }
 }

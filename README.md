@@ -5,8 +5,10 @@ Picture This is a Drawful-style party game with a Go backend, templ-rendered UI,
 ## How It Works
 - Host creates a game and shares the join code.
 - Players join from `/join` and receive assigned prompts.
-- Audience can join from the home page to vote during guessing rounds.
-- The game advances through drawing, guessing, guess-voting, and per-drawing results phases.
+- Host controls game flow from their player screen at `/play/{game_id}/{player_id}`.
+- In the lobby, each player can save their avatar once; after saving, it is locked for that game, the save button disappears, and a confirmation SFX plays.
+- Audience can join from the home page (or `/audience/{game_id}`) to vote during guessing rounds.
+- The game advances through drawing, guessing, guess-voting, and staged results phases.
 - Results are shown after each drawing, with final results after all rounds and state synced via websockets.
 
 ## Tech Stack
@@ -35,6 +37,11 @@ When the server starts, it will auto-migrate and load prompts from `prompts.csv`
 - `GUESS_SECONDS` — time limit per guessing phase.
 - `VOTE_SECONDS` — time limit per vote phase.
 - `REVEAL_SECONDS` — time per reveal step in results.
+- `REVEAL_GUESSES_SECONDS` — reveal duration for the guesses stage.
+- `REVEAL_VOTES_SECONDS` — reveal duration for the votes stage.
+- `REVEAL_JOKE_SECONDS` — reveal duration for the joke narration stage.
+- `OPENAI_EMBEDDING_MODEL` — embedding model used for prompt similarity checks (default `text-embedding-3-small`).
+- `PROMPT_SIMILARITY_MAX` — max cosine distance to consider a generated prompt "too similar" (default `0.12`).
 
 ## Dev Commands
 - `make init` — download local sound effects + vendor assets for the display view.
@@ -43,6 +50,12 @@ When the server starts, it will auto-migrate and load prompts from `prompts.csv`
 - `make test` — run all tests.
 - `make migrate` — apply SQL migrations in `db/migrations/`.
 - `make migrate-create name=add_table` — create a new migration pair.
+- `make joke-audio-deps` — create a Python 3.11 venv and install joke-audio dependencies.
+- `make generate-joke-audio ARGS="--limit 20"` — generate joke narration audio for prompts.
+  - Uses Coqui XTTS (`tts_models/multilingual/multi-dataset/xtts_v2`) by default.
+  - Uses `ffmpeg` to write real MP3 output; install with `brew install ffmpeg` if needed.
+  - Auto-selects a default XTTS speaker (`Rosemary Okafor`) unless you pass `--speaker` or `--speaker-wav`.
+  - You can clone a preferred voice with `ARGS="--speaker-wav path/to/voice.wav --limit 20"`.
 
 ## Deployment (Ubuntu 24.04 VPS)
 This repo includes a simple root-run setup script plus nginx/supervisor configs.
@@ -76,34 +89,34 @@ What it does:
 - Installs nginx and supervisor configs from `deploy/`.
 - Reloads nginx with the TLS config.
 
-## Planned Server Endpoints (Draft)
+## Server Endpoints
 - `POST /api/games` — create a new game; returns `game_id` and `join_code`.
 - `POST /api/games/{game_id}/join` — join a game with a player name.
+- `POST /api/games/{game_id}/avatar` — save/update your lobby avatar (one-time; locks after save).
+- `POST /api/games/{game_id}/audience` — join as audience.
+- `POST /api/games/{game_id}/audience/votes` — submit an audience vote.
 - `GET /api/games/{game_id}` — fetch a state snapshot for reconnects.
 - `POST /api/games/{game_id}/start` — host starts the game.
 - `POST /api/games/{game_id}/drawings` — submit a drawing for a prompt.
 - `POST /api/games/{game_id}/guesses` — submit a guess for a drawing.
-- `POST /api/games/{game_id}/votes` — submit a vote for the current drawing prompt.
+- `POST /api/games/{game_id}/votes` — submit a vote option for the assigned drawing.
 - `POST /api/games/{game_id}/settings` — update lobby settings (rounds, max players, prompt pack, lock).
 - `POST /api/games/{game_id}/kick` — host removes a player from the lobby.
-- `POST /api/games/{game_id}/rename` — player updates their display name in the lobby.
-- `POST /api/games/{game_id}/audience` — join as an audience member.
-- `POST /api/games/{game_id}/audience/votes` — submit audience votes for a drawing.
 - `POST /api/games/{game_id}/advance` — host/admin advances phase if needed.
 - `GET /api/games/{game_id}/results` — fetch round or final results.
 - `GET /api/games/{game_id}/events` — fetch event log for replay.
 - `GET /api/prompts/categories` — list available prompt pack categories.
 - `GET /ws/games/{game_id}` — websocket for realtime state/events.
 
-## Game State Transition Flow (Draft)
-- Phases: `lobby` -> `drawings` -> (`guesses` -> `guesses-votes` -> `results`) per drawing -> `complete`.
+## Game State Transition Flow
+- Phases: `lobby` -> `drawings` -> `guesses` -> `guesses-votes` -> `results` -> (`drawings` next round or `complete`).
 - `POST /api/games/{game_id}/start` moves `lobby` to `drawings`.
 - Each round assigns one prompt per player from the prompt library.
 - Prompts do not repeat within a game session.
-- When all drawings are in, the game moves to `guesses` and walks each guess turn per drawing.
-- After a drawing's guesses complete, the game moves to `guesses-votes` for that drawing.
-- After voting completes for that drawing, `results` reveals guesses and votes for that drawing (guesses first, then votes).
-- When all drawings in the round have been revealed, a new round starts (if `PROMPTS_PER_PLAYER` > round count) or the game moves to `complete` for final results.
+- When all drawings are in, players guess concurrently on one drawing at a time, then advance to the next drawing once everyone assigned has answered.
+- Voting follows the same per-drawing concurrent flow.
+- `results` reveals each drawing in sequence with staged reveals: guesses -> votes -> optional joke.
+- After all drawings in the round are revealed, a new round starts (if `PROMPTS_PER_PLAYER` > round count) or the game moves to `complete`.
 
 ## Roadmap (Drawful Parity)
 ### Priority 1: Core Game Scoring & Flow
@@ -141,22 +154,11 @@ What it does:
 ## Sound Effects
 Display-mode sound effects are pulled from OpenGameArt:
 - Join: https://opengameart.org/content/pop-sounds-0 (pop2.wav.ogg) -> `static/sounds/join.ogg`
+- Avatar save confirm (player lobby): `static/sounds/join.ogg`
 - Round start: https://opengameart.org/content/pop-sounds-0 (pop1.wav) -> `static/sounds/round_start.ogg`
 - Timer ending: https://opengameart.org/content/pop-sounds-0 (pop9.wav) -> `static/sounds/timer_end.ogg`
 - Voting start: https://opengameart.org/content/ui-accept-or-forward (Accept.mp3) -> `static/sounds/voting_start.mp3`
 
-Please review licensing requirements at the source before distribution.
-
-For now, don't include:
-* Voiceover. Instead, have the instructions printed to the WebUI
-
 
 ## TODO
 * Music and SFX generation
-* Make the jokes snarkier, and the prompts wittier
-* Pagination metadata for navigation (# of pages, etc)
-* Search for admin view (prompts)
-
-
-## Ideas
-* Vectors for prompts to ensure no overlaps

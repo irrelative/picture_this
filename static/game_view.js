@@ -8,6 +8,11 @@ export function updateFromSnapshot(ctx, data) {
     els.startGame.style.display = phase === "lobby" ? "inline-flex" : "none";
     els.startGame.disabled = phase === "lobby" ? (data.players?.length || 0) < 2 : true;
   }
+  if (els.advanceGame) {
+    const canAdvance = phase !== "lobby" && phase !== "complete";
+    els.advanceGame.style.display = canAdvance ? "inline-flex" : "none";
+    els.advanceGame.disabled = !canAdvance;
+  }
   if (els.endGame) {
     els.endGame.style.display = phase !== "complete" ? "inline-flex" : "none";
   }
@@ -83,7 +88,7 @@ export function updateFromSnapshot(ctx, data) {
   }
   if (els.hostStatus) {
     if (phase !== "lobby") {
-      els.hostStatus.textContent = "Host controls are disabled once the game begins.";
+      els.hostStatus.textContent = "Use Advance to move to the next stage when everyone is ready.";
     } else if (players.length < 2) {
       els.hostStatus.textContent = "Waiting for at least two players to join.";
     } else {
@@ -129,8 +134,10 @@ function updateDisplayHeader(ctx, data) {
 
 function updateDisplayStage(ctx, data, phase) {
   const { els } = ctx;
-  const guessTurn = data.guess_turn || null;
-  const voteTurn = data.vote_turn || null;
+  const guessAssignments = Array.isArray(data.guess_assignments) ? data.guess_assignments : [];
+  const voteAssignments = Array.isArray(data.vote_assignments) ? data.vote_assignments : [];
+  const guessTurn = data.guess_focus || (guessAssignments.length > 0 ? guessAssignments[0] : null);
+  const voteTurn = data.vote_focus || (voteAssignments.length > 0 ? voteAssignments[0] : null);
   const names = buildNameMap(data);
   if (!els.displayStageTitle || !els.displayStageStatus) return;
 
@@ -149,11 +156,21 @@ function updateDisplayStage(ctx, data, phase) {
   if (phase === "guesses") {
     const drawingImage = guessTurn ? guessTurn.drawing_image : "";
     const ownerName = guessTurn ? names[guessTurn.drawing_owner] : "";
-    const guesserName = guessTurn ? names[guessTurn.guesser_id] : "";
-    const status = ownerName
-      ? `Guessing the prompt for ${ownerName}'s drawing.`
-      : "Guessing in progress.";
-    setStage(els, guesserName ? `Guessing: ${guesserName}` : "Guessing prompts", status, drawingImage);
+    const required = Number(data.guess_required_count || 0);
+    const submitted = Number(data.guess_submitted_count || 0);
+    let status = ownerName
+      ? `Collecting guesses for ${ownerName}'s drawing.`
+      : "Collecting guesses.";
+    if (required > 0) {
+      status += ` (${submitted}/${required} submitted)`;
+    }
+    if (guessAssignments.length > 0) {
+      const pendingForOne = Array.isArray(guessTurn.pending_for_one) ? guessTurn.pending_for_one.length : 0;
+      if (pendingForOne > 0) {
+        status += ` ${pendingForOne} left on this drawing.`;
+      }
+    }
+    setStage(els, "Guessing prompts", status, drawingImage);
     setOptions(els, []);
     return;
   }
@@ -161,7 +178,18 @@ function updateDisplayStage(ctx, data, phase) {
   if (phase === "guesses-votes") {
     const drawingImage = voteTurn ? voteTurn.drawing_image : "";
     const ownerName = voteTurn ? names[voteTurn.drawing_owner] : "";
-    const status = ownerName ? `Vote on the real prompt for ${ownerName}'s drawing.` : "Voting on prompts.";
+    const required = Number(data.vote_required_count || 0);
+    const submitted = Number(data.vote_submitted_count || 0);
+    let status = ownerName ? `Vote on the real prompt for ${ownerName}'s drawing.` : "Voting on prompts.";
+    if (required > 0) {
+      status += ` (${submitted}/${required} submitted)`;
+    }
+    if (voteAssignments.length > 0) {
+      const pendingForOne = Array.isArray(voteTurn.pending_for_one) ? voteTurn.pending_for_one.length : 0;
+      if (pendingForOne > 0) {
+        status += ` ${pendingForOne} left on this drawing.`;
+      }
+    }
     setStage(els, "Vote for the real prompt", status, drawingImage);
     setOptions(els, voteTurn ? voteTurn.options : []);
     return;
@@ -169,12 +197,20 @@ function updateDisplayStage(ctx, data, phase) {
 
   if (phase === "results") {
     const reveal = data.reveal || null;
-    if (reveal && reveal.drawing_image) {
-      setStage(els, "Drawing results", "Reviewing answers and votes.", reveal.drawing_image);
-    } else {
-      setStage(els, "Drawing results", "Reviewing answers and votes.", "");
+    let status = "Reviewing answers and votes.";
+    if (reveal && reveal.stage === "guesses") {
+      status = "Revealing guesses.";
+    } else if (reveal && reveal.stage === "votes") {
+      status = "Revealing votes.";
+    } else if (reveal && reveal.stage === "joke") {
+      status = "Narrator is reading the joke.";
     }
-    setOptions(els, []);
+    if (reveal && reveal.drawing_image) {
+      setStage(els, "Drawing results", status, reveal.drawing_image);
+    } else {
+      setStage(els, "Drawing results", status, "");
+    }
+    setOptions(els, revealOptions(reveal));
     return;
   }
 
@@ -242,7 +278,8 @@ function setOptions(els, options) {
   options.forEach((option) => {
     const item = document.createElement("li");
     item.className = "card-surface";
-    item.textContent = option;
+    const text = option && typeof option === "object" ? option.text : option;
+    item.textContent = text || "";
     list.appendChild(item);
   });
   els.displayOptions.appendChild(list);
@@ -275,4 +312,61 @@ function buildNameMap(data) {
     map[ids[index]] = player;
   });
   return map;
+}
+
+function revealOptions(reveal) {
+  if (!reveal) return [];
+  const lines = [];
+  if (reveal.stage === "guesses") {
+    const guesses = Array.isArray(reveal.guesses) ? reveal.guesses : [];
+    guesses.forEach((guess) => {
+      lines.push(`${guess.player_name || "Player"}: ${guess.text || ""}`);
+    });
+  } else {
+    const options = Array.isArray(reveal.options) ? reveal.options : [];
+    if (options.length > 0) {
+      options.forEach((option) => {
+        const type = option.type || "";
+        const text = option.text || "";
+        const owner = option.owner_name || "Player";
+        if (type === "prompt") {
+          lines.push(`Prompt: ${text}`);
+        } else {
+          lines.push(`${owner} wrote: ${text}`);
+        }
+        const playerVotes = Array.isArray(option.player_votes) ? option.player_votes : [];
+        if (playerVotes.length > 0) {
+          const voters = playerVotes.map((vote) => vote.player_name || "Player");
+          lines.push(`Picked by: ${voters.join(", ")}`);
+        }
+        const audienceCount = Number(option.audience_count || 0);
+        if (audienceCount > 0) {
+          lines.push(`Audience picks: ${audienceCount}`);
+        }
+      });
+    } else {
+      if (reveal.prompt) {
+        lines.push(`Prompt: ${reveal.prompt}`);
+      }
+      const votes = Array.isArray(reveal.votes) ? reveal.votes : [];
+      votes.forEach((vote) => {
+        lines.push(`${vote.player_name || "Player"}: ${vote.text || ""}`);
+      });
+      const audienceVotes = Array.isArray(reveal.audience_votes) ? reveal.audience_votes : [];
+      audienceVotes.forEach((vote) => {
+        lines.push(`Audience: ${vote.text || ""} (${vote.count || 0})`);
+      });
+    }
+    if (reveal.stage === "joke" && reveal.joke) {
+      lines.push(`Joke: ${reveal.joke}`);
+    }
+  }
+  const deltas = Array.isArray(reveal.score_deltas) ? reveal.score_deltas : [];
+  if (deltas.length > 0) {
+    lines.push("Score changes:");
+    deltas.forEach((entry) => {
+      lines.push(`${entry.player_name || "Player"}: +${entry.delta || 0}`);
+    });
+  }
+  return lines;
 }

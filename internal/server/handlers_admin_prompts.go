@@ -12,7 +12,6 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm/clause"
 )
 
 func (s *Server) handleAdminPromptsView(c *gin.Context) {
@@ -50,6 +49,10 @@ func (s *Server) handleAdminPromptCreate(c *gin.Context) {
 	entry := db.PromptLibrary{Text: text, Joke: joke}
 	if err := s.db.Create(&entry).Error; err != nil {
 		s.renderPromptLibraryError(c, "Failed to save prompt (it may already exist).", text, joke, searchQuery)
+		return
+	}
+	if err := s.ensurePromptLibraryEmbedding(c.Request.Context(), entry.ID, entry.Text); err != nil {
+		s.renderPromptLibraryError(c, "Prompt saved, but embedding generation failed.", text, joke, searchQuery)
 		return
 	}
 
@@ -91,13 +94,26 @@ func (s *Server) handleAdminPromptGenerate(c *gin.Context) {
 		s.renderPromptLibraryGenerateError(c, "No valid prompts were generated. Try again.", instructions, searchQuery)
 		return
 	}
-	result := s.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&entries)
-	if result.Error != nil {
+
+	filteredEntries, embeddingByText, err := s.filterGeneratedPromptEntries(c.Request.Context(), entries)
+	if err != nil {
+		s.renderPromptLibraryGenerateError(c, "Failed to compare generated prompts with existing prompts.", instructions, searchQuery)
+		return
+	}
+	if len(filteredEntries) == 0 {
+		s.renderPromptLibraryGenerateError(c, "All generated prompts were too similar to existing prompts. Try different guidance.", instructions, searchQuery)
+		return
+	}
+	added, err := s.insertPromptLibraryEntries(c.Request.Context(), filteredEntries, embeddingByText)
+	if err != nil {
 		s.renderPromptLibraryGenerateError(c, "Failed to save generated prompts.", instructions, searchQuery)
 		return
 	}
+	if added == 0 {
+		s.renderPromptLibraryGenerateError(c, "Generated prompts already exist or were too similar.", instructions, searchQuery)
+		return
+	}
 
-	added := result.RowsAffected
 	c.Redirect(http.StatusFound, promptLibraryRedirectURL(searchQuery, fmt.Sprintf("Added %d prompt(s) to the library.", added)))
 }
 
@@ -136,6 +152,10 @@ func (s *Server) handleAdminPromptUpdate(c *gin.Context) {
 		"Joke": joke,
 	}).Error; err != nil {
 		s.renderPromptLibraryError(c, "Failed to update prompt (it may already exist).", text, joke, searchQuery)
+		return
+	}
+	if err := s.ensurePromptLibraryEmbedding(c.Request.Context(), entry.ID, text); err != nil {
+		s.renderPromptLibraryError(c, "Prompt updated, but embedding generation failed.", text, joke, searchQuery)
 		return
 	}
 
@@ -187,7 +207,7 @@ func (s *Server) loadPromptLibraryData(page, perPage int, searchQuery string) we
 	}
 	pagination := buildPaginationData(promptLibraryBasePath(searchQuery), page, perPage, total)
 	offset := (pagination.Page - 1) * pagination.PerPage
-	if err := query.Order("text asc, id asc").Limit(pagination.PerPage).Offset(offset).Find(&data.Prompts).Error; err != nil {
+	if err := query.Order("id asc").Limit(pagination.PerPage).Offset(offset).Find(&data.Prompts).Error; err != nil {
 		data.Error = "Failed to load prompt library."
 	}
 	data.Pagination = pagination

@@ -1,44 +1,25 @@
-import { setupCanvas } from "./player_canvas.js";
-
 const joinForm = document.getElementById("joinForm");
 const joinResult = document.getElementById("joinResult");
-const avatarCanvas = document.getElementById("avatarCanvas");
 const joinAs = document.getElementById("joinAs");
 const joinAsButtons = document.getElementById("joinAsButtons");
-
-const avatarState = {
-  canvasCtx: null,
-  canvasWidth: 800,
-  canvasHeight: 600,
-  brushColor: "#1a1a1a",
-  brushSize: 12
-};
-
-if (avatarCanvas) {
-  setupCanvas(
-    {
-      els: { canvas: avatarCanvas },
-      state: avatarState
-    },
-    () => {}
-  );
-}
 
 async function submitJoin(nameOverride) {
   if (!joinForm) return;
   joinResult.textContent = "Joining game...";
   const code = joinForm.elements.code.value.trim();
   const name = (nameOverride || joinForm.elements.name.value || "").trim();
-  const avatarData = avatarCanvas ? avatarCanvas.toDataURL("image/png") : "";
   const res = await fetch(`/api/games/${encodeURIComponent(code)}/join`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, avatar_data: avatarData })
+    body: JSON.stringify({ name })
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     joinResult.textContent = data.error || "Failed to join game.";
     return;
+  }
+  if (data.auth_token && data.game_id && data.player_id) {
+    localStorage.setItem(`pt_auth_${data.game_id}_${data.player_id}`, data.auth_token);
   }
   window.location.href = `/play/${encodeURIComponent(data.game_id)}/${encodeURIComponent(data.player_id)}`;
 }

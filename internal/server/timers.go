@@ -7,7 +7,7 @@ import (
 )
 
 func (s *Server) schedulePhaseTimer(game *Game) {
-	duration := s.phaseDuration(game.Phase)
+	duration := s.phaseDuration(game)
 	if duration <= 0 {
 		s.cancelPhaseTimer(game.ID)
 		return
@@ -32,8 +32,11 @@ func (s *Server) cancelPhaseTimer(gameID string) {
 	}
 }
 
-func (s *Server) phaseDuration(phase string) time.Duration {
-	switch phase {
+func (s *Server) phaseDuration(game *Game) time.Duration {
+	if game == nil {
+		return 0
+	}
+	switch game.Phase {
 	case phaseDrawings:
 		return time.Duration(s.cfg.DrawDurationSeconds) * time.Second
 	case phaseGuesses:
@@ -41,6 +44,24 @@ func (s *Server) phaseDuration(phase string) time.Duration {
 	case phaseGuessVotes:
 		return time.Duration(s.cfg.VoteDurationSeconds) * time.Second
 	case phaseResults:
+		round := currentRound(game)
+		if round == nil {
+			return time.Duration(s.cfg.RevealDurationSeconds) * time.Second
+		}
+		switch round.RevealStage {
+		case revealStageVotes:
+			if s.cfg.RevealVotesSeconds > 0 {
+				return time.Duration(s.cfg.RevealVotesSeconds) * time.Second
+			}
+		case revealStageJoke:
+			if s.cfg.RevealJokeSeconds > 0 {
+				return time.Duration(s.cfg.RevealJokeSeconds) * time.Second
+			}
+		default:
+			if s.cfg.RevealGuessesSeconds > 0 {
+				return time.Duration(s.cfg.RevealGuessesSeconds) * time.Second
+			}
+		}
 		return time.Duration(s.cfg.RevealDurationSeconds) * time.Second
 	default:
 		return 0
@@ -49,15 +70,33 @@ func (s *Server) phaseDuration(phase string) time.Duration {
 
 func (s *Server) autoAdvancePhase(gameID string, expectedPhase string) {
 	now := time.Now().UTC()
+	filledGuesses := make([]autoFilledGuess, 0)
+	filledVotes := make([]autoFilledVote, 0)
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
 		if game.Phase != expectedPhase {
 			return errors.New("phase changed")
+		}
+		if expectedPhase == phaseGuesses {
+			filledGuesses = append(filledGuesses, autoFillMissingGuesses(game)...)
+		}
+		if expectedPhase == phaseGuessVotes {
+			filledVotes = append(filledVotes, autoFillMissingVotes(game)...)
 		}
 		_, err := s.advancePhase(game, transitionAuto, now)
 		return err
 	})
 	if err != nil {
 		return
+	}
+	for _, filled := range filledGuesses {
+		if err := s.persistGuess(game, filled.PlayerID, filled.DrawingIndex, filled.Text); err != nil {
+			log.Printf("auto-fill persist guess failed game_id=%s player_id=%d error=%v", game.ID, filled.PlayerID, err)
+		}
+	}
+	for _, filled := range filledVotes {
+		if err := s.persistVote(game, filled.PlayerID, filled.RoundNumber, filled.DrawingIndex, filled.ChoiceText, filled.ChoiceType); err != nil {
+			log.Printf("auto-fill persist vote failed game_id=%s player_id=%d error=%v", game.ID, filled.PlayerID, err)
+		}
 	}
 	if game.Phase == phaseDrawings && expectedPhase != phaseDrawings {
 		if err := s.persistRound(game); err != nil {

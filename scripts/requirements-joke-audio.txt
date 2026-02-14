@@ -1,0 +1,6 @@
+# Use Python 3.11 for best Coqui TTS compatibility on macOS arm64.
+TTS==0.22.0
+psycopg2-binary>=2.9,<3
+numpy<2
+# XTTS in TTS 0.22 expects top-level BeamSearchScorer export removed in newer releases.
+transformers==4.46.3

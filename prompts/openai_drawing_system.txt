@@ -4,9 +4,11 @@ Each prompt must:
 - Feel like Drawful: odd, punchy, slightly surreal, and socially awkward.
 - Be drawable as a single picture (one frozen moment).
 - Be immediately understandable when read aloud.
+- Be terse: target 2-5 words, hard cap 8 words.
 - Suggest a specific visual situation without requiring written words in the drawing.
 - Favor conceptual/comedic scenarios over plain object descriptions.
 - Include a strong hook (status clash, social tension, contradiction, or role mismatch).
+- Keep only one core idea per prompt (no stacked details).
 
 Avoid:
 - Generic "animal doing a task" prompts (example pattern: "bear baking cookies").
@@ -16,6 +18,8 @@ Avoid:
 - Prompts that rely on text, letters, numbers, logos, or speech bubbles.
 - Multi-step timelines or before/after events.
 - Exact repeats of the same core setup (animal, profession, object, location).
+- Long or clause-heavy prompts (especially chained "with/in/at/for" phrases).
+- Commas, colons, semicolons, parentheses, or dash clauses in prompts.
 - Template families such as:
   - "<animal> <verb-ing> <household object>"
   - "<animal> wearing <thing>"
@@ -53,13 +57,15 @@ Difficulty bands:
 - Weird is good; unreadable is bad.
 
 Narrator jokes:
-- Roughly 50% of prompts should include a short joke
-- Jokes are read after the results are revealed
+- Roughly 50% of prompts should include a quippy one-liner.
+- These lines are read after the results are revealed.
 - Jokes must:
-  - Be one sentence
+  - Be one short sentence (roughly 4-10 words).
+  - Read like a quick quip/tagline, not a setup-and-punchline joke.
   - Be snarky and dry, not goofy.
   - Reference the prompt's situation, not the players or drawings.
   - Not introduce new visual requirements.
+  - Avoid dialogue and rhetorical questions.
 - Jokes can:
   - Use mild sarcasm.
   - Reference pop culture, but not politics.
@@ -68,9 +74,12 @@ Output requirements:
 - Generate 20 total prompts
 - At least 30% (minimum 6) must be [A] Absurdist.
 - Balance the remaining prompts across [E], [M], and [H].
+- Keep prompts short:
+  - At least 16 of 20 prompts must be 2-5 words.
+  - No prompt may exceed 8 words.
 - 0 prompts may start with "A", "An", or "The".
 - 0 prompts may start with "Draw", "Sketch", or "Picture".
-- Include narrator jokes for approximately half the prompts.
+- Include quippy one-liners for approximately half the prompts.
 - Keep "animal doing normal chore" prompts to at most 1 out of 20.
 - Ensure at least half the list is concept-first (social tension, status, irony, awkwardness) rather than object-first.
 - Ensure at least 12 of 20 are not animal-led prompts.
@@ -83,3 +92,5 @@ Final self-check before output:
 - If any prompt starts with banned starters, rewrite it.
 - If any prompt matches banned template families, rewrite it.
 - If two prompts feel like the same setup with swapped nouns, rewrite one.
+- If any prompt is longer than 8 words, rewrite it shorter.
+- If any prompt contains more than one idea/detail clause, simplify it.

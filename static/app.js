@@ -36,6 +36,9 @@ if (joinForm) {
         joinResult.textContent = data.error || "Failed to join game.";
         return;
       }
+      if (data.auth_token && data.game_id && data.player_id) {
+        localStorage.setItem(`pt_auth_${data.game_id}_${data.player_id}`, data.auth_token);
+      }
       window.location.href = "/play/" + encodeURIComponent(data.game_id) + "/" + encodeURIComponent(data.player_id);
     });
 }
@@ -79,6 +82,9 @@ if (activeGames) {
         resultEl.textContent = data.error || "Failed to join game.";
       }
       return;
+    }
+    if (data.auth_token && data.game_id && data.player_id) {
+      localStorage.setItem(`pt_auth_${data.game_id}_${data.player_id}`, data.auth_token);
     }
     const targetGame = data.game_id || gameId;
     window.location.href = "/play/" + encodeURIComponent(targetGame) + "/" + encodeURIComponent(data.player_id);

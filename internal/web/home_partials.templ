@@ -21,11 +21,13 @@ templ ActiveGamesList(games []GameSummary) {
 								data-result-id={ "joinResult-" + game.ID }
 								type="button"
 							>Join lobby</button>
+							<a class="secondary" href={ "/audience/" + game.ID }>Join audience</a>
 							<a class="secondary" href={ "/display/" + game.ID }>Display game</a>
 						</div>
 					} else {
 						<div class="inline-actions">
 							<span class="status-pill">In progress</span>
+							<a class="secondary" href={ "/audience/" + game.ID }>Join audience</a>
 							<a class="secondary" href={ "/display/" + game.ID }>Display game</a>
 						</div>
 					}

@@ -1,0 +1,60 @@
+package web
+
+templ AudienceView(gameID string, playerName string) {
+	@Layout("Picture This | Audience", "/static/audience.js", "") {
+		<header class="hero">
+			<span class="tag">Audience View</span>
+			<h1>Watch and vote</h1>
+			<p>Join the crowd and pick the real prompt each round.</p>
+		</header>
+
+		<section class="panel">
+			<div>
+				<h2>Game status</h2>
+				<p id="audienceJoinCode" class="join-code">Loading...</p>
+			</div>
+			<div class="status">
+				<span class="label">Phase</span>
+				<p id="audiencePhase" role="status" aria-live="polite">Loading...</p>
+				<span class="label">Time left</span>
+				<p id="audienceTimer" class="display-timer">--:--</p>
+			</div>
+		</section>
+
+		<section id="audienceJoinPanel" class="panel">
+			<div>
+				<h2>Join audience</h2>
+				<p>Pick a display name to submit audience votes.</p>
+			</div>
+			<form id="audienceJoinForm" class="join-form join-only">
+				<label class="field">
+					<span class="label">Display name</span>
+					if playerName != "" {
+						<input id="audienceName" name="name" placeholder="Display name" autocomplete="name" value={ playerName } required/>
+					} else {
+						<input id="audienceName" name="name" placeholder="Display name" autocomplete="name" required/>
+					}
+				</label>
+				<button type="submit" class="primary">Join audience</button>
+			</form>
+		</section>
+
+		<section id="audienceVotePanel" class="panel vote-panel">
+			<div>
+				<h2>Audience vote</h2>
+				<p id="audienceStatus" role="status" aria-live="polite">Waiting for the voting phase.</p>
+			</div>
+			<div class="vote-card">
+				<img id="audienceImage" class="guess-image media-frame" alt="Drawing to vote on"/>
+				<form id="audienceVoteForm" class="vote-form">
+					<div id="audienceOptions" class="vote-options"></div>
+					<button type="submit" class="primary">Submit audience vote</button>
+				</form>
+			</div>
+		</section>
+
+		<p id="audienceResult" class="result" role="status" aria-live="polite"></p>
+		<p id="audienceError" class="result error" role="alert"></p>
+		<div id="audienceMeta" data-game-id={ gameID }></div>
+	}
+}
