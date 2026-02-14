@@ -76,7 +76,14 @@ func (s *Server) restoreGameFromDB(param string) (*Game, string, error) {
 	game.UsedPrompts = usedPrompts(game.Rounds)
 
 	if round := currentRound(game); round != nil {
-		if game.PausedPhase == phaseResults {
+		switch game.PausedPhase {
+		case phaseGuesses:
+			round.RevealStage = ""
+			round.RevealIndex = firstPendingGuessDrawingIndex(game, round)
+		case phaseGuessVotes:
+			round.RevealStage = ""
+			round.RevealIndex = firstPendingVoteDrawingIndex(game, round)
+		case phaseResults:
 			if round.RevealStage == "" {
 				round.RevealStage = revealStageGuesses
 			}
@@ -256,6 +263,30 @@ func minInt(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func firstPendingGuessDrawingIndex(game *Game, round *RoundState) int {
+	if game == nil || round == nil || len(round.Drawings) == 0 {
+		return 0
+	}
+	for drawingIndex := range round.Drawings {
+		if len(pendingGuessersForIndex(game, round, drawingIndex)) > 0 {
+			return drawingIndex
+		}
+	}
+	return 0
+}
+
+func firstPendingVoteDrawingIndex(game *Game, round *RoundState) int {
+	if game == nil || round == nil || len(round.Drawings) == 0 {
+		return 0
+	}
+	for drawingIndex := range round.Drawings {
+		if len(pendingVotersForIndex(game, round, drawingIndex)) > 0 {
+			return drawingIndex
+		}
+	}
+	return 0
 }
 
 func countClaimed(players []Player) int {

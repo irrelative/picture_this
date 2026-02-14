@@ -146,21 +146,26 @@ func buildGuessStage(game *Game) (string, string, string, []string) {
 		return "Guessing prompts", "Guessing in progress.", "", nil
 	}
 	assignments := buildGuessAssignments(game, round)
-	playerID, drawingIndex, ok := firstAssignmentByOrder(game, assignments)
+	_, drawingIndex, ok := firstAssignmentByOrder(game, assignments)
 	if !ok {
-		required := requiredGuessCount(game, round)
+		activeDrawing := normalizeDrawingIndex(round)
+		required := requiredGuessCountForDrawing(game, round, activeDrawing)
+		submitted := required
+		if activeDrawing >= 0 {
+			submitted = required - len(pendingGuessersForIndex(game, round, activeDrawing))
+		}
 		status := "Waiting for votes."
 		if required > 0 {
-			status = "All guesses submitted (" + strconv.Itoa(len(round.Guesses)) + "/" + strconv.Itoa(required) + ")."
+			status = "All guesses submitted (" + strconv.Itoa(submitted) + "/" + strconv.Itoa(required) + ")."
 		}
 		return "Guessing prompts", status, "", nil
 	}
 	names := buildNameMap(game.Players)
 	ownerID := round.Drawings[drawingIndex].PlayerID
 	ownerName := names[ownerID]
-	pending := pendingGuessersForDrawing(game, assignments, drawingIndex)
-	required := requiredGuessCount(game, round)
-	submitted := len(round.Guesses)
+	pending := pendingGuessersForIndex(game, round, drawingIndex)
+	required := requiredGuessCountForDrawing(game, round, drawingIndex)
+	submitted := required - len(pending)
 	status := "Collecting guesses."
 	if ownerName != "" {
 		status = "Collecting guesses for " + ownerName + "'s drawing."
@@ -170,9 +175,6 @@ func buildGuessStage(game *Game) (string, string, string, []string) {
 	}
 	if pendingCount := len(pending); pendingCount > 0 {
 		status += " " + strconv.Itoa(pendingCount) + " left on this drawing."
-	}
-	if playerName := names[playerID]; playerName != "" {
-		status += " Next up: " + playerName + "."
 	}
 	image := encodeImageData(round.Drawings[drawingIndex].ImageData)
 	return "Guessing prompts", status, image, nil
@@ -184,12 +186,17 @@ func buildVoteStage(game *Game) (string, string, string, []string) {
 		return "Vote for the real prompt", "Voting on prompts.", "", nil
 	}
 	assignments := buildVoteAssignments(game, round)
-	playerID, drawingIndex, ok := firstAssignmentByOrder(game, assignments)
+	_, drawingIndex, ok := firstAssignmentByOrder(game, assignments)
 	if !ok {
-		required := requiredVoteCount(game, round)
+		activeDrawing := normalizeDrawingIndex(round)
+		required := requiredVoteCountForDrawing(game, round, activeDrawing)
+		submitted := required
+		if activeDrawing >= 0 {
+			submitted = required - len(pendingVotersForIndex(game, round, activeDrawing))
+		}
 		status := "Waiting for reveal."
 		if required > 0 {
-			status = "All votes submitted (" + strconv.Itoa(len(round.Votes)) + "/" + strconv.Itoa(required) + ")."
+			status = "All votes submitted (" + strconv.Itoa(submitted) + "/" + strconv.Itoa(required) + ")."
 		}
 		return "Vote for the real prompt", status, "", nil
 	}
@@ -200,17 +207,14 @@ func buildVoteStage(game *Game) (string, string, string, []string) {
 	if ownerName != "" {
 		status = "Vote on the real prompt for " + ownerName + "'s drawing."
 	}
-	required := requiredVoteCount(game, round)
-	submitted := len(round.Votes)
-	pending := pendingVotersForDrawing(game, assignments, drawingIndex)
+	required := requiredVoteCountForDrawing(game, round, drawingIndex)
+	pending := pendingVotersForIndex(game, round, drawingIndex)
+	submitted := required - len(pending)
 	if required > 0 {
 		status += " (" + strconv.Itoa(submitted) + "/" + strconv.Itoa(required) + " submitted)"
 	}
 	if pendingCount := len(pending); pendingCount > 0 {
 		status += " " + strconv.Itoa(pendingCount) + " left on this drawing."
-	}
-	if playerName := names[playerID]; playerName != "" {
-		status += " Next up: " + playerName + "."
 	}
 	image := encodeImageData(round.Drawings[drawingIndex].ImageData)
 	options := voteOptionsForDrawing(round, drawingIndex)

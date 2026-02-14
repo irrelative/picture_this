@@ -39,12 +39,16 @@ func snapshotWithConfig(game *Game, cfg config.Config) map[string]any {
 	guessRemaining := map[int]int{}
 	voteRemaining := map[int]int{}
 	if round := currentRound(game); round != nil {
-		guessRequiredCount = requiredGuessCount(game, round)
-		guessSubmittedCount = len(round.Guesses)
-		voteRequiredCount = requiredVoteCount(game, round)
-		voteSubmittedCount = len(round.Votes)
 		activeGuessDrawing = activeGuessDrawingIndex(game, round)
 		activeVoteDrawing = activeVoteDrawingIndex(game, round)
+		if activeGuessDrawing >= 0 {
+			guessRequiredCount = requiredGuessCountForDrawing(game, round, activeGuessDrawing)
+			guessSubmittedCount = guessRequiredCount - len(pendingGuessersForIndex(game, round, activeGuessDrawing))
+		}
+		if activeVoteDrawing >= 0 {
+			voteRequiredCount = requiredVoteCountForDrawing(game, round, activeVoteDrawing)
+			voteSubmittedCount = voteRequiredCount - len(pendingVotersForIndex(game, round, activeVoteDrawing))
+		}
 		guessRemaining = guessRemainingByPlayer(game, round)
 		voteRemaining = voteRemainingByPlayer(game, round)
 		guessMap := buildGuessAssignments(game, round)
