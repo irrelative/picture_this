@@ -338,6 +338,9 @@ func (s *Server) broadcastHomeUpdate() {
 func (s *Server) homeSummaries() []web.GameSummary {
 	summaries := make([]web.GameSummary, 0)
 	for _, game := range s.store.ListGameSummaries() {
+		if game.Phase == phaseComplete {
+			continue
+		}
 		summaries = append(summaries, web.GameSummary{
 			ID:       game.ID,
 			JoinCode: game.JoinCode,

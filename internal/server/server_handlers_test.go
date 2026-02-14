@@ -1,8 +1,10 @@
 package server
 
 import (
+	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"testing"
 
 	"picture-this/internal/config"
@@ -110,6 +112,36 @@ func TestHomePage(t *testing.T) {
 	resp := doRequest(t, ts, http.MethodGet, "/", nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+}
+
+func TestHomeGamesPartialExcludesCompleteGames(t *testing.T) {
+	srv := New(nil, config.Default())
+	ts := newTestServer(t, srv.Handler())
+	t.Cleanup(ts.Close)
+
+	gameID := createGame(t, ts)
+	if _, err := srv.store.UpdateGame(gameID, func(game *Game) error {
+		game.Phase = phaseComplete
+		return nil
+	}); err != nil {
+		t.Fatalf("update game phase: %v", err)
+	}
+
+	resp := doRequest(t, ts, http.MethodGet, "/partials/home/games", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+	body := string(bodyBytes)
+	if strings.Contains(body, gameID) {
+		t.Fatalf("expected completed game %q to be hidden from active list", gameID)
+	}
+	if !strings.Contains(body, "No active games yet.") {
+		t.Fatalf("expected no active games message, got %q", body)
 	}
 }
 
