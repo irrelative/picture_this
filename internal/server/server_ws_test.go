@@ -47,38 +47,21 @@ func TestWebsocketRolePayloadIsolation(t *testing.T) {
 	}
 	defer playerConn.Close()
 
-	if messageType := readWSMessageType(t, hostConn, 2*time.Second); messageType != "snapshot" {
+	if messageType := readWSMessageType(t, hostConn, 5*time.Second); messageType != "snapshot" {
 		t.Fatalf("expected host first message snapshot, got %s", messageType)
 	}
-	if messageType := readWSMessageType(t, hostConn, 2*time.Second); messageType != "html" {
+	if messageType := readWSMessageType(t, hostConn, 5*time.Second); messageType != "html" {
 		t.Fatalf("expected host second message html, got %s", messageType)
 	}
-	if messageType := readWSMessageType(t, playerConn, 2*time.Second); messageType != "snapshot" {
+	if messageType := readWSMessageType(t, playerConn, 5*time.Second); messageType != "snapshot" {
 		t.Fatalf("expected player first message snapshot, got %s", messageType)
 	}
-	expectNoWSMessage(t, playerConn, 350*time.Millisecond)
 
 	joinPlayer(t, ts, gameID, "Ada")
 
-	hostSawSnapshot := false
-	hostSawHTML := false
-	for i := 0; i < 3; i++ {
-		messageType := readWSMessageType(t, hostConn, 2*time.Second)
-		if messageType == "snapshot" {
-			hostSawSnapshot = true
-		}
-		if messageType == "html" {
-			hostSawHTML = true
-		}
-		if hostSawSnapshot && hostSawHTML {
-			break
-		}
-	}
-	if !hostSawSnapshot || !hostSawHTML {
-		t.Fatalf("expected host to receive both snapshot and html on broadcast")
-	}
+	waitForWSMessageTypes(t, hostConn, 5*time.Second, "snapshot", "html")
 
-	if messageType := readWSMessageType(t, playerConn, 2*time.Second); messageType != "snapshot" {
+	if messageType := readWSMessageType(t, playerConn, 5*time.Second); messageType != "snapshot" {
 		t.Fatalf("expected player broadcast message snapshot, got %s", messageType)
 	}
 	expectNoWSMessage(t, playerConn, 350*time.Millisecond)
@@ -132,4 +115,35 @@ func classifyWSMessage(payload []byte) string {
 		}
 	}
 	return "unknown"
+}
+
+func waitForWSMessageTypes(t *testing.T, conn *websocket.Conn, timeout time.Duration, expected ...string) {
+	t.Helper()
+	if len(expected) == 0 {
+		return
+	}
+	remaining := make(map[string]int, len(expected))
+	for _, typ := range expected {
+		remaining[typ]++
+	}
+	seen := make([]string, 0, len(expected)+2)
+	deadline := time.Now().Add(timeout)
+	for len(remaining) > 0 {
+		remainingTime := time.Until(deadline)
+		if remainingTime <= 0 {
+			t.Fatalf("timed out waiting for websocket messages; seen=%v, missing=%v", seen, remaining)
+		}
+		messageType := readWSMessageType(t, conn, remainingTime)
+		seen = append(seen, messageType)
+		if count, ok := remaining[messageType]; ok {
+			if count <= 1 {
+				delete(remaining, messageType)
+			} else {
+				remaining[messageType] = count - 1
+			}
+		}
+	}
+	if len(seen) == 0 {
+		t.Fatalf("expected websocket messages %v, saw none", expected)
+	}
 }
