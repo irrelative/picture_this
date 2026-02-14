@@ -1,6 +1,8 @@
 import { applyHTMLMessage } from "./ws_html.js";
 
 let displayContent = document.getElementById("displayContent");
+const displayEventFx = document.getElementById("displayEventFx");
+const displayShell = document.querySelector(".display-shell");
 const lobbyAudio = document.getElementById("lobbyAudio");
 const drawingAudio = document.getElementById("drawingAudio");
 const writeLieAudio = document.getElementById("writeLieAudio");
@@ -52,6 +54,12 @@ const state = {
   revealStage: "",
   revealJokeAudio: "",
   revealDrawingIndex: -1,
+  drawingSubmittedCount: 0,
+  drawingRequiredCount: 0,
+  guessSubmittedCount: 0,
+  guessRequiredCount: 0,
+  voteSubmittedCount: 0,
+  voteRequiredCount: 0,
   timerHandle: null,
   playerCount: null,
   round: null,
@@ -80,6 +88,19 @@ function playAudio(audio) {
   if (!audio) return;
   if (!audio.paused) return;
   const playPromise = audio.play();
+  if (playPromise && typeof playPromise.catch === "function") {
+    playPromise.catch(() => {
+      // Ignore autoplay failures until user interacts.
+    });
+  }
+}
+
+function playSfx(audio, rate = 1, volume = 1) {
+  if (!audio) return;
+  const clip = audio.cloneNode(true);
+  clip.playbackRate = rate;
+  clip.volume = Math.max(0, Math.min(1, volume));
+  const playPromise = clip.play();
   if (playPromise && typeof playPromise.catch === "function") {
     playPromise.catch(() => {
       // Ignore autoplay failures until user interacts.
@@ -200,6 +221,98 @@ function queueTransitionInterludes(nextPhase, revealStage, revealDrawingIndex) {
   }
 }
 
+function pulseDisplay(tone) {
+  if (!displayShell) return;
+  displayShell.classList.remove("impact-join", "impact-progress", "impact-all", "impact-phase");
+  void displayShell.offsetWidth;
+  displayShell.classList.add(tone);
+}
+
+function showEventToast(text, toneClass) {
+  if (!displayEventFx) return;
+  const toast = document.createElement("div");
+  toast.className = `display-event-toast ${toneClass}`;
+  toast.textContent = text;
+  displayEventFx.appendChild(toast);
+  requestAnimationFrame(() => {
+    toast.classList.add("is-in");
+  });
+  setTimeout(() => {
+    toast.classList.remove("is-in");
+    toast.classList.add("is-out");
+  }, 1500);
+  setTimeout(() => {
+    toast.remove();
+  }, 2100);
+}
+
+function triggerDisplayEvent(text, toneClass, sound, rate = 1, volume = 1) {
+  showEventToast(text, toneClass);
+  pulseDisplay(toneClass);
+  playSfx(sound, rate, volume);
+}
+
+function detectProgressEvents(next) {
+  if (!state.initialized) {
+    return;
+  }
+
+  if (next.playerCount > (state.playerCount || 0)) {
+    triggerDisplayEvent("Player joined", "impact-join", joinSound, 1.0, 0.95);
+  }
+  if (state.playerCount !== null && next.playerCount < state.playerCount) {
+    triggerDisplayEvent("Player left", "impact-phase", timerEndSound, 1.0, 0.75);
+  }
+
+  if (
+    state.phase === "drawings" &&
+    next.phase === "drawings" &&
+    next.drawingSubmittedCount > state.drawingSubmittedCount
+  ) {
+    triggerDisplayEvent("Drawing submitted", "impact-progress", roundStartSound, 1.15, 0.65);
+  }
+
+  if (state.phase === "drawings" && next.phase === "guesses") {
+    const timedOut = Boolean(state.phaseEndsAt) && state.phaseEndsAt <= Date.now();
+    const text = timedOut ? "Drawing time ended" : "All drawings in";
+    triggerDisplayEvent(text, "impact-phase", timerEndSound, 0.95, 0.9);
+  }
+
+  if (
+    state.phase === "guesses" &&
+    next.phase === "guesses" &&
+    next.guessSubmittedCount > state.guessSubmittedCount
+  ) {
+    triggerDisplayEvent("Guess submitted", "impact-progress", joinSound, 1.35, 0.65);
+  }
+
+  const allGuessesReached =
+    next.phase === "guesses" &&
+    next.guessRequiredCount > 0 &&
+    next.guessSubmittedCount >= next.guessRequiredCount &&
+    state.guessSubmittedCount < state.guessRequiredCount;
+  if ((state.phase === "guesses" && next.phase === "guesses-votes") || allGuessesReached) {
+    triggerDisplayEvent("All guesses submitted", "impact-all", votingStartSound, 1.0, 0.95);
+  }
+
+  if (
+    state.phase === "guesses-votes" &&
+    next.phase === "guesses-votes" &&
+    next.voteSubmittedCount > state.voteSubmittedCount
+  ) {
+    triggerDisplayEvent("Vote submitted", "impact-progress", joinSound, 0.85, 0.65);
+  }
+
+  const allVotesReached =
+    next.phase === "guesses-votes" &&
+    next.voteRequiredCount > 0 &&
+    next.voteSubmittedCount >= next.voteRequiredCount &&
+    state.voteSubmittedCount < state.voteRequiredCount;
+  if ((state.phase === "guesses-votes" && next.phase === "results") || allVotesReached) {
+    triggerDisplayEvent("All votes submitted", "impact-all", roundStartSound, 0.95, 0.9);
+  }
+}
+
 function handleJokeNarration() {
   if (!jokeNarrationAudio) return;
   if (state.phase !== "results" || state.revealStage !== "joke" || !state.revealJokeAudio) {
@@ -232,16 +345,27 @@ function syncFromContent() {
   const revealStage = displayContent.dataset.revealStage || "";
   const revealJokeAudio = displayContent.dataset.revealJokeAudio || "";
   const revealDrawingIndex = Number(displayContent.dataset.revealDrawingIndex || -1);
+  const drawingSubmittedCount = Number(displayContent.dataset.drawingSubmittedCount || 0);
+  const drawingRequiredCount = Number(displayContent.dataset.drawingRequiredCount || 0);
+  const guessSubmittedCount = Number(displayContent.dataset.guessSubmittedCount || 0);
+  const guessRequiredCount = Number(displayContent.dataset.guessRequiredCount || 0);
+  const voteSubmittedCount = Number(displayContent.dataset.voteSubmittedCount || 0);
+  const voteRequiredCount = Number(displayContent.dataset.voteRequiredCount || 0);
   const endsAt = displayContent.dataset.phaseEndsAt ? Date.parse(displayContent.dataset.phaseEndsAt) : 0;
   state.phaseEndsAt = Number.isNaN(endsAt) ? 0 : endsAt;
   const countValue = Number(displayContent.dataset.playerCount || 0);
   const roundValue = Number(displayContent.dataset.round || 0);
+  detectProgressEvents({
+    phase: nextPhase,
+    playerCount: Number.isNaN(countValue) ? state.playerCount || 0 : countValue,
+    drawingSubmittedCount: Number.isNaN(drawingSubmittedCount) ? 0 : drawingSubmittedCount,
+    drawingRequiredCount: Number.isNaN(drawingRequiredCount) ? 0 : drawingRequiredCount,
+    guessSubmittedCount: Number.isNaN(guessSubmittedCount) ? 0 : guessSubmittedCount,
+    guessRequiredCount: Number.isNaN(guessRequiredCount) ? 0 : guessRequiredCount,
+    voteSubmittedCount: Number.isNaN(voteSubmittedCount) ? 0 : voteSubmittedCount,
+    voteRequiredCount: Number.isNaN(voteRequiredCount) ? 0 : voteRequiredCount
+  });
   queueTransitionInterludes(nextPhase, revealStage, revealDrawingIndex);
-  if (state.phase === "lobby" && state.playerCount !== null && countValue > state.playerCount) {
-    if (joinSound) {
-      playAudio(joinSound);
-    }
-  }
   if (
     roundStartSound &&
     nextPhase === "drawings" &&
@@ -250,13 +374,16 @@ function syncFromContent() {
   ) {
     playAudio(roundStartSound);
   }
-  if (votingStartSound && nextPhase === "guesses-votes" && state.lastPhase !== "guesses-votes") {
-    playAudio(votingStartSound);
-  }
   state.phase = nextPhase;
   state.revealStage = revealStage;
   state.revealJokeAudio = revealJokeAudio;
   state.revealDrawingIndex = Number.isNaN(revealDrawingIndex) ? -1 : revealDrawingIndex;
+  state.drawingSubmittedCount = Number.isNaN(drawingSubmittedCount) ? 0 : drawingSubmittedCount;
+  state.drawingRequiredCount = Number.isNaN(drawingRequiredCount) ? 0 : drawingRequiredCount;
+  state.guessSubmittedCount = Number.isNaN(guessSubmittedCount) ? 0 : guessSubmittedCount;
+  state.guessRequiredCount = Number.isNaN(guessRequiredCount) ? 0 : guessRequiredCount;
+  state.voteSubmittedCount = Number.isNaN(voteSubmittedCount) ? 0 : voteSubmittedCount;
+  state.voteRequiredCount = Number.isNaN(voteRequiredCount) ? 0 : voteRequiredCount;
   state.playerCount = Number.isNaN(countValue) ? state.playerCount : countValue;
   state.round = Number.isNaN(roundValue) ? state.round : roundValue;
   state.lastPhase = nextPhase;

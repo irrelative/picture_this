@@ -26,6 +26,12 @@ type DisplayState struct {
 	RevealStage        string
 	RevealJokeAudio    string
 	RevealDrawingIndex int
+	DrawingSubmitted   int
+	DrawingRequired    int
+	GuessSubmitted     int
+	GuessRequired      int
+	VoteSubmitted      int
+	VoteRequired       int
 	RoundLabel         string
 	StageTitle         string
 	StageStatus        string

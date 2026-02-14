@@ -8,6 +8,12 @@ templ DisplayContent(state DisplayState) {
 		data-reveal-stage={ state.RevealStage }
 		data-reveal-joke-audio={ state.RevealJokeAudio }
 		data-reveal-drawing-index={ itoa(state.RevealDrawingIndex) }
+		data-drawing-submitted-count={ itoa(state.DrawingSubmitted) }
+		data-drawing-required-count={ itoa(state.DrawingRequired) }
+		data-guess-submitted-count={ itoa(state.GuessSubmitted) }
+		data-guess-required-count={ itoa(state.GuessRequired) }
+		data-vote-submitted-count={ itoa(state.VoteSubmitted) }
+		data-vote-required-count={ itoa(state.VoteRequired) }
 		data-game-id={ state.GameID }
 		data-player-count={ itoa(state.PlayerCount) }
 		data-round={ itoa(state.CurrentRound) }

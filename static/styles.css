@@ -677,6 +677,95 @@ textarea:focus {
   gap: 32px;
 }
 
+.display-event-fx {
+  position: fixed;
+  top: 78px;
+  right: 20px;
+  z-index: 50;
+  display: grid;
+  gap: 10px;
+  width: min(360px, calc(100vw - 40px));
+  pointer-events: none;
+}
+
+.display-event-toast {
+  border-radius: 14px;
+  padding: 12px 14px;
+  color: #201700;
+  font-weight: 700;
+  box-shadow: 0 8px 20px rgba(43, 31, 0, 0.2);
+  opacity: 0;
+  transform: translateY(-8px) scale(0.96);
+  transition: transform 180ms ease, opacity 180ms ease;
+  border: 1px solid rgba(43, 31, 0, 0.14);
+}
+
+.display-event-toast.is-in {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.display-event-toast.is-out {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.98);
+}
+
+.display-event-toast.impact-join {
+  background: linear-gradient(135deg, #d4ffdd, #f4fff7);
+}
+
+.display-event-toast.impact-progress {
+  background: linear-gradient(135deg, #ffeebf, #fff9eb);
+}
+
+.display-event-toast.impact-all {
+  background: linear-gradient(135deg, #cde8ff, #f2f8ff);
+}
+
+.display-event-toast.impact-phase {
+  background: linear-gradient(135deg, #ffd8cf, #fff1ec);
+}
+
+.display-shell.impact-join {
+  animation: display-pop-join 260ms ease;
+}
+
+.display-shell.impact-progress {
+  animation: display-pop-progress 260ms ease;
+}
+
+.display-shell.impact-all {
+  animation: display-pop-all 280ms ease;
+}
+
+.display-shell.impact-phase {
+  animation: display-pop-phase 280ms ease;
+}
+
+@keyframes display-pop-join {
+  0% { transform: translateY(0); }
+  40% { transform: translateY(-4px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes display-pop-progress {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.01); }
+  100% { transform: scale(1); }
+}
+
+@keyframes display-pop-all {
+  0% { transform: scale(1); filter: saturate(100%); }
+  45% { transform: scale(1.015); filter: saturate(120%); }
+  100% { transform: scale(1); filter: saturate(100%); }
+}
+
+@keyframes display-pop-phase {
+  0% { transform: scale(1); }
+  25% { transform: scale(1.012); }
+  100% { transform: scale(1); }
+}
+
 .display-header {
   display: grid;
   gap: 18px;

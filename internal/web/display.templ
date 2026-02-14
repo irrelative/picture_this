@@ -2,6 +2,7 @@ package web
 
 templ DisplayView(state DisplayState) {
 	@DisplayLayout("Picture This | Game Display", "/static/display.js") {
+		<div id="displayEventFx" class="display-event-fx" role="status" aria-live="polite" aria-atomic="false"></div>
 		@DisplayContent(state)
 	}
 }

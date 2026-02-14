@@ -57,6 +57,24 @@ func (s *Server) buildDisplayState(game *Game) web.DisplayState {
 			Score: score,
 		})
 	}
+	drawingSubmitted := 0
+	drawingRequired := len(game.Players)
+	guessSubmitted := 0
+	guessRequired := 0
+	voteSubmitted := 0
+	voteRequired := 0
+	if round := currentRound(game); round != nil {
+		drawingSubmitted = len(round.Drawings)
+		if activeGuess := activeGuessDrawingIndex(game, round); activeGuess >= 0 {
+			guessRequired = requiredGuessCountForDrawing(game, round, activeGuess)
+			guessSubmitted = guessRequired - len(pendingGuessersForIndex(game, round, activeGuess))
+		}
+		if activeVote := activeVoteDrawingIndex(game, round); activeVote >= 0 {
+			voteRequired = requiredVoteCountForDrawing(game, round, activeVote)
+			voteSubmitted = voteRequired - len(pendingVotersForIndex(game, round, activeVote))
+		}
+	}
+
 	showScoreboard := false
 	if phase == phaseDrawings {
 		if round := currentRound(game); round != nil {
@@ -74,6 +92,12 @@ func (s *Server) buildDisplayState(game *Game) web.DisplayState {
 		RevealStage:        revealStage,
 		RevealJokeAudio:    revealJokeAudio,
 		RevealDrawingIndex: revealDrawingIndex,
+		DrawingSubmitted:   drawingSubmitted,
+		DrawingRequired:    drawingRequired,
+		GuessSubmitted:     guessSubmitted,
+		GuessRequired:      guessRequired,
+		VoteSubmitted:      voteSubmitted,
+		VoteRequired:       voteRequired,
 		RoundLabel:         roundLabel,
 		StageTitle:         stageTitle,
 		StageStatus:        stageStatus,
