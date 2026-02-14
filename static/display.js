@@ -11,7 +11,40 @@ const joinSound = document.getElementById("joinSound");
 const roundStartSound = document.getElementById("roundStartSound");
 const timerEndSound = document.getElementById("timerEndSound");
 const votingStartSound = document.getElementById("votingStartSound");
+const interludeVoiceAudio = document.getElementById("interludeVoiceAudio");
 const jokeNarrationAudio = document.getElementById("jokeNarrationAudio");
+
+// Interlude voice-over catalog (text + generated asset path).
+const interludeCues = {
+  phase_drawings: {
+    text: "Time to draw!",
+    src: "/static/audio/interludes/phase_drawings.mp3"
+  },
+  phase_guesses: {
+    text: "Pass it on. Write a fake prompt.",
+    src: "/static/audio/interludes/phase_guesses.mp3"
+  },
+  phase_votes: {
+    text: "Vote time. Pick the real prompt.",
+    src: "/static/audio/interludes/phase_votes.mp3"
+  },
+  phase_results: {
+    text: "Let's reveal the answers.",
+    src: "/static/audio/interludes/phase_results.mp3"
+  },
+  reveal_guesses: {
+    text: "Here come the lies.",
+    src: "/static/audio/interludes/reveal_guesses.mp3"
+  },
+  reveal_votes: {
+    text: "And now, the votes.",
+    src: "/static/audio/interludes/reveal_votes.mp3"
+  },
+  phase_complete: {
+    text: "Game over. Final scores!",
+    src: "/static/audio/interludes/phase_complete.mp3"
+  }
+};
 
 const state = {
   phase: "",
@@ -25,6 +58,10 @@ const state = {
   lastPhase: "",
   lastMusicPhase: "",
   lastJokeNarrationKey: "",
+  interludeQueue: [],
+  interludePlaying: false,
+  currentInterludeKey: "",
+  initialized: false,
   jokeNarrationPlaying: false,
   timerEndedKey: "",
   connected: false
@@ -88,7 +125,7 @@ function renderTimer() {
 }
 
 function syncPhaseAudio(phase) {
-  if (state.jokeNarrationPlaying) {
+  if (state.jokeNarrationPlaying || state.interludePlaying) {
     return;
   }
   const targetAudio = phaseMusic.get(phase) || null;
@@ -104,6 +141,63 @@ function syncPhaseAudio(phase) {
     state.lastMusicPhase = phase;
   }
   playAudio(targetAudio);
+}
+
+function enqueueInterlude(key) {
+  if (!interludeVoiceAudio || !key || !interludeCues[key]) return;
+  const lastQueued = state.interludeQueue[state.interludeQueue.length - 1];
+  if (lastQueued === key) {
+    return;
+  }
+  state.interludeQueue.push(key);
+  playNextInterlude();
+}
+
+function playNextInterlude() {
+  if (!interludeVoiceAudio || state.interludePlaying || state.jokeNarrationPlaying) {
+    return;
+  }
+  const key = state.interludeQueue.shift();
+  if (!key || !interludeCues[key]) {
+    return;
+  }
+  const cue = interludeCues[key];
+  state.interludePlaying = true;
+  state.currentInterludeKey = key;
+  stopAllMusic();
+  interludeVoiceAudio.src = cue.src;
+  interludeVoiceAudio.currentTime = 0;
+  const playPromise = interludeVoiceAudio.play();
+  if (playPromise && typeof playPromise.catch === "function") {
+    playPromise.catch(() => {
+      state.interludePlaying = false;
+      state.currentInterludeKey = "";
+      if (state.connected) {
+        syncPhaseAudio(state.phase);
+      }
+    });
+  }
+}
+
+function queueTransitionInterludes(nextPhase, revealStage, revealDrawingIndex) {
+  if (!state.initialized) {
+    return;
+  }
+  if (nextPhase !== state.phase) {
+    if (nextPhase === "drawings") enqueueInterlude("phase_drawings");
+    if (nextPhase === "guesses") enqueueInterlude("phase_guesses");
+    if (nextPhase === "guesses-votes") enqueueInterlude("phase_votes");
+    if (nextPhase === "results") enqueueInterlude("phase_results");
+    if (nextPhase === "complete") enqueueInterlude("phase_complete");
+    return;
+  }
+  if (nextPhase !== "results") {
+    return;
+  }
+  if (revealDrawingIndex !== state.revealDrawingIndex || revealStage !== state.revealStage) {
+    if (revealStage === "guesses") enqueueInterlude("reveal_guesses");
+    if (revealStage === "votes") enqueueInterlude("reveal_votes");
+  }
 }
 
 function handleJokeNarration() {
@@ -142,6 +236,7 @@ function syncFromContent() {
   state.phaseEndsAt = Number.isNaN(endsAt) ? 0 : endsAt;
   const countValue = Number(displayContent.dataset.playerCount || 0);
   const roundValue = Number(displayContent.dataset.round || 0);
+  queueTransitionInterludes(nextPhase, revealStage, revealDrawingIndex);
   if (state.phase === "lobby" && state.playerCount !== null && countValue > state.playerCount) {
     if (joinSound) {
       playAudio(joinSound);
@@ -165,9 +260,13 @@ function syncFromContent() {
   state.playerCount = Number.isNaN(countValue) ? state.playerCount : countValue;
   state.round = Number.isNaN(roundValue) ? state.round : roundValue;
   state.lastPhase = nextPhase;
+  if (!state.initialized) {
+    state.initialized = true;
+  }
   if (state.connected) {
     syncPhaseAudio(state.phase);
     handleJokeNarration();
+    playNextInterlude();
   }
   renderTimer();
   if (!state.timerHandle) {
@@ -190,10 +289,30 @@ if (jokeNarrationAudio) {
   });
 }
 
+if (interludeVoiceAudio) {
+  interludeVoiceAudio.addEventListener("ended", () => {
+    state.interludePlaying = false;
+    state.currentInterludeKey = "";
+    if (state.connected) {
+      syncPhaseAudio(state.phase);
+    }
+    playNextInterlude();
+  });
+  interludeVoiceAudio.addEventListener("error", () => {
+    state.interludePlaying = false;
+    state.currentInterludeKey = "";
+    if (state.connected) {
+      syncPhaseAudio(state.phase);
+    }
+    playNextInterlude();
+  });
+}
+
 document.addEventListener(
   "click",
   () => {
     syncPhaseAudio(state.phase);
+    playNextInterlude();
   },
   { once: true }
 );
@@ -224,6 +343,13 @@ function connectWS() {
       jokeNarrationAudio.pause();
       jokeNarrationAudio.currentTime = 0;
     }
+    if (interludeVoiceAudio) {
+      interludeVoiceAudio.pause();
+      interludeVoiceAudio.currentTime = 0;
+    }
+    state.interludeQueue = [];
+    state.interludePlaying = false;
+    state.currentInterludeKey = "";
     state.jokeNarrationPlaying = false;
     stopAllMusic();
     setTimeout(connectWS, 2000);
@@ -235,6 +361,13 @@ function connectWS() {
       jokeNarrationAudio.pause();
       jokeNarrationAudio.currentTime = 0;
     }
+    if (interludeVoiceAudio) {
+      interludeVoiceAudio.pause();
+      interludeVoiceAudio.currentTime = 0;
+    }
+    state.interludeQueue = [];
+    state.interludePlaying = false;
+    state.currentInterludeKey = "";
     state.jokeNarrationPlaying = false;
     stopAllMusic();
     socket.close();

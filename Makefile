@@ -1,4 +1,4 @@
-.PHONY: run build init test migrate migrate-create load-prompts joke-audio-venv joke-audio-deps generate-joke-audio e2e-test deploy
+.PHONY: run build init test migrate migrate-create load-prompts joke-audio-venv joke-audio-deps generate-joke-audio generate-interlude-audio e2e-test deploy
 
 run:
 	templ generate
@@ -51,6 +51,12 @@ generate-joke-audio: joke-audio-deps
 	if [ -f .env ]; then . ./.env; fi; \
 	set +a; \
 	"$(JOKE_AUDIO_PYTHON)" scripts/generate_joke_audio.py $(ARGS)
+
+generate-interlude-audio: joke-audio-deps
+	@set -a; \
+	if [ -f .env ]; then . ./.env; fi; \
+	set +a; \
+	"$(JOKE_AUDIO_PYTHON)" scripts/generate_interlude_audio.py $(ARGS)
 
 DATABASE_URL_TEST ?= postgres:///picture_this_test?sslmode=disable
 PORT_TEST ?= 8081

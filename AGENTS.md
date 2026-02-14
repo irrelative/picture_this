@@ -25,9 +25,11 @@
 - Favor integration tests for Postgres-backed flows once persistence is implemented.
 
 ## Commit & Pull Request Guidelines
-- Use Conventional Commits (e.g., `feat: add game state model`, `chore: update Makefile`).
-- When working as Codex, run `make test` and `make e2e-test` after each change to keep changes safe to land.
-- PRs should describe the change, link any related issues, and include screenshots for WebUI changes.
+Use Conventional Commits (e.g., `feat: add check scheduler`, `fix: handle timeout`). For PRs:
+- After each prompt that successfully completes with a code change, create a commit before moving to the next prompt.
+- Describe behavior changes and data model changes clearly.
+- Include SQL/migration notes when Gorm models change.
+- Attach screenshots for UI changes (templ views).
 
 ## Security & Configuration Tips
 - Do not hardcode credentials; use environment variables for Postgres connection details.
