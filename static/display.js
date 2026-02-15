@@ -53,6 +53,7 @@ const state = {
   phaseEndsAt: 0,
   revealStage: "",
   revealJokeAudio: "",
+  revealVoteSequenceRaw: "[]",
   revealDrawingIndex: -1,
   drawingSubmittedCount: 0,
   drawingRequiredCount: 0,
@@ -72,7 +73,9 @@ const state = {
   initialized: false,
   jokeNarrationPlaying: false,
   timerEndedKey: "",
-  connected: false
+  connected: false,
+  voteRevealKey: "",
+  voteRevealTimer: null
 };
 
 const phaseMusic = new Map([
@@ -313,6 +316,144 @@ function detectProgressEvents(next) {
   }
 }
 
+function clearVoteRevealTimer() {
+  if (state.voteRevealTimer) {
+    clearTimeout(state.voteRevealTimer);
+    state.voteRevealTimer = null;
+  }
+}
+
+function parseVoteRevealSequence(raw) {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function playerVoteNames(option) {
+  const rawVotes = Array.isArray(option?.player_votes) ? option.player_votes : [];
+  return rawVotes
+    .map((vote) => {
+      if (vote && typeof vote === "object") {
+        return String(vote.player_name || "").trim();
+      }
+      return "";
+    })
+    .filter(Boolean);
+}
+
+function renderVoteRevealCard(option, index, total) {
+  const optionsEl = document.getElementById("displayOptions");
+  const statusEl = document.getElementById("displayStageStatus");
+  if (!optionsEl) return;
+
+  const isPrompt = option?.type === "prompt";
+  const text = String(option?.text || "");
+  const totalVotes = Number(option?.total_count || 0);
+  const audienceCount = Number(option?.audience_count || 0);
+  const voters = playerVoteNames(option);
+
+  optionsEl.innerHTML = "";
+  const card = document.createElement("article");
+  card.className = "display-reveal-card card-surface";
+
+  const tag = document.createElement("p");
+  tag.className = `display-reveal-tag ${isPrompt ? "is-correct" : "is-lie"}`;
+  tag.textContent = isPrompt ? "Correct prompt" : "Lie";
+  card.appendChild(tag);
+
+  const prompt = document.createElement("p");
+  prompt.className = "display-reveal-text";
+  prompt.textContent = text || "(missing prompt text)";
+  card.appendChild(prompt);
+
+  const verdict = document.createElement("p");
+  verdict.className = `display-reveal-verdict ${isPrompt ? "is-correct" : "is-wrong"}`;
+  verdict.textContent = isPrompt ? "This was the real prompt." : "Not the real prompt.";
+  card.appendChild(verdict);
+
+  const pickedBy = document.createElement("p");
+  pickedBy.className = "display-reveal-voters";
+  if (voters.length > 0) {
+    pickedBy.textContent = `Picked by: ${voters.join(", ")}`;
+  } else if (isPrompt) {
+    pickedBy.textContent = "Picked by: no players.";
+  } else {
+    pickedBy.textContent = "Picked by: no players.";
+  }
+  card.appendChild(pickedBy);
+
+  const counts = document.createElement("p");
+  counts.className = "display-reveal-counts";
+  counts.textContent = audienceCount > 0
+    ? `Total votes: ${totalVotes} (audience ${audienceCount})`
+    : `Total votes: ${totalVotes}`;
+  card.appendChild(counts);
+
+  optionsEl.appendChild(card);
+  if (statusEl) {
+    statusEl.textContent = `Reveal ${index} of ${total}.`;
+  }
+}
+
+function playRevealDrumRoll() {
+  for (let i = 0; i < 6; i += 1) {
+    setTimeout(() => playSfx(joinSound, 1 + i * 0.04, 0.45), i * 90);
+  }
+  setTimeout(() => playSfx(roundStartSound, 0.9, 0.9), 6 * 90);
+}
+
+function runVoteRevealSequence(sequence, key, index) {
+  if (state.voteRevealKey !== key || index >= sequence.length) {
+    clearVoteRevealTimer();
+    return;
+  }
+  const statusEl = document.getElementById("displayStageStatus");
+  if (statusEl) {
+    statusEl.textContent = `Drum roll... (${index + 1}/${sequence.length})`;
+  }
+  playRevealDrumRoll();
+
+  state.voteRevealTimer = setTimeout(() => {
+    if (state.voteRevealKey !== key) {
+      return;
+    }
+    renderVoteRevealCard(sequence[index], index + 1, sequence.length);
+    if (index+1 >= sequence.length) {
+      state.voteRevealTimer = null;
+      return;
+    }
+    state.voteRevealTimer = setTimeout(() => {
+      runVoteRevealSequence(sequence, key, index + 1);
+    }, 1600);
+  }, 700);
+}
+
+function syncVoteRevealSequence(nextPhase, revealStage, revealDrawingIndex, revealVoteSequenceRaw) {
+  const active = nextPhase === "results" && revealStage === "votes";
+  if (!active) {
+    state.voteRevealKey = "";
+    clearVoteRevealTimer();
+    return;
+  }
+
+  const key = `${nextPhase}:${revealStage}:${revealDrawingIndex}:${revealVoteSequenceRaw}`;
+  if (key === state.voteRevealKey) {
+    return;
+  }
+  state.voteRevealKey = key;
+  clearVoteRevealTimer();
+
+  const sequence = parseVoteRevealSequence(revealVoteSequenceRaw);
+  if (sequence.length === 0) {
+    return;
+  }
+  runVoteRevealSequence(sequence, key, 0);
+}
+
 function handleJokeNarration() {
   if (!jokeNarrationAudio) return;
   if (state.phase !== "results" || state.revealStage !== "joke" || !state.revealJokeAudio) {
@@ -344,6 +485,7 @@ function syncFromContent() {
   const nextPhase = displayContent.dataset.phase || "";
   const revealStage = displayContent.dataset.revealStage || "";
   const revealJokeAudio = displayContent.dataset.revealJokeAudio || "";
+  const revealVoteSequenceRaw = displayContent.dataset.revealVoteSequence || "[]";
   const revealDrawingIndex = Number(displayContent.dataset.revealDrawingIndex || -1);
   const drawingSubmittedCount = Number(displayContent.dataset.drawingSubmittedCount || 0);
   const drawingRequiredCount = Number(displayContent.dataset.drawingRequiredCount || 0);
@@ -366,6 +508,7 @@ function syncFromContent() {
     voteRequiredCount: Number.isNaN(voteRequiredCount) ? 0 : voteRequiredCount
   });
   queueTransitionInterludes(nextPhase, revealStage, revealDrawingIndex);
+  syncVoteRevealSequence(nextPhase, revealStage, revealDrawingIndex, revealVoteSequenceRaw);
   if (
     roundStartSound &&
     nextPhase === "drawings" &&
@@ -377,6 +520,7 @@ function syncFromContent() {
   state.phase = nextPhase;
   state.revealStage = revealStage;
   state.revealJokeAudio = revealJokeAudio;
+  state.revealVoteSequenceRaw = revealVoteSequenceRaw;
   state.revealDrawingIndex = Number.isNaN(revealDrawingIndex) ? -1 : revealDrawingIndex;
   state.drawingSubmittedCount = Number.isNaN(drawingSubmittedCount) ? 0 : drawingSubmittedCount;
   state.drawingRequiredCount = Number.isNaN(drawingRequiredCount) ? 0 : drawingRequiredCount;
@@ -478,6 +622,8 @@ function connectWS() {
     state.interludePlaying = false;
     state.currentInterludeKey = "";
     state.jokeNarrationPlaying = false;
+    state.voteRevealKey = "";
+    clearVoteRevealTimer();
     stopAllMusic();
     setTimeout(connectWS, 2000);
   });
@@ -496,6 +642,8 @@ function connectWS() {
     state.interludePlaying = false;
     state.currentInterludeKey = "";
     state.jokeNarrationPlaying = false;
+    state.voteRevealKey = "";
+    clearVoteRevealTimer();
     stopAllMusic();
     socket.close();
   });

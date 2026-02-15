@@ -161,9 +161,11 @@ func phaseDurationSeconds(cfg config.Config, game *Game) int {
 		}
 		switch round.RevealStage {
 		case revealStageVotes:
-			if cfg.RevealVotesSeconds > 0 {
-				return cfg.RevealVotesSeconds
+			base := cfg.RevealVotesSeconds
+			if base <= 0 {
+				base = cfg.RevealDurationSeconds
 			}
+			return revealVotesStageDurationSeconds(base, round)
 		case revealStageJoke:
 			if cfg.RevealJokeSeconds > 0 {
 				return cfg.RevealJokeSeconds

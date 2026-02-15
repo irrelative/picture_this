@@ -50,9 +50,11 @@ func (s *Server) phaseDuration(game *Game) time.Duration {
 		}
 		switch round.RevealStage {
 		case revealStageVotes:
-			if s.cfg.RevealVotesSeconds > 0 {
-				return time.Duration(s.cfg.RevealVotesSeconds) * time.Second
+			base := s.cfg.RevealVotesSeconds
+			if base <= 0 {
+				base = s.cfg.RevealDurationSeconds
 			}
+			return time.Duration(revealVotesStageDurationSeconds(base, round)) * time.Second
 		case revealStageJoke:
 			if s.cfg.RevealJokeSeconds > 0 {
 				return time.Duration(s.cfg.RevealJokeSeconds) * time.Second

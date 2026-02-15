@@ -25,6 +25,7 @@ type DisplayState struct {
 	PhaseEndsAt        string
 	RevealStage        string
 	RevealJokeAudio    string
+	RevealVoteSequence string
 	RevealDrawingIndex int
 	DrawingSubmitted   int
 	DrawingRequired    int

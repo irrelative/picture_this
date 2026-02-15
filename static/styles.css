@@ -915,6 +915,56 @@ textarea:focus {
   background: #fffdf6;
 }
 
+.display-reveal-card {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #fffef8;
+  display: grid;
+  gap: 8px;
+}
+
+.display-reveal-tag {
+  margin: 0;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+.display-reveal-tag.is-lie {
+  color: #8a3f00;
+}
+
+.display-reveal-tag.is-correct {
+  color: #0d5f1f;
+}
+
+.display-reveal-text {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1f1f1f;
+}
+
+.display-reveal-verdict {
+  margin: 0;
+  font-weight: 700;
+}
+
+.display-reveal-verdict.is-wrong {
+  color: #8a3f00;
+}
+
+.display-reveal-verdict.is-correct {
+  color: #0d5f1f;
+}
+
+.display-reveal-voters,
+.display-reveal-counts {
+  margin: 0;
+  color: #4f5b63;
+}
+
 .display-player-list {
   font-size: 1.1rem;
 }

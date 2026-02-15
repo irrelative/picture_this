@@ -3,7 +3,9 @@ package server
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -16,6 +18,7 @@ func (s *Server) buildDisplayState(game *Game) web.DisplayState {
 	stageTitle, stageStatus, stageImage, options := buildDisplayStage(game)
 	revealStage := ""
 	revealJokeAudio := ""
+	revealVoteSequence := "[]"
 	revealDrawingIndex := -1
 	if reveal := buildReveal(game); reveal != nil {
 		if value, ok := reveal["stage"].(string); ok {
@@ -23,6 +26,9 @@ func (s *Server) buildDisplayState(game *Game) web.DisplayState {
 		}
 		if value, ok := reveal["joke_audio"].(string); ok {
 			revealJokeAudio = value
+		}
+		if payload, err := json.Marshal(buildRevealVoteSequence(reveal)); err == nil {
+			revealVoteSequence = string(payload)
 		}
 		if value, ok := reveal["drawing_index"].(int); ok {
 			revealDrawingIndex = value
@@ -91,6 +97,7 @@ func (s *Server) buildDisplayState(game *Game) web.DisplayState {
 		PhaseEndsAt:        phaseEndsAt,
 		RevealStage:        revealStage,
 		RevealJokeAudio:    revealJokeAudio,
+		RevealVoteSequence: revealVoteSequence,
 		RevealDrawingIndex: revealDrawingIndex,
 		DrawingSubmitted:   drawingSubmitted,
 		DrawingRequired:    drawingRequired,
@@ -353,6 +360,79 @@ func revealOptionsForDisplay(reveal map[string]any) []string {
 		}
 	}
 	return lines
+}
+
+func buildRevealVoteSequence(reveal map[string]any) []map[string]any {
+	if reveal == nil {
+		return nil
+	}
+	stage, _ := reveal["stage"].(string)
+	if stage != revealStageVotes {
+		return nil
+	}
+	options := revealOptionsList(reveal["options"])
+	if len(options) == 0 {
+		return nil
+	}
+
+	var prompt map[string]any
+	lies := make([]map[string]any, 0, len(options))
+	for _, option := range options {
+		optionType, _ := option["type"].(string)
+		switch optionType {
+		case voteChoicePrompt:
+			prompt = option
+		case voteChoiceGuess:
+			if displayInt(option["total_count"]) > 0 {
+				lies = append(lies, option)
+			}
+		}
+	}
+
+	sort.SliceStable(lies, func(i, j int) bool {
+		leftVotes := displayInt(lies[i]["total_count"])
+		rightVotes := displayInt(lies[j]["total_count"])
+		if leftVotes != rightVotes {
+			return leftVotes < rightVotes
+		}
+		leftText := displayText(lies[i]["text"])
+		rightText := displayText(lies[j]["text"])
+		if leftText != rightText {
+			return leftText < rightText
+		}
+		leftID, _ := lies[i]["id"].(string)
+		rightID, _ := lies[j]["id"].(string)
+		return leftID < rightID
+	})
+
+	sequence := make([]map[string]any, 0, len(lies)+1)
+	sequence = append(sequence, lies...)
+	if prompt != nil {
+		sequence = append(sequence, prompt)
+	}
+	return sequence
+}
+
+func revealOptionsList(raw any) []map[string]any {
+	if raw == nil {
+		return nil
+	}
+	if typed, ok := raw.([]map[string]any); ok {
+		return typed
+	}
+	rawList, ok := raw.([]any)
+	if !ok {
+		return nil
+	}
+	list := make([]map[string]any, 0, len(rawList))
+	for _, item := range rawList {
+		option, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		list = append(list, option)
+	}
+	return list
 }
 
 func displayName(value any) string {
