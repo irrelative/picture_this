@@ -194,7 +194,7 @@ func Home(flash string, playerName string, games []GameSummary, loggedIn bool, u
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = Layout("Picture This", "/static/app.js", flash, loggedIn).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Layout("Picture This", "/static/app.js", flash, loggedIn, isAdmin).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

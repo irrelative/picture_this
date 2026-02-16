@@ -1,7 +1,7 @@
 package web
 
 templ Home(flash string, playerName string, games []GameSummary, loggedIn bool, username string, email string, isAdmin bool) {
-	@Layout("Picture This", "/static/app.js", flash, loggedIn) {
+	@Layout("Picture This", "/static/app.js", flash, loggedIn, isAdmin) {
 		<div class="home">
 			<header class="hero">
 				<span class="tag">Picture This</span>

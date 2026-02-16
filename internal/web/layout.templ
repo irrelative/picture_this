@@ -1,6 +1,6 @@
 package web
 
-templ Layout(title string, scriptPath string, flash string, showLogout bool) {
+templ Layout(title string, scriptPath string, flash string, showLogout bool, showAdmin bool) {
 	<!doctype html>
 	<html lang="en">
 		<head>
@@ -17,7 +17,9 @@ templ Layout(title string, scriptPath string, flash string, showLogout bool) {
 				<main class="shell confetti-bg" id="content">
 					<nav class="top-nav" aria-label="Primary">
 						<a class="nav-link" href="/">Home</a>
-						<a class="nav-link" href="/admin">Admin</a>
+						if showAdmin {
+							<a class="nav-link" href="/admin">Admin</a>
+						}
 						if showLogout {
 							<button id="logoutButton" class="secondary nav-logout" type="button">Log out</button>
 						}
@@ -35,7 +37,7 @@ templ Layout(title string, scriptPath string, flash string, showLogout bool) {
 	</html>
 }
 
-templ DisplayLayout(title string, scriptPath string) {
+templ DisplayLayout(title string, scriptPath string, showAdmin bool) {
 	<!doctype html>
 	<html lang="en">
 		<head>
@@ -50,7 +52,9 @@ templ DisplayLayout(title string, scriptPath string) {
 			<div class="display-shell confetti-bg">
 				<nav class="top-nav" aria-label="Primary">
 					<a class="nav-link" href="/">Home</a>
-					<a class="nav-link" href="/admin">Admin</a>
+					if showAdmin {
+						<a class="nav-link" href="/admin">Admin</a>
+					}
 				</nav>
 				{ children... }
 			</div>
