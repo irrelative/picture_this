@@ -11,9 +11,7 @@ import (
 )
 
 func TestAssignPromptsNoRepeat(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	srv, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
 	hostID := joinPlayer(t, ts, gameID, "Ada")
@@ -62,9 +60,7 @@ func TestAssignPromptsNoRepeat(t *testing.T) {
 }
 
 func TestSubmitDrawings(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
 	hostID := joinPlayer(t, ts, gameID, "Ada")
@@ -96,9 +92,7 @@ func TestSubmitDrawings(t *testing.T) {
 }
 
 func TestHostActionsRequireValidAuthToken(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
 	hostID := joinPlayer(t, ts, gameID, "Ada")
@@ -123,9 +117,7 @@ func TestHostActionsRequireValidAuthToken(t *testing.T) {
 }
 
 func TestGuessAssignmentsRejectDuplicateLie(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID, _ := setupThreePlayerRound(t, ts)
 	snapshot := fetchSnapshot(t, ts, gameID)
@@ -182,9 +174,7 @@ func TestGuessAssignmentsRejectDuplicateLie(t *testing.T) {
 }
 
 func TestVoteAssignmentsAdvanceToResults(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID, hostID := setupThreePlayerRound(t, ts)
 	submitAllGuesses(t, ts, gameID)
@@ -226,9 +216,7 @@ func TestVoteAssignmentsAdvanceToResults(t *testing.T) {
 }
 
 func TestSnapshotUsesAssignmentContract(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID, _ := setupThreePlayerRound(t, ts)
 	snapshot := fetchSnapshot(t, ts, gameID)
@@ -250,9 +238,7 @@ func TestSnapshotUsesAssignmentContract(t *testing.T) {
 
 func TestResultsJokeStageAndHostAdvanceAuth(t *testing.T) {
 	cfg := config.Default()
-	srv := New(nil, cfg)
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	srv, ts := newServerHarnessWithConfig(t, cfg)
 
 	gameID := createGame(t, ts)
 	hostID := joinPlayer(t, ts, gameID, "Ada")
@@ -330,9 +316,7 @@ func TestResultsJokeStageAndHostAdvanceAuth(t *testing.T) {
 }
 
 func TestAudienceJoinAndVote(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID, _ := setupThreePlayerRound(t, ts)
 	submitAllGuesses(t, ts, gameID)
@@ -381,9 +365,7 @@ func TestAudienceJoinAndVote(t *testing.T) {
 }
 
 func TestAutoAdvanceFromDrawings(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	srv, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
 	hostID := joinPlayer(t, ts, gameID, "Ada")
@@ -419,9 +401,7 @@ func TestAutoAdvanceFromDrawings(t *testing.T) {
 }
 
 func TestGuessAndVoteAssignmentsAreGlobalPerDrawing(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID, _ := setupThreePlayerRound(t, ts)
 	snapshot := fetchSnapshot(t, ts, gameID)
@@ -487,9 +467,7 @@ func TestGuessAndVoteAssignmentsAreGlobalPerDrawing(t *testing.T) {
 }
 
 func TestAutoAdvanceAutoFillsMissingGuessesAndVotes(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	srv, ts := newServerHarness(t)
 
 	gameID, _ := setupThreePlayerRound(t, ts)
 
@@ -531,9 +509,7 @@ func TestAutoAdvanceAutoFillsMissingGuessesAndVotes(t *testing.T) {
 }
 
 func TestManualAdvanceAutoFillsMissingGuessesAndVotes(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	srv, ts := newServerHarness(t)
 
 	gameID, hostID := setupThreePlayerRound(t, ts)
 	snapshot := fetchSnapshot(t, ts, gameID)
@@ -634,9 +610,7 @@ func TestManualAdvanceAutoFillsMissingGuessesAndVotes(t *testing.T) {
 }
 
 func TestAudienceJoinUsesTokenIdentity(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID, _ := setupThreePlayerRound(t, ts)
 

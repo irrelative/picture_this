@@ -6,14 +6,10 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-
-	"picture-this/internal/config"
 )
 
 func TestCreateGame(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	resp := doRequest(t, ts, http.MethodPost, "/api/games", nil)
 	if resp.StatusCode != http.StatusUnauthorized {
@@ -41,9 +37,7 @@ func TestCreateGame(t *testing.T) {
 }
 
 func TestJoinGameEnforcesTenPlayerCap(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
 	for i := 1; i <= 10; i++ {
@@ -59,9 +53,7 @@ func TestJoinGameEnforcesTenPlayerCap(t *testing.T) {
 }
 
 func TestRegisterLoginLogoutFlow(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	resp := doRequest(t, ts, http.MethodPost, "/api/auth/register", map[string]any{
 		"email":    "host@example.com",
@@ -105,9 +97,7 @@ func TestRegisterLoginLogoutFlow(t *testing.T) {
 }
 
 func TestHomePage(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	resp := doRequest(t, ts, http.MethodGet, "/", nil)
 	if resp.StatusCode != http.StatusOK {
@@ -116,9 +106,7 @@ func TestHomePage(t *testing.T) {
 }
 
 func TestHomeGamesPartialExcludesCompleteGames(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	srv, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
 	if _, err := srv.store.UpdateGame(gameID, func(game *Game) error {
@@ -146,9 +134,7 @@ func TestHomeGamesPartialExcludesCompleteGames(t *testing.T) {
 }
 
 func TestGameView(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
 	resp := doRequest(t, ts, http.MethodGet, "/games/"+gameID, nil)
@@ -158,9 +144,7 @@ func TestGameView(t *testing.T) {
 }
 
 func TestDisplayView(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
 	resp := doRequest(t, ts, http.MethodGet, "/display/"+gameID, nil)
@@ -170,9 +154,7 @@ func TestDisplayView(t *testing.T) {
 }
 
 func TestAudienceView(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
 	resp := doRequest(t, ts, http.MethodGet, "/audience/"+gameID, nil)
@@ -182,9 +164,7 @@ func TestAudienceView(t *testing.T) {
 }
 
 func TestAdminHomeView(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	srv, ts := newServerHarness(t)
 
 	resp := doRequestNoRedirect(t, ts, http.MethodGet, "/admin", nil)
 	if resp.StatusCode != http.StatusFound {
@@ -200,9 +180,7 @@ func TestAdminHomeView(t *testing.T) {
 }
 
 func TestAdminPromptLibraryView(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	srv, ts := newServerHarness(t)
 
 	ensureAuthenticatedUser(t, ts)
 	promoteSessionUsersToAdmin(t, srv)
@@ -213,9 +191,7 @@ func TestAdminPromptLibraryView(t *testing.T) {
 }
 
 func TestAdminGameView(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	srv, ts := newServerHarness(t)
 
 	ensureAuthenticatedUser(t, ts)
 	promoteSessionUsersToAdmin(t, srv)
@@ -227,9 +203,7 @@ func TestAdminGameView(t *testing.T) {
 }
 
 func TestAdminResumeRequiresClaims(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	srv, ts := newServerHarness(t)
 
 	ensureAuthenticatedUser(t, ts)
 	promoteSessionUsersToAdmin(t, srv)
@@ -282,9 +256,7 @@ func TestAdminResumeRequiresClaims(t *testing.T) {
 }
 
 func TestJoinView(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	resp := doRequest(t, ts, http.MethodGet, "/join", nil)
 	if resp.StatusCode != http.StatusOK {
@@ -298,9 +270,7 @@ func TestJoinView(t *testing.T) {
 }
 
 func TestPlayerView(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/join", map[string]string{
@@ -320,9 +290,7 @@ func TestPlayerView(t *testing.T) {
 }
 
 func TestPlayerViewMissingRedirectsWithSession(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	req, err := http.NewRequest(http.MethodGet, ts.URL+"/play/game-1/1", nil)
 	if err != nil {
@@ -346,9 +314,7 @@ func TestPlayerViewMissingRedirectsWithSession(t *testing.T) {
 }
 
 func TestGetGame(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
 	resp := doRequest(t, ts, http.MethodGet, "/api/games/"+gameID, nil)
@@ -358,9 +324,7 @@ func TestGetGame(t *testing.T) {
 }
 
 func TestJoinGameByCode(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	_, joinCode := createGameWithCode(t, ts)
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+joinCode+"/join", map[string]string{
@@ -373,9 +337,7 @@ func TestJoinGameByCode(t *testing.T) {
 }
 
 func TestJoinGame(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/join", map[string]string{
@@ -392,9 +354,7 @@ func TestJoinGame(t *testing.T) {
 }
 
 func TestJoinGameWithoutAvatar(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/join", map[string]string{
@@ -406,9 +366,7 @@ func TestJoinGameWithoutAvatar(t *testing.T) {
 }
 
 func TestAvatarSaveIsImmutableInLobby(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
 	playerID := joinPlayer(t, ts, gameID, "Ada")
@@ -431,9 +389,7 @@ func TestAvatarSaveIsImmutableInLobby(t *testing.T) {
 }
 
 func TestJoinRejectsInvalidName(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/join", map[string]string{
@@ -446,9 +402,7 @@ func TestJoinRejectsInvalidName(t *testing.T) {
 }
 
 func TestGuessRejectsInvalidText(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
 	playerID := joinPlayer(t, ts, gameID, "Ada")
@@ -462,9 +416,7 @@ func TestGuessRejectsInvalidText(t *testing.T) {
 }
 
 func TestUpdateSettings(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
 	hostID := joinPlayer(t, ts, gameID, "Ada")
@@ -489,9 +441,7 @@ func TestUpdateSettings(t *testing.T) {
 }
 
 func TestJoinGameLocked(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
 	hostID := joinPlayer(t, ts, gameID, "Ada")
@@ -511,9 +461,7 @@ func TestJoinGameLocked(t *testing.T) {
 }
 
 func TestKickPlayerBlocksRejoin(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
 	hostID := joinPlayer(t, ts, gameID, "Ada")
@@ -536,9 +484,7 @@ func TestKickPlayerBlocksRejoin(t *testing.T) {
 }
 
 func TestJoinSameNameReturnsSamePlayer(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
 	playerID := joinPlayer(t, ts, gameID, "Ada")
@@ -549,9 +495,7 @@ func TestJoinSameNameReturnsSamePlayer(t *testing.T) {
 }
 
 func TestStartGame(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
 	hostID := joinPlayer(t, ts, gameID, "Ada")
@@ -565,9 +509,7 @@ func TestStartGame(t *testing.T) {
 }
 
 func TestStartGameConflict(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
 	hostID := joinPlayer(t, ts, gameID, "Ada")
@@ -588,9 +530,7 @@ func TestStartGameConflict(t *testing.T) {
 }
 
 func TestAdvanceGame(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
 	hostID := joinPlayer(t, ts, gameID, "Ada")
@@ -604,9 +544,7 @@ func TestAdvanceGame(t *testing.T) {
 }
 
 func TestResults(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
 	resp := doRequest(t, ts, http.MethodGet, "/api/games/"+gameID+"/results", nil)
@@ -616,9 +554,7 @@ func TestResults(t *testing.T) {
 }
 
 func TestEventsUnavailableWithoutDB(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
 	resp := doRequest(t, ts, http.MethodGet, "/api/games/"+gameID+"/events", nil)

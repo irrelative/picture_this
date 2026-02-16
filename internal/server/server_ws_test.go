@@ -7,15 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"picture-this/internal/config"
-
 	"github.com/gorilla/websocket"
 )
 
 func TestWebsocketUpgradeRequired(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
 	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws/games/" + gameID
@@ -28,9 +24,7 @@ func TestWebsocketUpgradeRequired(t *testing.T) {
 }
 
 func TestWebsocketRolePayloadIsolation(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
 	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws/games/" + gameID

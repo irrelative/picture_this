@@ -4,14 +4,10 @@ import (
 	"net/http"
 	"strconv"
 	"testing"
-
-	"picture-this/internal/config"
 )
 
 func TestGuessSnapshotAssignmentInvariants(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID, _ := setupThreePlayerRound(t, ts)
 	snapshot := fetchSnapshot(t, ts, gameID)
@@ -40,9 +36,7 @@ func TestGuessSnapshotAssignmentInvariants(t *testing.T) {
 }
 
 func TestVoteSnapshotAssignmentInvariants(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	_, ts := newServerHarness(t)
 
 	gameID, _ := setupThreePlayerRound(t, ts)
 	submitAllGuesses(t, ts, gameID)

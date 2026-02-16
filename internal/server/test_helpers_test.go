@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"picture-this/internal/config"
 )
 
 func newTestServer(t *testing.T, handler http.Handler) *httptest.Server {
@@ -20,4 +22,17 @@ func newTestServer(t *testing.T, handler http.Handler) *httptest.Server {
 	}
 	ts.Start()
 	return ts
+}
+
+func newServerHarness(t *testing.T) (*Server, *httptest.Server) {
+	t.Helper()
+	return newServerHarnessWithConfig(t, config.Default())
+}
+
+func newServerHarnessWithConfig(t *testing.T, cfg config.Config) (*Server, *httptest.Server) {
+	t.Helper()
+	srv := New(nil, cfg)
+	ts := newTestServer(t, srv.Handler())
+	t.Cleanup(ts.Close)
+	return srv, ts
 }

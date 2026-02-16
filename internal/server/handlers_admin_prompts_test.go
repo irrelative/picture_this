@@ -5,8 +5,6 @@ import (
 	"net/http"
 	"strings"
 	"testing"
-
-	"picture-this/internal/config"
 )
 
 func TestPromptLibraryBasePath(t *testing.T) {
@@ -28,9 +26,7 @@ func TestPromptLibraryRedirectURL(t *testing.T) {
 }
 
 func TestAdminPromptLibraryViewKeepsSearchQuery(t *testing.T) {
-	srv := New(nil, config.Default())
-	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	srv, ts := newServerHarness(t)
 
 	ensureAuthenticatedUser(t, ts)
 	promoteSessionUsersToAdmin(t, srv)
