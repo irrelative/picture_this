@@ -320,6 +320,39 @@ def configure_runtime_cache_env(cache_root):
         os.environ.setdefault("TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD", "1")
 
 
+def normalize_hf_file_url(url):
+    if not isinstance(url, str):
+        return url
+    normalized = url.replace("/tree/", "/resolve/").replace("/blob/", "/resolve/")
+    return normalized
+
+
+def remove_if_invalid_bark_checkpoint(path):
+    target = Path(path)
+    if not target.exists() or not target.is_file():
+        return False
+    if target.suffix != ".pt":
+        return False
+    try:
+        size = target.stat().st_size
+        with target.open("rb") as handle:
+            prefix = handle.read(256).strip().lower()
+    except OSError:
+        return False
+
+    looks_like_html = prefix.startswith(b"<") or b"<html" in prefix or b"<!doctype html" in prefix
+    suspiciously_small = size > 0 and size < 1_000_000
+    if not (looks_like_html or suspiciously_small):
+        return False
+
+    try:
+        target.unlink()
+        print(f"Removed invalid Bark checkpoint file: {target}")
+        return True
+    except OSError:
+        return False
+
+
 def patch_bark_config_file(config_path, bark_cache_dir, bark_speaker_dir):
     try:
         raw = config_path.read_text(encoding="utf-8")
@@ -345,6 +378,38 @@ def patch_bark_config_file(config_path, bark_cache_dir, bark_speaker_dir):
         payload["DEF_SPEAKER_DIR"] = str(bark_speaker_dir)
         changed = True
 
+    remote_paths = payload.get("REMOTE_MODEL_PATHS")
+    if isinstance(remote_paths, dict):
+        rewritten_remote = {}
+        for key, value in remote_paths.items():
+            if isinstance(value, dict):
+                entry = dict(value)
+                if "path" in entry:
+                    fixed = normalize_hf_file_url(entry.get("path"))
+                    if fixed != entry.get("path"):
+                        changed = True
+                    entry["path"] = fixed
+                rewritten_remote[key] = entry
+            else:
+                rewritten_remote[key] = value
+        payload["REMOTE_MODEL_PATHS"] = rewritten_remote
+
+    small_remote_paths = payload.get("SMALL_REMOTE_MODEL_PATHS")
+    if isinstance(small_remote_paths, dict):
+        rewritten_small_remote = {}
+        for key, value in small_remote_paths.items():
+            if isinstance(value, dict):
+                entry = dict(value)
+                if "path" in entry:
+                    fixed = normalize_hf_file_url(entry.get("path"))
+                    if fixed != entry.get("path"):
+                        changed = True
+                    entry["path"] = fixed
+                rewritten_small_remote[key] = entry
+            else:
+                rewritten_small_remote[key] = value
+        payload["SMALL_REMOTE_MODEL_PATHS"] = rewritten_small_remote
+
     local_paths = payload.get("LOCAL_MODEL_PATHS")
     if isinstance(local_paths, dict):
         rewritten = {}
@@ -358,11 +423,23 @@ def patch_bark_config_file(config_path, bark_cache_dir, bark_speaker_dir):
             changed = True
 
     if not changed:
+        local_paths = payload.get("LOCAL_MODEL_PATHS")
+        if isinstance(local_paths, dict):
+            for key in ("text", "coarse", "fine"):
+                maybe_checkpoint = local_paths.get(key)
+                if isinstance(maybe_checkpoint, str):
+                    remove_if_invalid_bark_checkpoint(maybe_checkpoint)
         return False
 
     try:
         bark_cache_dir.mkdir(parents=True, exist_ok=True)
         bark_speaker_dir.mkdir(parents=True, exist_ok=True)
+        local_paths = payload.get("LOCAL_MODEL_PATHS")
+        if isinstance(local_paths, dict):
+            for key in ("text", "coarse", "fine"):
+                maybe_checkpoint = local_paths.get(key)
+                if isinstance(maybe_checkpoint, str):
+                    remove_if_invalid_bark_checkpoint(maybe_checkpoint)
         config_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         return True
     except OSError:
