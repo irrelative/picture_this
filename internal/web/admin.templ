@@ -112,7 +112,7 @@ templ Admin(gameID string, data AdminData) {
 						<tr>
 							<td>{ prompt.ID }</td>
 							<td>{ prompt.RoundID }</td>
-							<td>{ prompt.PlayerID }</td>
+							<td>{ playerName(data.PlayerNames, prompt.PlayerID) }</td>
 							<td>{ prompt.Text }</td>
 							<td>{ prompt.Joke }</td>
 							<td>
@@ -139,7 +139,7 @@ templ Admin(gameID string, data AdminData) {
 						<tr>
 							<td>{ drawing.ID }</td>
 							<td>{ drawing.RoundID }</td>
-							<td>{ drawing.PlayerID }</td>
+							<td>{ playerName(data.PlayerNames, drawing.PlayerID) }</td>
 							<td>{ drawing.PromptID }</td>
 							if len(drawing.ImageData) > 0 {
 								<td><img class="player-avatar admin-avatar" src={ encodeImageData(drawing.ImageData) } alt="Drawing preview"/></td>
@@ -164,7 +164,7 @@ templ Admin(gameID string, data AdminData) {
 						<tr>
 							<td>{ guess.ID }</td>
 							<td>{ guess.RoundID }</td>
-							<td>{ guess.PlayerID }</td>
+							<td>{ playerName(data.PlayerNames, guess.PlayerID) }</td>
 							<td>{ guess.DrawingID }</td>
 							<td>{ guess.Text }</td>
 						</tr>
@@ -184,7 +184,7 @@ templ Admin(gameID string, data AdminData) {
 						<tr>
 							<td>{ vote.ID }</td>
 							<td>{ vote.RoundID }</td>
-							<td>{ vote.PlayerID }</td>
+							<td>{ playerName(data.PlayerNames, vote.PlayerID) }</td>
 							<td>{ vote.DrawingID }</td>
 							<td>{ vote.ChoiceText }</td>
 							<td>{ vote.ChoiceType }</td>
@@ -211,7 +211,7 @@ templ Admin(gameID string, data AdminData) {
 								<td>-</td>
 							}
 							if event.PlayerID != nil {
-								<td>{ *event.PlayerID }</td>
+								<td>{ playerNamePtr(data.PlayerNames, event.PlayerID) }</td>
 							} else {
 								<td>-</td>
 							}

@@ -9,6 +9,7 @@ import (
 type AdminData struct {
 	Game           db.Game
 	Players        []db.Player
+	PlayerNames    map[uint]string
 	Rounds         []db.Round
 	Prompts        []db.Prompt
 	Drawings       []db.Drawing

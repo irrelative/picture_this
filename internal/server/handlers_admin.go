@@ -140,6 +140,10 @@ func (s *Server) loadAdminDataByID(gameDBID uint) (web.AdminData, string) {
 	if err := s.db.Where("game_id = ?", gameDBID).Order("id asc").Find(&data.Players).Error; err != nil {
 		return data, "Failed to load players."
 	}
+	data.PlayerNames = make(map[uint]string, len(data.Players))
+	for _, player := range data.Players {
+		data.PlayerNames[player.ID] = player.Name
+	}
 	if err := s.db.Where("game_id = ?", gameDBID).Order("number asc").Find(&data.Rounds).Error; err != nil {
 		return data, "Failed to load rounds."
 	}

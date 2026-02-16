@@ -18,6 +18,22 @@ func utoa(value uint) string {
 	return strconv.FormatUint(uint64(value), 10)
 }
 
+func playerName(playerNames map[uint]string, playerID uint) string {
+	if playerNames != nil {
+		if name, ok := playerNames[playerID]; ok && strings.TrimSpace(name) != "" {
+			return name
+		}
+	}
+	return "#" + utoa(playerID)
+}
+
+func playerNamePtr(playerNames map[uint]string, playerID *uint) string {
+	if playerID == nil {
+		return "-"
+	}
+	return playerName(playerNames, *playerID)
+}
+
 func pageURL(base string, page, perPage int) string {
 	if strings.Contains(base, "?") {
 		return base + "&page=" + itoa(page) + "&per_page=" + itoa(perPage)
