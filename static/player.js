@@ -12,6 +12,7 @@ import {
   postVote
 } from "./player_api.js";
 import { applyBrushColor, clearCanvas, setupCanvas } from "./player_canvas.js";
+import { createPhaseTimer, createPolling, createReconnect, formatTime } from "./realtime.js";
 import { updateFromSnapshot } from "./player_view.js";
 import { applyHTMLMessage } from "./ws_html.js";
 
@@ -64,7 +65,6 @@ const ctx = {
     phaseTimer: document.getElementById("phaseTimer")
   },
   state: {
-    pollTimer: null,
     assignedPrompt: "",
     currentRound: 0,
     hostId: 0,
@@ -80,12 +80,9 @@ const ctx = {
     canvasHeight: 600,
     avatarCtx: null,
     timerEndsAt: 0,
-    timerHandle: null,
     authToken: "",
     avatarLocked: false,
     wsConn: null,
-    wsReconnectTimer: null,
-    wsReconnectAttempts: 0,
     unloading: false,
     gameMissing: false
   },
@@ -100,12 +97,21 @@ ctx.actions.applyAvatarColor = () => {
 };
 ctx.actions.fetchPrompt = () => fetchPromptForPlayer();
 ctx.actions.clearCanvas = () => clearCanvas(ctx);
-
-function formatTime(seconds) {
-  const minutes = Math.floor(seconds / 60);
-  const remainder = seconds % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
-}
+const phaseTimer = createPhaseTimer((endsAt) => {
+  ctx.state.timerEndsAt = endsAt;
+  renderTimer();
+});
+const polling = createPolling(() => {
+  loadPlayerView();
+}, 3000);
+const wsReconnect = createReconnect(() => {
+  connectWS();
+}, {
+  baseDelayMs: 1000,
+  exponential: true,
+  maxDelayMs: 15000,
+  maxExponent: 5
+});
 
 function playAudio(audio) {
   if (!audio) return;
@@ -128,12 +134,7 @@ function renderTimer() {
 }
 
 function syncTimer(data) {
-  const endsAt = data.phase_ends_at ? Date.parse(data.phase_ends_at) : 0;
-  ctx.state.timerEndsAt = Number.isNaN(endsAt) ? 0 : endsAt;
-  renderTimer();
-  if (!ctx.state.timerHandle) {
-    ctx.state.timerHandle = setInterval(renderTimer, 1000);
-  }
+  phaseTimer.setEndsAt(data.phase_ends_at || "");
 }
 
 function markGameMissing() {
@@ -141,8 +142,8 @@ function markGameMissing() {
     return;
   }
   ctx.state.gameMissing = true;
-  stopPolling();
-  clearWSReconnectTimer();
+  polling.stop();
+  wsReconnect.clear();
   if (ctx.state.wsConn) {
     const socket = ctx.state.wsConn;
     ctx.state.wsConn = null;
@@ -187,40 +188,6 @@ async function loadPlayerView() {
   syncTimer(data);
 }
 
-function startPolling() {
-  if (ctx.state.pollTimer) return;
-  ctx.state.pollTimer = setInterval(loadPlayerView, 3000);
-}
-
-function stopPolling() {
-  if (!ctx.state.pollTimer) return;
-  clearInterval(ctx.state.pollTimer);
-  ctx.state.pollTimer = null;
-}
-
-function clearWSReconnectTimer() {
-  if (!ctx.state.wsReconnectTimer) return;
-  clearTimeout(ctx.state.wsReconnectTimer);
-  ctx.state.wsReconnectTimer = null;
-}
-
-function reconnectDelayMs() {
-  const attempt = Math.min(ctx.state.wsReconnectAttempts, 5);
-  return Math.min(15000, 1000 * 2 ** attempt);
-}
-
-function scheduleWSReconnect() {
-  if (ctx.state.unloading || ctx.state.gameMissing || ctx.state.wsReconnectTimer || !ctx.els.meta) {
-    return;
-  }
-  const delayMs = reconnectDelayMs();
-  ctx.state.wsReconnectTimer = setTimeout(() => {
-    ctx.state.wsReconnectTimer = null;
-    ctx.state.wsReconnectAttempts += 1;
-    connectWS();
-  }, delayMs);
-}
-
 async function handleWSDisconnect(socket) {
   if (ctx.state.wsConn === socket) {
     ctx.state.wsConn = null;
@@ -232,8 +199,8 @@ async function handleWSDisconnect(socket) {
   if (ctx.state.gameMissing) {
     return;
   }
-  startPolling();
-  scheduleWSReconnect();
+  polling.start();
+  wsReconnect.schedule(() => !ctx.state.unloading && !ctx.state.gameMissing && Boolean(ctx.els.meta));
 }
 
 function connectWS() {
@@ -251,9 +218,8 @@ function connectWS() {
     if (ctx.state.wsConn !== socket) {
       return;
     }
-    ctx.state.wsReconnectAttempts = 0;
-    clearWSReconnectTimer();
-    stopPolling();
+    wsReconnect.reset();
+    polling.stop();
     loadPlayerView();
   });
 
@@ -585,8 +551,8 @@ window.addEventListener("online", () => {
 
 window.addEventListener("beforeunload", () => {
   ctx.state.unloading = true;
-  clearWSReconnectTimer();
-  stopPolling();
+  wsReconnect.clear();
+  polling.stop();
   if (ctx.state.wsConn) {
     ctx.state.wsConn.close();
     ctx.state.wsConn = null;

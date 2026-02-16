@@ -1,3 +1,4 @@
+import { createPhaseTimer, createReconnect, formatTime } from "./realtime.js";
 import { applyHTMLMessage } from "./ws_html.js";
 
 let displayContent = document.getElementById("displayContent");
@@ -65,7 +66,6 @@ const state = {
   guessRequiredCount: 0,
   voteSubmittedCount: 0,
   voteRequiredCount: 0,
-  timerHandle: null,
   playerCount: null,
   round: null,
   lastPhase: "",
@@ -80,7 +80,6 @@ const state = {
   connected: false,
   voteRevealKey: "",
   voteRevealTimer: null,
-  reconnectHandle: null,
   socket: null,
   gameMissing: false
 };
@@ -93,6 +92,15 @@ const phaseMusic = new Map([
   ["results", questionAudio],
   ["complete", creditsAudio]
 ]);
+
+const phaseTimer = createPhaseTimer((endsAt) => {
+  state.phaseEndsAt = endsAt;
+  renderTimer();
+});
+
+const reconnect = createReconnect(() => connectWS(), {
+  baseDelayMs: 2000
+});
 
 function playAudio(audio) {
   if (!audio) return;
@@ -137,13 +145,7 @@ function resetRealtimeMediaState() {
 }
 
 function scheduleReconnect() {
-  if (state.gameMissing || state.reconnectHandle) {
-    return;
-  }
-  state.reconnectHandle = setTimeout(() => {
-    state.reconnectHandle = null;
-    connectWS();
-  }, 2000);
+  reconnect.schedule(() => !state.gameMissing);
 }
 
 function markGameMissing() {
@@ -152,10 +154,7 @@ function markGameMissing() {
   }
   state.gameMissing = true;
   state.connected = false;
-  if (state.reconnectHandle) {
-    clearTimeout(state.reconnectHandle);
-    state.reconnectHandle = null;
-  }
+  reconnect.clear();
   if (state.socket) {
     const socket = state.socket;
     state.socket = null;
@@ -187,12 +186,6 @@ function stopAllMusic() {
     stopAudio(audio);
   });
   state.lastMusicPhase = "";
-}
-
-function formatTime(seconds) {
-  const minutes = Math.floor(seconds / 60);
-  const remainder = seconds % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
 }
 
 function renderTimer() {
@@ -560,8 +553,7 @@ function syncFromContent() {
   const guessRequiredCount = Number(displayContent.dataset.guessRequiredCount || 0);
   const voteSubmittedCount = Number(displayContent.dataset.voteSubmittedCount || 0);
   const voteRequiredCount = Number(displayContent.dataset.voteRequiredCount || 0);
-  const endsAt = displayContent.dataset.phaseEndsAt ? Date.parse(displayContent.dataset.phaseEndsAt) : 0;
-  state.phaseEndsAt = Number.isNaN(endsAt) ? 0 : endsAt;
+  phaseTimer.setEndsAt(displayContent.dataset.phaseEndsAt || "");
   const countValue = Number(displayContent.dataset.playerCount || 0);
   const roundValue = Number(displayContent.dataset.round || 0);
   detectProgressEvents({
@@ -605,10 +597,6 @@ function syncFromContent() {
     syncPhaseAudio(state.phase);
     handleJokeNarration();
     playNextInterlude();
-  }
-  renderTimer();
-  if (!state.timerHandle) {
-    state.timerHandle = setInterval(renderTimer, 1000);
   }
 }
 
@@ -659,10 +647,7 @@ function connectWS() {
   if (!displayContent || state.gameMissing) return;
   const gameId = displayContent.dataset.gameId;
   if (!gameId) return;
-  if (state.reconnectHandle) {
-    clearTimeout(state.reconnectHandle);
-    state.reconnectHandle = null;
-  }
+  reconnect.clear();
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
   const socket = new WebSocket(`${protocol}://${window.location.host}/ws/games/${encodeURIComponent(gameId)}?role=display`);
   state.socket = socket;

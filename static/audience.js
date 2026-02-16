@@ -1,3 +1,5 @@
+import { createPhaseTimer, createPolling, createReconnect, formatTime } from "./realtime.js";
+
 const els = {
   meta: document.getElementById("audienceMeta"),
   joinCode: document.getElementById("audienceJoinCode"),
@@ -16,15 +18,25 @@ const els = {
 };
 
 const state = {
-  pollTimer: null,
-  timerHandle: null,
   timerEndsAt: 0,
-  reconnectHandle: null,
   socket: null,
   audience: null,
   snapshot: null,
   gameMissing: false
 };
+
+const phaseTimer = createPhaseTimer((endsAt) => {
+  state.timerEndsAt = endsAt;
+  renderTimer();
+});
+const polling = createPolling(() => {
+  loadSnapshot();
+}, 3000);
+const reconnect = createReconnect(() => {
+  connectWS();
+}, {
+  baseDelayMs: 2000
+});
 
 function audienceStorageKey(gameId) {
   return `pt_audience_${gameId}`;
@@ -66,11 +78,8 @@ function markGameMissing() {
     return;
   }
   state.gameMissing = true;
-  stopPolling();
-  if (state.reconnectHandle) {
-    clearTimeout(state.reconnectHandle);
-    state.reconnectHandle = null;
-  }
+  polling.stop();
+  reconnect.clear();
   if (state.socket) {
     const socket = state.socket;
     state.socket = null;
@@ -84,12 +93,6 @@ function markGameMissing() {
   }
 }
 
-function formatTime(seconds) {
-  const minutes = Math.floor(seconds / 60);
-  const remainder = seconds % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
-}
-
 function renderTimer() {
   if (!els.timer) return;
   if (!state.timerEndsAt) {
@@ -101,12 +104,7 @@ function renderTimer() {
 }
 
 function syncTimer(snapshot) {
-  const endsAt = snapshot.phase_ends_at ? Date.parse(snapshot.phase_ends_at) : 0;
-  state.timerEndsAt = Number.isNaN(endsAt) ? 0 : endsAt;
-  renderTimer();
-  if (!state.timerHandle) {
-    state.timerHandle = setInterval(renderTimer, 1000);
-  }
+  phaseTimer.setEndsAt(snapshot.phase_ends_at || "");
 }
 
 function voteKey(snapshot, drawingIndex) {
@@ -250,30 +248,11 @@ async function loadSnapshot() {
   renderSnapshot(data);
 }
 
-function stopPolling() {
-  if (!state.pollTimer) return;
-  clearInterval(state.pollTimer);
-  state.pollTimer = null;
-}
-
-function startPolling() {
-  if (state.pollTimer) return;
-  state.pollTimer = setInterval(loadSnapshot, 3000);
-}
-
-function scheduleReconnect() {
-  if (state.gameMissing || state.reconnectHandle) return;
-  state.reconnectHandle = setTimeout(() => {
-    state.reconnectHandle = null;
-    connectWS();
-  }, 2000);
-}
-
 function connectWS() {
   if (state.gameMissing) return;
   const gameId = els.meta?.dataset.gameId || "";
   if (!gameId || typeof WebSocket === "undefined") {
-    startPolling();
+    polling.start();
     return;
   }
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
@@ -283,11 +262,8 @@ function connectWS() {
   state.socket = socket;
 
   socket.addEventListener("open", () => {
-    stopPolling();
-    if (state.reconnectHandle) {
-      clearTimeout(state.reconnectHandle);
-      state.reconnectHandle = null;
-    }
+    polling.stop();
+    reconnect.reset();
     loadSnapshot();
   });
 
@@ -309,12 +285,12 @@ function connectWS() {
     if (state.gameMissing) {
       return;
     }
-    startPolling();
+    polling.start();
     await loadSnapshot();
     if (state.gameMissing) {
       return;
     }
-    scheduleReconnect();
+    reconnect.schedule(() => !state.gameMissing);
   });
 
   socket.addEventListener("error", () => {
