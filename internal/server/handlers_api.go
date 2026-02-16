@@ -95,6 +95,18 @@ type endRequest struct {
 	AuthToken string `json:"auth_token"`
 }
 
+func respondGameMutationError(c *gin.Context, err error) bool {
+	if err == nil {
+		return false
+	}
+	if err.Error() == "game not found" {
+		c.Status(http.StatusNotFound)
+		return true
+	}
+	c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+	return true
+}
+
 func (s *Server) handleCreateGame(c *gin.Context) {
 	if !s.enforceRateLimit(c, "create") {
 		return
@@ -299,12 +311,7 @@ func (s *Server) handleAudienceJoin(c *gin.Context) {
 		game.Audience = append(game.Audience, joined)
 		return nil
 	})
-	if err != nil {
-		if err.Error() == "game not found" {
-			c.Status(http.StatusNotFound)
-			return
-		}
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+	if respondGameMutationError(c, err) {
 		return
 	}
 	c.JSON(http.StatusOK, map[string]any{
@@ -388,12 +395,7 @@ func (s *Server) handleAudienceVote(c *gin.Context) {
 		})
 		return nil
 	})
-	if err != nil {
-		if err.Error() == "game not found" {
-			c.Status(http.StatusNotFound)
-			return
-		}
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+	if respondGameMutationError(c, err) {
 		return
 	}
 	c.JSON(http.StatusOK, s.snapshot(game))
@@ -441,12 +443,7 @@ func (s *Server) handleAvatar(c *gin.Context) {
 		player.AvatarLocked = true
 		return nil
 	})
-	if err != nil {
-		if err.Error() == "game not found" {
-			c.Status(http.StatusNotFound)
-			return
-		}
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+	if respondGameMutationError(c, err) {
 		return
 	}
 	player, ok := s.store.FindPlayer(game, req.PlayerID)
@@ -543,12 +540,7 @@ func (s *Server) handleSettings(c *gin.Context) {
 		game.LobbyLocked = req.LobbyLocked
 		return nil
 	})
-	if err != nil {
-		if err.Error() == "game not found" {
-			c.Status(http.StatusNotFound)
-			return
-		}
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+	if respondGameMutationError(c, err) {
 		return
 	}
 	if err := s.persistSettings(game); err != nil {
@@ -605,12 +597,7 @@ func (s *Server) handleKick(c *gin.Context) {
 		game.Players = append(game.Players[:index], game.Players[index+1:]...)
 		return nil
 	})
-	if err != nil {
-		if err.Error() == "game not found" {
-			c.Status(http.StatusNotFound)
-			return
-		}
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+	if respondGameMutationError(c, err) {
 		return
 	}
 	log.Printf("player removed game_id=%s target_id=%d", game.ID, req.TargetID)
@@ -652,12 +639,7 @@ func (s *Server) handleStartGame(c *gin.Context) {
 		})
 		return nil
 	})
-	if err != nil {
-		if err.Error() == "game not found" {
-			c.Status(http.StatusNotFound)
-			return
-		}
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+	if respondGameMutationError(c, err) {
 		return
 	}
 	if err := s.persistPhase(game, "game_started", EventPayload{Phase: game.Phase}); err != nil {
@@ -737,12 +719,7 @@ func (s *Server) handleDrawings(c *gin.Context) {
 		})
 		return nil
 	})
-	if err != nil {
-		if err.Error() == "game not found" {
-			c.Status(http.StatusNotFound)
-			return
-		}
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+	if respondGameMutationError(c, err) {
 		return
 	}
 	if err := s.persistDrawing(game, req.PlayerID, image, promptText); err != nil {
@@ -822,12 +799,7 @@ func (s *Server) handleGuesses(c *gin.Context) {
 		}
 		return nil
 	})
-	if err != nil {
-		if err.Error() == "game not found" {
-			c.Status(http.StatusNotFound)
-			return
-		}
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+	if respondGameMutationError(c, err) {
 		return
 	}
 	if err := s.persistGuess(game, req.PlayerID, drawingIndex, guessText); err != nil {
@@ -924,12 +896,7 @@ func (s *Server) handleVotes(c *gin.Context) {
 		}
 		return nil
 	})
-	if err != nil {
-		if err.Error() == "game not found" {
-			c.Status(http.StatusNotFound)
-			return
-		}
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+	if respondGameMutationError(c, err) {
 		return
 	}
 	if err := s.persistVote(game, req.PlayerID, voteRoundNumber, voteDrawingIndex, voteChoiceText, voteChoiceType); err != nil {
@@ -983,12 +950,7 @@ func (s *Server) handleAdvance(c *gin.Context) {
 		_, err := s.advancePhase(game, transitionManual, time.Time{})
 		return err
 	})
-	if err != nil {
-		if err.Error() == "game not found" {
-			c.Status(http.StatusNotFound)
-			return
-		}
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+	if respondGameMutationError(c, err) {
 		return
 	}
 	for _, filled := range filledGuesses {
@@ -1051,12 +1013,7 @@ func (s *Server) handleEndGame(c *gin.Context) {
 		setPhase(game, phaseComplete)
 		return nil
 	})
-	if err != nil {
-		if err.Error() == "game not found" {
-			c.Status(http.StatusNotFound)
-			return
-		}
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+	if respondGameMutationError(c, err) {
 		return
 	}
 	if err := s.persistPhase(game, "game_ended", EventPayload{Phase: game.Phase}); err != nil {
