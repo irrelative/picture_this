@@ -74,7 +74,7 @@ templ Home(flash string, playerName string, games []GameSummary, loggedIn bool, 
 						<span class="label">Maximum players</span>
 						<input name="max_players" type="number" min="0" max="10" value="10" required disabled?={ !loggedIn }/>
 					</label>
-					<button id="createGame" class="primary" type="submit" disabled?={ !loggedIn }>Create game</button>
+					<button id="createGame" class="primary home-cta" type="submit" disabled?={ !loggedIn }>Create game</button>
 				</form>
 				<div id="createResult" class="result" role="status" aria-live="polite"></div>
 			</section>
@@ -97,7 +97,7 @@ templ Home(flash string, playerName string, games []GameSummary, loggedIn bool, 
 							<input name="name" placeholder="Display name" autocomplete="name" required/>
 						}
 					</label>
-					<button type="submit" class="primary">Join game</button>
+					<button type="submit" class="primary home-cta">Join game</button>
 				</form>
 				<div id="joinResult" class="result" role="status" aria-live="polite"></div>
 			</section>

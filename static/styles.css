@@ -411,6 +411,14 @@ a:focus-visible {
   max-width: 16rem;
 }
 
+.home-cta {
+  min-width: 10.5rem;
+  padding: var(--pill-control-py) var(--pill-control-px);
+  border-radius: var(--radius-pill);
+  font-size: var(--pill-control-font-size);
+  line-height: 1.1;
+}
+
 .join-only {
   grid-template-columns: 1fr;
 }
