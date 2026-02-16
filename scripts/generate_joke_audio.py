@@ -15,6 +15,29 @@ import torch
 DEFAULT_MODEL = "tts_models/multilingual/multi-dataset/xtts_v2"
 DEFAULT_LANGUAGE = "en"
 DEFAULT_XTTS_SPEAKER = "Rosemary Okafor"
+DEFAULT_SPEED = "0.92"
+DEFAULT_TEMPERATURE = "0.55"
+DEFAULT_TOP_P = "0.92"
+DEFAULT_REPETITION_PENALTY = "3.0"
+
+PUNCHLINE_PIVOTS = (
+    "but",
+    "except",
+    "until",
+    "yet",
+    "though",
+    "although",
+    "however",
+    "because",
+    "so",
+    "then",
+    "when",
+    "while",
+    "after",
+    "before",
+    "unless",
+    "instead",
+)
 
 
 def allow_xtts_globals():
@@ -40,12 +63,12 @@ def parse_args():
     parser.add_argument("--list-speakers", action="store_true", help="List available speakers for the model and exit")
     parser.add_argument("--list-languages", action="store_true", help="List available languages for the model and exit")
     parser.add_argument("--language", default=os.getenv("COQUI_TTS_LANGUAGE", DEFAULT_LANGUAGE), help="Optional language code")
-    parser.add_argument("--speed", type=float, default=float(os.getenv("COQUI_TTS_SPEED", "0.96")), help="Speech speed (if model supports it)")
-    parser.add_argument("--temperature", type=float, default=float(os.getenv("COQUI_TTS_TEMPERATURE", "0.35")), help="Sampling temperature (if supported)")
-    parser.add_argument("--top-p", type=float, default=float(os.getenv("COQUI_TTS_TOP_P", "0.85")), help="Nucleus sampling top_p (if supported)")
+    parser.add_argument("--speed", type=float, default=float(os.getenv("COQUI_TTS_SPEED", DEFAULT_SPEED)), help="Speech speed (if model supports it)")
+    parser.add_argument("--temperature", type=float, default=float(os.getenv("COQUI_TTS_TEMPERATURE", DEFAULT_TEMPERATURE)), help="Sampling temperature (if supported)")
+    parser.add_argument("--top-p", type=float, default=float(os.getenv("COQUI_TTS_TOP_P", DEFAULT_TOP_P)), help="Nucleus sampling top_p (if supported)")
     parser.add_argument("--top-k", type=int, default=int(os.getenv("COQUI_TTS_TOP_K", "50")), help="Sampling top_k (if supported)")
-    parser.add_argument("--repetition-penalty", type=float, default=float(os.getenv("COQUI_TTS_REPETITION_PENALTY", "5.0")), help="Repetition penalty (if supported)")
-    parser.add_argument("--split-sentences", action=argparse.BooleanOptionalAction, default=True, help="Enable sentence splitting where supported")
+    parser.add_argument("--repetition-penalty", type=float, default=float(os.getenv("COQUI_TTS_REPETITION_PENALTY", DEFAULT_REPETITION_PENALTY)), help="Repetition penalty (if supported)")
+    parser.add_argument("--split-sentences", action=argparse.BooleanOptionalAction, default=False, help="Enable sentence splitting where supported")
     parser.add_argument("--output-format", choices=["mp3", "wav"], default=os.getenv("COQUI_TTS_OUTPUT_FORMAT", "mp3"), help="Output file format")
     parser.add_argument("--mp3-bitrate", default=os.getenv("COQUI_TTS_MP3_BITRATE", "128k"), help="MP3 bitrate for ffmpeg encoding")
     parser.add_argument("--ffmpeg-bin", default=os.getenv("FFMPEG_BIN", "ffmpeg"), help="ffmpeg binary path")
@@ -90,12 +113,38 @@ def normalize_joke_text(text, max_chars):
     cleaned = re.sub(r"\s+", " ", text or "").strip()
     cleaned = cleaned.strip("`\"' ")
     cleaned = cleaned.replace("“", "\"").replace("”", "\"").replace("’", "'")
+    cleaned = insert_delivery_pause(cleaned)
     if len(cleaned) > max_chars:
         clipped = cleaned[:max_chars].rsplit(" ", 1)[0].strip()
         cleaned = clipped if clipped else cleaned[:max_chars]
     if cleaned and cleaned[-1] not in ".!?":
         cleaned += "."
     return cleaned
+
+
+def insert_delivery_pause(text):
+    if not text:
+        return text
+    words = text.split()
+    if len(words) < 5:
+        return text
+
+    for pivot in PUNCHLINE_PIVOTS:
+        match = re.search(rf"(?i)\b{re.escape(pivot)}\b", text)
+        if match is None or match.start() == 0:
+            continue
+        prefix = text[:match.start()].rstrip()
+        suffix = text[match.start():].lstrip()
+        if prefix and prefix[-1] in ",;:.!?-":
+            return text
+        return f"{prefix}, {suffix}"
+
+    if re.search(r"[,:;!?]", text):
+        return text
+    if len(words) >= 8:
+        split_at = len(words) - 3
+        return f"{' '.join(words[:split_at])}, {' '.join(words[split_at:])}"
+    return text
 
 
 def build_select_query(args):
@@ -185,8 +234,15 @@ def discover_speakers(tts):
 
 def encode_mp3(ffmpeg_bin, input_wav, output_mp3, bitrate, normalize_loudness):
     cmd = [ffmpeg_bin, "-hide_banner", "-loglevel", "error", "-y", "-i", str(input_wav)]
+    filter_chain = [
+        "highpass=f=80",
+        "lowpass=f=12000",
+        "acompressor=threshold=0.08:ratio=3:attack=5:release=120:makeup=2",
+    ]
     if normalize_loudness:
-        cmd.extend(["-af", "loudnorm=I=-16:TP=-1.5:LRA=11"])
+        filter_chain.append("loudnorm=I=-16:TP=-1.5:LRA=9")
+    filter_chain.append("alimiter=limit=0.95")
+    cmd.extend(["-af", ",".join(filter_chain)])
     cmd.extend(["-vn", "-ar", "44100", "-ac", "1", "-codec:a", "libmp3lame", "-b:a", bitrate, str(output_mp3)])
     subprocess.run(cmd, check=True)
 

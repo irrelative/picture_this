@@ -60,12 +60,17 @@ Narrator jokes:
 - Roughly 50% of prompts should include a quippy one-liner.
 - These lines are read after the results are revealed.
 - Jokes must:
-  - Be one short sentence (roughly 4-10 words).
+  - Be one short sentence (roughly 4-9 words).
   - Read like a quick quip/tagline, not a setup-and-punchline joke.
   - Be snarky and dry, not goofy.
   - Reference the prompt's situation, not the players or drawings.
   - Not introduce new visual requirements.
   - Avoid dialogue and rhetorical questions.
+  - Be written for spoken delivery:
+    - Use simple, common words.
+    - Prefer one setup + one turn.
+    - Use at most one comma as a beat before the final phrase.
+    - Avoid tongue twisters, dense alliteration, or proper-noun overload.
 - Jokes can:
   - Use mild sarcasm.
   - Reference pop culture, but not politics.
