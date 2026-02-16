@@ -21,6 +21,7 @@ DEFAULT_SPEED = "0.92"
 DEFAULT_TEMPERATURE = "0.55"
 DEFAULT_TOP_P = "0.92"
 DEFAULT_REPETITION_PENALTY = "3.0"
+TRUE_VALUES = {"1", "y", "yes", "true", "on"}
 
 PUNCHLINE_PIVOTS = (
     "but",
@@ -314,6 +315,9 @@ def configure_runtime_cache_env(cache_root):
     os.environ["XDG_DATA_HOME"] = str(xdg_data)
     os.environ["TTS_HOME"] = str(tts_home)
     os.environ.setdefault("COQUI_TOS_AGREED", "1")
+    force_safe_load = os.getenv("TORCH_FORCE_WEIGHTS_ONLY_LOAD", "").strip().lower() in TRUE_VALUES
+    if not force_safe_load:
+        os.environ.setdefault("TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD", "1")
 
 
 def patch_bark_config_file(config_path, bark_cache_dir, bark_speaker_dir):
@@ -386,7 +390,17 @@ def patch_bark_configs_for_models(models):
 
 def load_tts_model(tts_class, model_name, device):
     print(f"Loading TTS model: {model_name} (device={device})")
-    tts = tts_class(model_name=model_name, progress_bar=False, gpu=(device == "cuda"))
+    try:
+        tts = tts_class(model_name=model_name, progress_bar=False, gpu=(device == "cuda"))
+    except Exception as exc:
+        if "Weights only load failed" not in str(exc):
+            raise
+        force_safe_load = os.getenv("TORCH_FORCE_WEIGHTS_ONLY_LOAD", "").strip().lower() in TRUE_VALUES
+        if force_safe_load:
+            raise
+        os.environ["TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD"] = "1"
+        print("Retrying model load with TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1 for PyTorch 2.6 compatibility.")
+        tts = tts_class(model_name=model_name, progress_bar=False, gpu=(device == "cuda"))
     if device == "mps":
         try:
             tts.to("mps")
