@@ -86,7 +86,8 @@ const ctx = {
     wsConn: null,
     wsReconnectTimer: null,
     wsReconnectAttempts: 0,
-    unloading: false
+    unloading: false,
+    gameMissing: false
   },
   actions: {}
 };
@@ -135,8 +136,32 @@ function syncTimer(data) {
   }
 }
 
+function markGameMissing() {
+  if (ctx.state.gameMissing) {
+    return;
+  }
+  ctx.state.gameMissing = true;
+  stopPolling();
+  clearWSReconnectTimer();
+  if (ctx.state.wsConn) {
+    const socket = ctx.state.wsConn;
+    ctx.state.wsConn = null;
+    socket.close();
+  }
+  if (ctx.els.joinCode) {
+    ctx.els.joinCode.textContent = "Unavailable";
+  }
+  if (ctx.els.gameStatus) {
+    ctx.els.gameStatus.textContent = "game not found";
+  }
+  if (ctx.els.playerError) {
+    ctx.els.playerError.textContent = "game not found";
+  }
+}
+
 async function loadPlayerView() {
   if (!ctx.els.meta) return;
+  if (ctx.state.gameMissing) return;
   const gameId = ctx.els.meta.dataset.gameId;
   const playerId = ctx.els.meta.dataset.playerId;
   if (!ctx.state.authToken) {
@@ -144,6 +169,10 @@ async function loadPlayerView() {
   }
   const { res, data } = await fetchSnapshot(gameId);
   if (!res.ok) {
+    if (res.status === 404) {
+      markGameMissing();
+      return;
+    }
     ctx.els.joinCode.textContent = "Unavailable";
     ctx.els.gameStatus.textContent = "Unknown";
     if (ctx.els.playerError) {
@@ -181,7 +210,7 @@ function reconnectDelayMs() {
 }
 
 function scheduleWSReconnect() {
-  if (ctx.state.unloading || ctx.state.wsReconnectTimer || !ctx.els.meta) {
+  if (ctx.state.unloading || ctx.state.gameMissing || ctx.state.wsReconnectTimer || !ctx.els.meta) {
     return;
   }
   const delayMs = reconnectDelayMs();
@@ -192,11 +221,15 @@ function scheduleWSReconnect() {
   }, delayMs);
 }
 
-function handleWSDisconnect(socket) {
+async function handleWSDisconnect(socket) {
   if (ctx.state.wsConn === socket) {
     ctx.state.wsConn = null;
   }
-  if (ctx.state.unloading) {
+  if (ctx.state.unloading || ctx.state.gameMissing) {
+    return;
+  }
+  await loadPlayerView();
+  if (ctx.state.gameMissing) {
     return;
   }
   startPolling();
@@ -204,7 +237,7 @@ function handleWSDisconnect(socket) {
 }
 
 function connectWS() {
-  if (!ctx.els.meta) return;
+  if (!ctx.els.meta || ctx.state.gameMissing) return;
   const existing = ctx.state.wsConn;
   if (existing && (existing.readyState === WebSocket.OPEN || existing.readyState === WebSocket.CONNECTING)) {
     return;
@@ -249,6 +282,7 @@ function connectWS() {
 
 async function fetchPromptForPlayer() {
   if (!ctx.els.meta) return;
+  if (ctx.state.gameMissing) return;
   if (ctx.state.assignedPrompt) {
     return;
   }
@@ -256,6 +290,10 @@ async function fetchPromptForPlayer() {
   const playerId = ctx.els.meta.dataset.playerId;
   const { res, data } = await fetchPrompt(gameId, playerId);
   if (!res.ok) {
+    if (res.status === 404) {
+      markGameMissing();
+      return;
+    }
     if (ctx.els.playerError) {
       ctx.els.playerError.textContent = data.error || "Unable to load prompt.";
     }
@@ -527,6 +565,9 @@ setupCanvas(ctx, async (dataUrl) => {
 });
 
 document.addEventListener("visibilitychange", () => {
+  if (ctx.state.gameMissing) {
+    return;
+  }
   if (document.visibilityState !== "visible") {
     return;
   }
@@ -535,6 +576,9 @@ document.addEventListener("visibilitychange", () => {
 });
 
 window.addEventListener("online", () => {
+  if (ctx.state.gameMissing) {
+    return;
+  }
   loadPlayerView();
   connectWS();
 });

@@ -22,7 +22,8 @@ const state = {
   reconnectHandle: null,
   socket: null,
   audience: null,
-  snapshot: null
+  snapshot: null,
+  gameMissing: false
 };
 
 function audienceStorageKey(gameId) {
@@ -58,6 +59,29 @@ async function requestJSON(url, options) {
   const res = await fetch(url, options);
   const data = await res.json().catch(() => ({}));
   return { res, data };
+}
+
+function markGameMissing() {
+  if (state.gameMissing) {
+    return;
+  }
+  state.gameMissing = true;
+  stopPolling();
+  if (state.reconnectHandle) {
+    clearTimeout(state.reconnectHandle);
+    state.reconnectHandle = null;
+  }
+  if (state.socket) {
+    const socket = state.socket;
+    state.socket = null;
+    socket.close();
+  }
+  if (els.phase) {
+    els.phase.textContent = "game not found";
+  }
+  if (els.error) {
+    els.error.textContent = "game not found";
+  }
 }
 
 function formatTime(seconds) {
@@ -211,8 +235,13 @@ function renderSnapshot(snapshot) {
 async function loadSnapshot() {
   const gameId = els.meta?.dataset.gameId || "";
   if (!gameId) return;
+  if (state.gameMissing) return;
   const { res, data } = await requestJSON(`/api/games/${encodeURIComponent(gameId)}`);
   if (!res.ok) {
+    if (res.status === 404) {
+      markGameMissing();
+      return;
+    }
     if (els.error) {
       els.error.textContent = data.error || "Unable to load game status.";
     }
@@ -233,7 +262,7 @@ function startPolling() {
 }
 
 function scheduleReconnect() {
-  if (state.reconnectHandle) return;
+  if (state.gameMissing || state.reconnectHandle) return;
   state.reconnectHandle = setTimeout(() => {
     state.reconnectHandle = null;
     connectWS();
@@ -241,6 +270,7 @@ function scheduleReconnect() {
 }
 
 function connectWS() {
+  if (state.gameMissing) return;
   const gameId = els.meta?.dataset.gameId || "";
   if (!gameId || typeof WebSocket === "undefined") {
     startPolling();
@@ -272,8 +302,18 @@ function connectWS() {
     }
   });
 
-  socket.addEventListener("close", () => {
+  socket.addEventListener("close", async () => {
+    if (state.socket === socket) {
+      state.socket = null;
+    }
+    if (state.gameMissing) {
+      return;
+    }
     startPolling();
+    await loadSnapshot();
+    if (state.gameMissing) {
+      return;
+    }
     scheduleReconnect();
   });
 

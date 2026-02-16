@@ -48,7 +48,9 @@ const ctx = {
     lastMusicPhase: "",
     timerEndsAt: 0,
     timerPhase: "",
-    timerHandle: null
+    timerHandle: null,
+    socket: null,
+    gameMissing: false
   }
 };
 
@@ -139,11 +141,44 @@ function syncTimer(data) {
   }
 }
 
+function stopPolling() {
+  if (!ctx.state.pollTimer) return;
+  clearInterval(ctx.state.pollTimer);
+  ctx.state.pollTimer = null;
+}
+
+function markGameMissing() {
+  if (ctx.state.gameMissing) {
+    return;
+  }
+  ctx.state.gameMissing = true;
+  stopPolling();
+  if (ctx.state.socket) {
+    const socket = ctx.state.socket;
+    ctx.state.socket = null;
+    socket.close();
+  }
+  if (ctx.els.joinCode) {
+    ctx.els.joinCode.textContent = "Unavailable";
+  }
+  if (ctx.els.gameStatus) {
+    ctx.els.gameStatus.textContent = "game not found";
+  }
+  if (ctx.els.gameError) {
+    ctx.els.gameError.textContent = "game not found";
+  }
+}
+
 async function loadGame() {
   if (!ctx.els.meta) return;
+  if (ctx.state.gameMissing) return;
   const gameId = ctx.els.meta.dataset.gameId;
   const { res, data } = await fetchSnapshot(gameId);
   if (!res.ok) {
+    if (res.status === 404) {
+      markGameMissing();
+      return;
+    }
     ctx.els.joinCode.textContent = "Unavailable";
     ctx.els.gameStatus.textContent = "Unknown";
     if (ctx.els.gameError) {
@@ -166,10 +201,11 @@ function startPolling() {
 }
 
 function connectWS() {
-  if (!ctx.els.meta) return;
+  if (!ctx.els.meta || ctx.state.gameMissing) return;
   const gameId = ctx.els.meta.dataset.gameId;
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
   const socket = new WebSocket(`${protocol}://${window.location.host}/ws/games/${encodeURIComponent(gameId)}?role=host`);
+  ctx.state.socket = socket;
 
   socket.addEventListener("message", (event) => {
     const htmlResult = applyHTMLMessage(event.data);
@@ -187,11 +223,24 @@ function connectWS() {
     }
   });
 
-  socket.addEventListener("close", () => {
+  socket.addEventListener("close", async () => {
+    if (ctx.state.socket === socket) {
+      ctx.state.socket = null;
+    }
+    if (ctx.state.gameMissing) {
+      return;
+    }
+    await loadGame();
+    if (ctx.state.gameMissing) {
+      return;
+    }
     startPolling();
   });
 
   socket.addEventListener("error", () => {
+    if (ctx.state.gameMissing) {
+      return;
+    }
     startPolling();
   });
 }

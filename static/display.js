@@ -3,6 +3,7 @@ import { applyHTMLMessage } from "./ws_html.js";
 let displayContent = document.getElementById("displayContent");
 const displayEventFx = document.getElementById("displayEventFx");
 const displayShell = document.querySelector(".display-shell");
+const gameError = document.getElementById("gameError");
 const lobbyAudio = document.getElementById("lobbyAudio");
 const drawingAudio = document.getElementById("drawingAudio");
 const writeLieAudio = document.getElementById("writeLieAudio");
@@ -78,7 +79,10 @@ const state = {
   timerEndedKey: "",
   connected: false,
   voteRevealKey: "",
-  voteRevealTimer: null
+  voteRevealTimer: null,
+  reconnectHandle: null,
+  socket: null,
+  gameMissing: false
 };
 
 const phaseMusic = new Map([
@@ -111,6 +115,64 @@ function playSfx(audio, rate = 1, volume = 1) {
     playPromise.catch(() => {
       // Ignore autoplay failures until user interacts.
     });
+  }
+}
+
+function resetRealtimeMediaState() {
+  if (jokeNarrationAudio) {
+    jokeNarrationAudio.pause();
+    jokeNarrationAudio.currentTime = 0;
+  }
+  if (interludeVoiceAudio) {
+    interludeVoiceAudio.pause();
+    interludeVoiceAudio.currentTime = 0;
+  }
+  state.interludeQueue = [];
+  state.interludePlaying = false;
+  state.currentInterludeKey = "";
+  state.jokeNarrationPlaying = false;
+  state.voteRevealKey = "";
+  clearVoteRevealTimer();
+  stopAllMusic();
+}
+
+function scheduleReconnect() {
+  if (state.gameMissing || state.reconnectHandle) {
+    return;
+  }
+  state.reconnectHandle = setTimeout(() => {
+    state.reconnectHandle = null;
+    connectWS();
+  }, 2000);
+}
+
+function markGameMissing() {
+  if (state.gameMissing) {
+    return;
+  }
+  state.gameMissing = true;
+  state.connected = false;
+  if (state.reconnectHandle) {
+    clearTimeout(state.reconnectHandle);
+    state.reconnectHandle = null;
+  }
+  if (state.socket) {
+    const socket = state.socket;
+    state.socket = null;
+    socket.close();
+  }
+  resetRealtimeMediaState();
+  if (gameError) {
+    gameError.textContent = "game not found";
+  }
+}
+
+async function gameStillExists(gameId) {
+  try {
+    const res = await fetch(`/api/games/${encodeURIComponent(gameId)}`);
+    return res.status !== 404;
+  } catch {
+    return true;
   }
 }
 
@@ -594,14 +656,22 @@ document.addEventListener(
 );
 
 function connectWS() {
-  if (!displayContent) return;
+  if (!displayContent || state.gameMissing) return;
   const gameId = displayContent.dataset.gameId;
   if (!gameId) return;
+  if (state.reconnectHandle) {
+    clearTimeout(state.reconnectHandle);
+    state.reconnectHandle = null;
+  }
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
   const socket = new WebSocket(`${protocol}://${window.location.host}/ws/games/${encodeURIComponent(gameId)}?role=display`);
+  state.socket = socket;
 
   socket.addEventListener("open", () => {
     state.connected = true;
+    if (gameError) {
+      gameError.textContent = "";
+    }
     syncFromContent();
   });
 
@@ -613,43 +683,29 @@ function connectWS() {
     }
   });
 
-  socket.addEventListener("close", () => {
+  socket.addEventListener("close", async () => {
+    if (state.socket === socket) {
+      state.socket = null;
+    }
     state.connected = false;
-    if (jokeNarrationAudio) {
-      jokeNarrationAudio.pause();
-      jokeNarrationAudio.currentTime = 0;
+    resetRealtimeMediaState();
+    if (state.gameMissing) {
+      return;
     }
-    if (interludeVoiceAudio) {
-      interludeVoiceAudio.pause();
-      interludeVoiceAudio.currentTime = 0;
+    const exists = await gameStillExists(gameId);
+    if (!exists) {
+      markGameMissing();
+      return;
     }
-    state.interludeQueue = [];
-    state.interludePlaying = false;
-    state.currentInterludeKey = "";
-    state.jokeNarrationPlaying = false;
-    state.voteRevealKey = "";
-    clearVoteRevealTimer();
-    stopAllMusic();
-    setTimeout(connectWS, 2000);
+    scheduleReconnect();
   });
 
   socket.addEventListener("error", () => {
     state.connected = false;
-    if (jokeNarrationAudio) {
-      jokeNarrationAudio.pause();
-      jokeNarrationAudio.currentTime = 0;
+    if (state.gameMissing) {
+      return;
     }
-    if (interludeVoiceAudio) {
-      interludeVoiceAudio.pause();
-      interludeVoiceAudio.currentTime = 0;
-    }
-    state.interludeQueue = [];
-    state.interludePlaying = false;
-    state.currentInterludeKey = "";
-    state.jokeNarrationPlaying = false;
-    state.voteRevealKey = "";
-    clearVoteRevealTimer();
-    stopAllMusic();
+    resetRealtimeMediaState();
     socket.close();
   });
 }
