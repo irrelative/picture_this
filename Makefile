@@ -1,4 +1,4 @@
-.PHONY: run build init fetch-sfx test migrate migrate-repair migrate-create load-prompts joke-audio-venv joke-audio-deps generate-joke-audio generate-interlude-audio e2e-test deploy
+.PHONY: run build init fetch-sfx cloc test migrate migrate-repair migrate-create load-prompts joke-audio-venv joke-audio-deps generate-joke-audio generate-interlude-audio e2e-test deploy
 
 run:
 	templ generate
@@ -15,6 +15,15 @@ init:
 
 fetch-sfx:
 	./scripts/fetch_sfx.sh
+
+cloc:
+	@if ! command -v cloc >/dev/null 2>&1; then \
+		echo "cloc is required (brew install cloc)"; \
+		exit 1; \
+	fi
+	cloc --vcs=git \
+		--fullpath \
+		--not-match-f='(^|/).*_templ\.go$$|(^|/)(vendor|static/vendor)(/|$$)'
 
 test:
 	GOCACHE="$(GOCACHE)" go test ./...
