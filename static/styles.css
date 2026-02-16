@@ -17,6 +17,14 @@
   --radius-4: 20px;
   --radius-pill: 999px;
 
+  --pill-control-py: 10px;
+  --pill-control-px: 16px;
+  --pill-control-font-size: 0.95rem;
+  --pill-control-min-height: 44px;
+  --pill-badge-py: 6px;
+  --pill-badge-px: 12px;
+  --pill-badge-font-size: 0.85rem;
+
   --surface-page: #f5f2ea;
   --surface-1: #ffffff;
   --surface-2: #fff8eb;
@@ -103,14 +111,19 @@ body {
 }
 
 .nav-link {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   text-decoration: none;
   font-weight: 600;
+  font-size: var(--pill-control-font-size);
+  line-height: 1.1;
   color: var(--text-1);
-  padding: 6px 10px;
+  padding: var(--pill-control-py) var(--pill-control-px);
   border-radius: var(--radius-pill);
   border: 2px solid var(--border-soft);
   background: rgba(255, 255, 255, 0.85);
+  min-height: var(--pill-control-min-height);
 }
 
 .nav-link:hover {
@@ -124,10 +137,11 @@ body {
 }
 
 .nav-logout {
-  padding: 6px 10px;
+  padding: var(--pill-control-py) var(--pill-control-px);
   margin: 0;
-  font-size: inherit;
-  min-height: 0;
+  font-size: var(--pill-control-font-size);
+  line-height: 1.1;
+  min-height: var(--pill-control-min-height);
   box-shadow: none;
 }
 
@@ -227,12 +241,12 @@ body {
 .tag {
   display: inline-flex;
   align-items: center;
-  border-radius: 999px;
-  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  padding: var(--pill-badge-py) var(--pill-badge-px);
   background: linear-gradient(135deg, #1b1b1b, #3a3a3a);
   box-shadow: 0 8px 18px rgba(26, 26, 26, 0.2);
   color: #fff;
-  font-size: 0.85rem;
+  font-size: var(--pill-badge-font-size);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   width: fit-content;
@@ -300,13 +314,17 @@ p {
 
 .primary,
 .secondary {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font: inherit;
+  font-size: var(--pill-control-font-size);
+  line-height: 1.1;
   border-radius: var(--radius-pill);
-  padding: 12px 20px;
+  padding: var(--pill-control-py) var(--pill-control-px);
   border: none;
   cursor: pointer;
-  min-height: 44px;
+  min-height: var(--pill-control-min-height);
   text-decoration: none;
 }
 
@@ -1145,11 +1163,11 @@ textarea:focus {
 .status-pill {
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px;
-  border-radius: 999px;
+  padding: var(--pill-badge-py) var(--pill-badge-px);
+  border-radius: var(--radius-pill);
   background: #ffe7c2;
   color: #5b3b00;
-  font-size: 0.85rem;
+  font-size: var(--pill-badge-font-size);
   font-weight: 600;
 }
 

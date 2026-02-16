@@ -157,7 +157,7 @@ func Home(flash string, playerName string, games []GameSummary, loggedIn bool, u
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</label> <button type=\"submit\" class=\"secondary\">Join game</button></form><div id=\"joinResult\" class=\"result\" role=\"status\" aria-live=\"polite\"></div></section><section class=\"panel panel--split panel--tone-success active-panel\" id=\"activeGames\" data-player-name=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</label> <button type=\"submit\" class=\"primary\">Join game</button></form><div id=\"joinResult\" class=\"result\" role=\"status\" aria-live=\"polite\"></div></section><section class=\"panel panel--split panel--tone-success active-panel\" id=\"activeGames\" data-player-name=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
