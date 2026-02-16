@@ -12,26 +12,30 @@ import (
 )
 
 type Server struct {
-	store    *Store
-	db       *gorm.DB
-	ws       *wsHub
-	homeWS   *homeHub
-	cfg      config.Config
-	sessions *sessionStore
-	timersMu sync.Mutex
-	timers   map[string]*time.Timer
+	store           *Store
+	db              *gorm.DB
+	ws              *wsHub
+	homeWS          *homeHub
+	cfg             config.Config
+	sessions        *sessionStore
+	timersMu        sync.Mutex
+	timers          map[string]*time.Timer
+	jobsMu          sync.Mutex
+	promptJobs      map[string]*promptGenerateJob
+	nextPromptJobID uint64
 }
 
 func New(conn *gorm.DB, cfg config.Config) *Server {
 	registerValidators()
 	return &Server{
-		store:    NewStore(),
-		db:       conn,
-		ws:       newWSHub(),
-		homeWS:   newHomeHub(),
-		cfg:      cfg,
-		sessions: newSessionStore(conn),
-		timers:   make(map[string]*time.Timer),
+		store:      NewStore(),
+		db:         conn,
+		ws:         newWSHub(),
+		homeWS:     newHomeHub(),
+		cfg:        cfg,
+		sessions:   newSessionStore(conn),
+		timers:     make(map[string]*time.Timer),
+		promptJobs: make(map[string]*promptGenerateJob),
 	}
 }
 
@@ -56,6 +60,8 @@ func (s *Server) Handler() http.Handler {
 		admin.GET("/prompts", s.handleAdminPromptsView)
 		admin.POST("/prompts", s.handleAdminPromptCreate)
 		admin.POST("/prompts/generate", s.handleAdminPromptGenerate)
+		admin.POST("/prompts/generate-jobs", s.handleAdminPromptGenerateJobCreate)
+		admin.GET("/prompts/generate-jobs/:jobID", s.handleAdminPromptGenerateJobPoll)
 		admin.POST("/prompts/:id", s.handleAdminPromptUpdate)
 		admin.POST("/prompts/:id/delete", s.handleAdminPromptDelete)
 		admin.POST("/:gameID/restore", s.handleAdminRestoreGame)

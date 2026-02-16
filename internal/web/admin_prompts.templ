@@ -25,7 +25,13 @@ templ AdminPromptLibrary(data AdminPromptLibraryData) {
 				<section class="panel panel--stack admin-prompts-section">
 					<h2>Generate prompts (OpenAI)</h2>
 					<p>Generate 20 new prompts with a short theme or instruction.</p>
-					<form method="post" action="/admin/prompts/generate" class="settings-form admin-prompts-form">
+					<form
+						method="post"
+						action="/admin/prompts/generate"
+						hx-post="/admin/prompts/generate-jobs"
+						hx-target="#admin-prompts-generate-job"
+						hx-swap="innerHTML"
+						class="settings-form admin-prompts-form">
 						<input type="hidden" name="q" value={ data.SearchQuery } />
 						<label>
 							<span class="label">Theme or guidance</span>
@@ -36,6 +42,7 @@ templ AdminPromptLibrary(data AdminPromptLibraryData) {
 							<a class="secondary" href="/admin">Back to admin</a>
 						</div>
 					</form>
+					<div id="admin-prompts-generate-job"></div>
 				</section>
 
 				<section class="panel panel--stack admin-prompts-section">
@@ -114,6 +121,38 @@ templ AdminPromptLibrary(data AdminPromptLibraryData) {
 					@Pagination(data.Pagination)
 				}
 			</section>
+		</div>
+	}
+}
+
+templ AdminPromptGenerateJob(data AdminPromptGenerateJobData) {
+	if data.JobID != "" {
+		if data.State == "running" {
+			<div
+				id={ "admin-prompts-job-" + data.JobID }
+				class="admin-prompts-job panel panel--stack panel--tone-info"
+				hx-get={ data.PollPath }
+				hx-trigger="load delay:700ms, every 1s"
+				hx-swap="outerHTML">
+				<h3>Generating prompts...</h3>
+				<p>{ data.Message }</p>
+				<progress class="admin-prompts-progress-meter" max={ itoa(data.Total) } value={ itoa(data.Current) }></progress>
+				<p class="hint">{ itoa(data.Percent) }% complete ({ itoa(data.Current) }/{ itoa(data.Total) })</p>
+			</div>
+		} else if data.State == "failed" {
+			<div id={ "admin-prompts-job-" + data.JobID } class="admin-prompts-job panel panel--stack panel--tone-warning">
+				<h3>Prompt generation failed</h3>
+				<p class="result error">{ data.Error }</p>
+			</div>
+		} else {
+			<div id={ "admin-prompts-job-" + data.JobID } class="admin-prompts-job panel panel--stack panel--tone-success">
+				<h3>Prompt generation complete</h3>
+				<p class="result">{ data.Notice }</p>
+			</div>
+		}
+	} else if data.Error != "" {
+		<div class="admin-prompts-job panel panel--stack panel--tone-warning">
+			<p class="result error">{ data.Error }</p>
 		</div>
 	}
 }

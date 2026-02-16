@@ -56,6 +56,19 @@ type AdminPromptLibraryData struct {
 	Pagination           PaginationData
 }
 
+type AdminPromptGenerateJobData struct {
+	JobID       string
+	SearchQuery string
+	State       string
+	Message     string
+	Error       string
+	Notice      string
+	Current     int
+	Total       int
+	Percent     int
+	PollPath    string
+}
+
 type AdminHomeData struct {
 	Active     []GameSummary
 	History    []AdminDBGameSummary

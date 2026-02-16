@@ -174,13 +174,21 @@ func (s *Server) filterGeneratedPromptEntries(ctx context.Context, entries []db.
 }
 
 func (s *Server) insertPromptLibraryEntries(ctx context.Context, entries []db.PromptLibrary, embeddingsByText map[string][]float32) (int64, error) {
+	return s.insertPromptLibraryEntriesWithProgress(ctx, entries, embeddingsByText, nil)
+}
+
+func (s *Server) insertPromptLibraryEntriesWithProgress(ctx context.Context, entries []db.PromptLibrary, embeddingsByText map[string][]float32, onProgress func(processed, total int)) (int64, error) {
 	if s.db == nil {
 		return 0, nil
 	}
 	var added int64
-	for _, entry := range entries {
+	total := len(entries)
+	for i, entry := range entries {
 		if err := s.db.WithContext(ctx).Create(&entry).Error; err != nil {
 			if isUniqueViolation(err) {
+				if onProgress != nil {
+					onProgress(i+1, total)
+				}
 				continue
 			}
 			return added, err
@@ -190,10 +198,16 @@ func (s *Server) insertPromptLibraryEntries(ctx context.Context, entries []db.Pr
 			if err := s.storePromptLibraryEmbedding(ctx, entry.ID, embedding); err != nil {
 				return added, err
 			}
+			if onProgress != nil {
+				onProgress(i+1, total)
+			}
 			continue
 		}
 		if err := s.ensurePromptLibraryEmbedding(ctx, entry.ID, entry.Text); err != nil {
 			return added, fmt.Errorf("failed to embed prompt %d: %w", entry.ID, err)
+		}
+		if onProgress != nil {
+			onProgress(i+1, total)
 		}
 	}
 	return added, nil

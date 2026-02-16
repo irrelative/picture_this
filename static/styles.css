@@ -1229,6 +1229,35 @@ button.primary:disabled {
   min-width: 0;
 }
 
+.admin-prompts-job {
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.admin-prompts-job h3 {
+  margin: 0;
+}
+
+.admin-prompts-progress-meter {
+  width: 100%;
+  height: 14px;
+}
+
+.admin-prompts-progress-meter::-webkit-progress-bar {
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 999px;
+}
+
+.admin-prompts-progress-meter::-webkit-progress-value {
+  background: linear-gradient(120deg, var(--accent-primary-a), var(--accent-primary-b));
+  border-radius: 999px;
+}
+
+.admin-prompts-progress-meter::-moz-progress-bar {
+  background: linear-gradient(120deg, var(--accent-primary-a), var(--accent-primary-b));
+  border-radius: 999px;
+}
+
 
 @media (min-width: 720px) {
   .panel--split {
