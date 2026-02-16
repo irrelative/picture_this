@@ -1,4 +1,4 @@
-.PHONY: run build init fetch-sfx cloc test migrate migrate-repair migrate-create load-prompts joke-audio-venv joke-audio-deps generate-joke-audio generate-interlude-audio e2e-test deploy
+.PHONY: run build init fetch-sfx cloc test migrate migrate-repair migrate-create load-prompts joke-audio-venv joke-audio-deps generate-joke-audio generate-joke-audio-ab generate-interlude-audio e2e-test deploy
 
 run:
 	templ generate
@@ -63,6 +63,12 @@ generate-joke-audio: joke-audio-deps
 	if [ -f .env ]; then . ./.env; fi; \
 	set +a; \
 	"$(JOKE_AUDIO_PYTHON)" scripts/generate_joke_audio.py $(ARGS)
+
+generate-joke-audio-ab: joke-audio-deps
+	@set -a; \
+	if [ -f .env ]; then . ./.env; fi; \
+	set +a; \
+	"$(JOKE_AUDIO_PYTHON)" scripts/generate_joke_audio.py --ab-model tts_models/multilingual/multi-dataset/bark $(ARGS)
 
 generate-interlude-audio: joke-audio-deps
 	@set -a; \

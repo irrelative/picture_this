@@ -13,6 +13,7 @@ import psycopg2 as psycopg
 import torch
 
 DEFAULT_MODEL = "tts_models/multilingual/multi-dataset/xtts_v2"
+DEFAULT_AB_MODEL = "tts_models/multilingual/multi-dataset/bark"
 DEFAULT_LANGUAGE = "en"
 DEFAULT_XTTS_SPEAKER = "Rosemary Okafor"
 DEFAULT_SPEED = "0.92"
@@ -57,6 +58,11 @@ def parse_args():
     parser.add_argument("--output-dir", default="static/audio/jokes", help="Directory to write audio files")
     parser.add_argument("--public-prefix", default="/static/audio/jokes", help="Path stored in DB")
     parser.add_argument("--model", default=os.getenv("COQUI_TTS_MODEL", DEFAULT_MODEL), help="Coqui TTS model name")
+    parser.add_argument("--ab-model", default=os.getenv("COQUI_TTS_AB_MODEL", ""), help="Optional second model for A/B generation (e.g. Bark)")
+    parser.add_argument("--ab-speaker", default=os.getenv("COQUI_TTS_AB_SPEAKER"), help="Optional speaker name/id for --ab-model")
+    parser.add_argument("--ab-language", default=os.getenv("COQUI_TTS_AB_LANGUAGE"), help="Optional language code for --ab-model")
+    parser.add_argument("--ab-output-dir", default=os.getenv("COQUI_TTS_AB_OUTPUT_DIR", "static/audio/jokes_ab"), help="Output directory for A/B files")
+    parser.add_argument("--ab-public-prefix", default=os.getenv("COQUI_TTS_AB_PUBLIC_PREFIX", "/static/audio/jokes_ab"), help="Public path prefix for A/B output")
     parser.add_argument("--device", choices=["auto", "cpu", "mps", "cuda"], default=os.getenv("COQUI_TTS_DEVICE", "auto"), help="Torch device")
     parser.add_argument("--speaker", default=os.getenv("COQUI_TTS_SPEAKER"), help="Optional speaker name/id")
     parser.add_argument("--speaker-wav", default=os.getenv("COQUI_TTS_SPEAKER_WAV"), help="Optional reference WAV path for voice cloning")
@@ -81,6 +87,9 @@ def parse_args():
     parser.add_argument("--continue-on-error", action=argparse.BooleanOptionalAction, default=True, help="Continue processing even if one row fails")
     args = parser.parse_args()
     args.ids = parse_ids(args.ids)
+    args.ab_model = (args.ab_model or "").strip()
+    if args.ab_model.lower() in {"1", "true", "yes", "on"}:
+        args.ab_model = DEFAULT_AB_MODEL
     return args
 
 
@@ -153,7 +162,7 @@ def build_select_query(args):
         "trim(joke) <> ''",
     ]
     params = []
-    if not args.force:
+    if not args.force and not args.ab_model:
         clauses.append("(joke_audio_path IS NULL OR trim(joke_audio_path) = '')")
     if args.ids:
         clauses.append("id = ANY(%s)")
@@ -247,6 +256,63 @@ def encode_mp3(ffmpeg_bin, input_wav, output_mp3, bitrate, normalize_loudness):
     subprocess.run(cmd, check=True)
 
 
+def model_slug(name):
+    cleaned = re.sub(r"[^a-z0-9]+", "-", (name or "").lower()).strip("-")
+    return cleaned or "model"
+
+
+def load_tts_model(tts_class, model_name, device):
+    print(f"Loading TTS model: {model_name} (device={device})")
+    tts = tts_class(model_name=model_name, progress_bar=False, gpu=(device == "cuda"))
+    if device == "mps":
+        try:
+            tts.to("mps")
+        except Exception as exc:
+            print(f"Warning: could not move model to mps ({exc}); using cpu.")
+    return tts
+
+
+def resolve_speaker(tts, requested_speaker, speaker_wav, model_name):
+    speaker = (requested_speaker or "").strip()
+    if speaker or speaker_wav:
+        return speaker
+    available = discover_speakers(tts)
+    if not available:
+        return ""
+    preferred = os.getenv("COQUI_TTS_DEFAULT_SPEAKER")
+    if preferred and preferred in available:
+        return preferred
+    if "xtts" in (model_name or "").lower() and DEFAULT_XTTS_SPEAKER in available:
+        return DEFAULT_XTTS_SPEAKER
+    return available[0]
+
+
+def synthesize_to_file(tts, args, text, output_path, ffmpeg_bin, speaker, language):
+    with tempfile.TemporaryDirectory(prefix="joke_", dir=str(output_path.parent)) as tmpdir:
+        wav_path = Path(tmpdir) / f"{output_path.stem}.wav"
+        original_language = args.language
+        original_speaker = args.speaker
+        try:
+            args.language = language
+            args.speaker = speaker
+            kwargs = build_tts_kwargs(tts, args, text, wav_path, speaker)
+        finally:
+            args.language = original_language
+            args.speaker = original_speaker
+
+        tts.tts_to_file(**kwargs)
+        if args.output_format == "mp3":
+            encode_mp3(
+                ffmpeg_bin=ffmpeg_bin,
+                input_wav=wav_path,
+                output_mp3=output_path,
+                bitrate=args.mp3_bitrate,
+                normalize_loudness=args.normalize_loudness,
+            )
+        else:
+            shutil.move(str(wav_path), str(output_path))
+
+
 def main():
     args = parse_args()
     cache_root = Path(".cache").resolve()
@@ -287,48 +353,66 @@ def main():
     from TTS.api import TTS
 
     device = choose_device(args.device)
-    print(f"Loading TTS model: {args.model} (device={device})")
-    tts = TTS(model_name=args.model, progress_bar=False, gpu=(device == "cuda"))
-    if device == "mps":
-        try:
-            tts.to("mps")
-        except Exception as exc:
-            print(f"Warning: could not move model to mps ({exc}); using cpu.")
+    tts = load_tts_model(TTS, args.model, device)
+    tts_ab = None
+    if args.ab_model:
+        tts_ab = load_tts_model(TTS, args.ab_model, device)
 
     if args.list_speakers:
         available = discover_speakers(tts)
+        if args.ab_model and tts_ab is not None:
+            print(f"[A] {args.model}")
         if not available:
             print("No speakers exposed by this model.")
         else:
             for speaker in available:
                 print(speaker)
+        if args.ab_model and tts_ab is not None:
+            print("")
+            print(f"[B] {args.ab_model}")
+            available_ab = discover_speakers(tts_ab)
+            if not available_ab:
+                print("No speakers exposed by this model.")
+            else:
+                for speaker in available_ab:
+                    print(speaker)
         return
     if args.list_languages:
         available = getattr(tts, "languages", None) or []
+        if args.ab_model and tts_ab is not None:
+            print(f"[A] {args.model}")
         if not available:
             print("No languages exposed by this model.")
         else:
             for language in available:
                 print(language)
+        if args.ab_model and tts_ab is not None:
+            print("")
+            print(f"[B] {args.ab_model}")
+            available_ab = getattr(tts_ab, "languages", None) or []
+            if not available_ab:
+                print("No languages exposed by this model.")
+            else:
+                for language in available_ab:
+                    print(language)
         return
 
     if not args.db_url:
         raise SystemExit("DATABASE_URL is required (or pass --db-url)")
 
-    output_dir = Path(args.output_dir)
+    output_dir = Path(args.ab_output_dir if args.ab_model else args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    speaker = args.speaker
-    if not speaker and not args.speaker_wav:
-        available = discover_speakers(tts)
-        if available:
-            preferred = os.getenv("COQUI_TTS_DEFAULT_SPEAKER")
-            if preferred and preferred in available:
-                speaker = preferred
-            elif DEFAULT_XTTS_SPEAKER in available:
-                speaker = DEFAULT_XTTS_SPEAKER
-            else:
-                speaker = available[0]
-            print(f"Using default speaker: {speaker}")
+    public_prefix = args.ab_public_prefix if args.ab_model else args.public_prefix
+    speaker = resolve_speaker(tts, args.speaker, args.speaker_wav, args.model)
+    if speaker:
+        print(f"Using speaker for {args.model}: {speaker}")
+    speaker_ab = ""
+    language_ab = args.ab_language or args.language
+    if args.ab_model and tts_ab is not None:
+        speaker_ab = resolve_speaker(tts_ab, args.ab_speaker, args.speaker_wav, args.ab_model)
+        if speaker_ab:
+            print(f"Using speaker for {args.ab_model}: {speaker_ab}")
+        print("A/B mode enabled: writing comparison files only (database paths are unchanged).")
 
     query, params = build_select_query(args)
     extension = "mp3" if args.output_format == "mp3" else "wav"
@@ -357,45 +441,50 @@ def main():
 
                 filename = f"promptlib_{prompt_id}.{extension}"
                 file_path = output_dir / filename
-                public_path = f"{args.public_prefix.rstrip('/')}/{filename}"
+                public_path = f"{public_prefix.rstrip('/')}/{filename}"
 
                 if args.dry_run:
-                    print(f"[{i}/{total}] dry-run id={prompt_id} -> {public_path} :: {normalized_joke}")
+                    if args.ab_model:
+                        model_a = model_slug(args.model)
+                        model_b = model_slug(args.ab_model)
+                        file_path_a = output_dir / f"promptlib_{prompt_id}__{model_a}.{extension}"
+                        file_path_b = output_dir / f"promptlib_{prompt_id}__{model_b}.{extension}"
+                        public_path_a = f"{public_prefix.rstrip('/')}/{file_path_a.name}"
+                        public_path_b = f"{public_prefix.rstrip('/')}/{file_path_b.name}"
+                        print(f"[{i}/{total}] dry-run id={prompt_id} -> A:{public_path_a} B:{public_path_b} :: {normalized_joke}")
+                    else:
+                        print(f"[{i}/{total}] dry-run id={prompt_id} -> {public_path} :: {normalized_joke}")
                     continue
 
                 try:
-                    with tempfile.TemporaryDirectory(prefix=f"joke_{prompt_id}_", dir=str(output_dir)) as tmpdir:
-                        wav_path = Path(tmpdir) / f"promptlib_{prompt_id}.wav"
-                        kwargs = build_tts_kwargs(tts, args, normalized_joke, wav_path, speaker)
-                        tts.tts_to_file(**kwargs)
-
-                        if args.output_format == "mp3":
-                            encode_mp3(
-                                ffmpeg_bin=ffmpeg_bin,
-                                input_wav=wav_path,
-                                output_mp3=file_path,
-                                bitrate=args.mp3_bitrate,
-                                normalize_loudness=args.normalize_loudness,
-                            )
-                        else:
-                            shutil.move(str(wav_path), str(file_path))
-
-                    cur.execute(
-                        "UPDATE prompt_libraries SET joke_audio_path = %s WHERE id = %s",
-                        (public_path, prompt_id),
-                    )
-                    cur.execute(
-                        """
-                        UPDATE prompts
-                        SET joke_audio_path = %s
-                        WHERE joke_audio_path IS NULL
-                          AND text = %s
-                        """,
-                        (public_path, prompt_text),
-                    )
-                    conn.commit()
+                    if args.ab_model and tts_ab is not None:
+                        model_a = model_slug(args.model)
+                        model_b = model_slug(args.ab_model)
+                        file_path_a = output_dir / f"promptlib_{prompt_id}__{model_a}.{extension}"
+                        file_path_b = output_dir / f"promptlib_{prompt_id}__{model_b}.{extension}"
+                        public_path_a = f"{public_prefix.rstrip('/')}/{file_path_a.name}"
+                        public_path_b = f"{public_prefix.rstrip('/')}/{file_path_b.name}"
+                        synthesize_to_file(tts, args, normalized_joke, file_path_a, ffmpeg_bin, speaker, args.language)
+                        synthesize_to_file(tts_ab, args, normalized_joke, file_path_b, ffmpeg_bin, speaker_ab, language_ab)
+                        print(f"[{i}/{total}] generated id={prompt_id} -> A:{public_path_a} B:{public_path_b}")
+                    else:
+                        synthesize_to_file(tts, args, normalized_joke, file_path, ffmpeg_bin, speaker, args.language)
+                        cur.execute(
+                            "UPDATE prompt_libraries SET joke_audio_path = %s WHERE id = %s",
+                            (public_path, prompt_id),
+                        )
+                        cur.execute(
+                            """
+                            UPDATE prompts
+                            SET joke_audio_path = %s
+                            WHERE joke_audio_path IS NULL
+                              AND text = %s
+                            """,
+                            (public_path, prompt_text),
+                        )
+                        conn.commit()
+                        print(f"[{i}/{total}] generated id={prompt_id} -> {public_path}")
                     generated += 1
-                    print(f"[{i}/{total}] generated id={prompt_id} -> {public_path}")
                 except Exception as exc:
                     conn.rollback()
                     failed += 1
