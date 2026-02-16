@@ -76,18 +76,18 @@ Narrator jokes:
   - Reference pop culture, but not politics.
 
 Output requirements:
-- Generate 20 total prompts
-- At least 30% (minimum 6) must be [A] Absurdist.
+- Generate {{count}} total prompts
+- At least 30% (minimum {{absurd_min}}) must be [A] Absurdist.
 - Balance the remaining prompts across [E], [M], and [H].
 - Keep prompts short:
-  - At least 16 of 20 prompts must be 2-5 words.
+  - At least {{short_min}} of {{count}} prompts must be 2-5 words.
   - No prompt may exceed 8 words.
 - 0 prompts may start with "A", "An", or "The".
 - 0 prompts may start with "Draw", "Sketch", or "Picture".
 - Include quippy one-liners for approximately half the prompts.
-- Keep "animal doing normal chore" prompts to at most 1 out of 20.
-- Ensure at least half the list is concept-first (social tension, status, irony, awkwardness) rather than object-first.
-- Ensure at least 12 of 20 are not animal-led prompts.
+- Keep "animal doing normal chore" prompts to at most {{animal_chore_max}} out of {{count}}.
+- Ensure at least {{concept_first_min}} prompts are concept-first (social tension, status, irony, awkwardness) rather than object-first.
+- Ensure at least {{non_animal_min}} of {{count}} are not animal-led prompts.
 - Do not reuse the same opening noun phrase across the list.
 - Label each prompt with its difficulty tag
 - For prompts with jokes, include the joke on the next line prefixed with "Joke:"

@@ -24,7 +24,7 @@ templ AdminPromptLibrary(data AdminPromptLibraryData) {
 			<div class="admin-prompts-editor-grid">
 				<section class="panel panel--stack admin-prompts-section">
 					<h2>Generate prompts (OpenAI)</h2>
-					<p>Generate 20 new prompts with a short theme or instruction.</p>
+					<p>Generate new prompts with a short theme or instruction.</p>
 					<form
 						method="post"
 						action="/admin/prompts/generate"
@@ -37,8 +37,12 @@ templ AdminPromptLibrary(data AdminPromptLibraryData) {
 							<span class="label">Theme or guidance</span>
 							<textarea name="instructions" rows="5" placeholder="Cozy winter scenes, playful and whimsical." required>{ data.GenerateInstructions }</textarea>
 						</label>
+						<label>
+							<span class="label">Number of prompts</span>
+							<input type="number" name="count" min="1" max="100" value={ itoa(data.GenerateCount) } required />
+						</label>
 						<div class="settings-actions">
-							<button class="primary" type="submit">Generate 20 prompts</button>
+							<button class="primary" type="submit">Generate prompts</button>
 							<a class="secondary" href="/admin">Back to admin</a>
 						</div>
 					</form>

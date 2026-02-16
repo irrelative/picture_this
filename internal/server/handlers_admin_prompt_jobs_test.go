@@ -61,7 +61,7 @@ func TestAdminPromptGenerateJobAsyncFailure(t *testing.T) {
 	srv, _ := newServerHarness(t)
 
 	job := srv.createPromptGenerateJob("")
-	go srv.runPromptGenerateJob(job.ID, "short abstract prompts")
+	go srv.runPromptGenerateJob(job.ID, "short abstract prompts", 10)
 
 	jobID := job.ID
 	var lastBody string

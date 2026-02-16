@@ -41,6 +41,14 @@ type promptGenerateJob struct {
 
 func (s *Server) handleAdminPromptGenerateJobCreate(c *gin.Context) {
 	searchQuery := normalizePromptLibraryQuery(c.PostForm("q"))
+	count, err := parsePromptGenerateCount(c.PostForm("count"))
+	if err != nil {
+		c.Header("Cache-Control", "no-store")
+		templ.Handler(web.AdminPromptGenerateJob(web.AdminPromptGenerateJobData{
+			Error: err.Error(),
+		})).ServeHTTP(c.Writer, c.Request)
+		return
+	}
 	instructions := strings.TrimSpace(c.PostForm("instructions"))
 	if instructions == "" {
 		c.Header("Cache-Control", "no-store")
@@ -59,7 +67,7 @@ func (s *Server) handleAdminPromptGenerateJobCreate(c *gin.Context) {
 	}
 
 	job := s.createPromptGenerateJob(searchQuery)
-	go s.runPromptGenerateJob(job.ID, instructions)
+	go s.runPromptGenerateJob(job.ID, instructions, count)
 
 	c.Header("Cache-Control", "no-store")
 	templ.Handler(web.AdminPromptGenerateJob(job.toViewData())).ServeHTTP(c.Writer, c.Request)
@@ -93,7 +101,7 @@ func (s *Server) handleAdminPromptGenerateJobPoll(c *gin.Context) {
 	templ.Handler(web.AdminPromptGenerateJob(job.toViewData())).ServeHTTP(c.Writer, c.Request)
 }
 
-func (s *Server) runPromptGenerateJob(jobID, instructions string) {
+func (s *Server) runPromptGenerateJob(jobID, instructions string, count int) {
 	ctx, cancel := context.WithTimeout(context.Background(), promptGenerateJobTimeout)
 	defer cancel()
 
@@ -101,12 +109,12 @@ func (s *Server) runPromptGenerateJob(jobID, instructions string) {
 		job.State = promptGenerateJobStateRunning
 		job.Total = 4
 		job.Current = 0
-		job.Message = "Requesting prompts from OpenAI..."
+		job.Message = fmt.Sprintf("Requesting %d prompts from OpenAI...", count)
 		job.Error = ""
 		job.Notice = ""
 	})
 
-	prompts, err := s.generatePromptsFromOpenAI(ctx, instructions)
+	prompts, err := s.generatePromptsFromOpenAI(ctx, instructions, count)
 	if err != nil {
 		s.failPromptGenerateJob(jobID, err.Error())
 		return

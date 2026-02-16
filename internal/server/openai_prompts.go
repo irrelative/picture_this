@@ -10,11 +10,20 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
 
-const openAIUserPlaceholder = "{{instructions}}"
+const (
+	openAIUserPlaceholder            = "{{instructions}}"
+	openAIPromptCountPlaceholder     = "{{count}}"
+	openAIAbsurdMinPlaceholder       = "{{absurd_min}}"
+	openAIShortMinPlaceholder        = "{{short_min}}"
+	openAIAnimalChoreMaxPlaceholder  = "{{animal_chore_max}}"
+	openAINonAnimalMinPlaceholder    = "{{non_animal_min}}"
+	openAIConceptFirstMinPlaceholder = "{{concept_first_min}}"
+)
 
 type GeneratedPrompt struct {
 	Text string
@@ -45,21 +54,27 @@ type openAIChatResponse struct {
 	} `json:"error,omitempty"`
 }
 
-func (s *Server) generatePromptsFromOpenAI(ctx context.Context, instructions string) ([]GeneratedPrompt, error) {
+func (s *Server) generatePromptsFromOpenAI(ctx context.Context, instructions string, count int) ([]GeneratedPrompt, error) {
 	if strings.TrimSpace(s.cfg.OpenAIAPIKey) == "" {
 		return nil, errors.New("OpenAI API key is not configured.")
+	}
+	if count < minPromptGenerateCount || count > maxPromptGenerateCount {
+		count = defaultPromptGenerateCount
 	}
 	systemPrompt, err := readPromptFile(s.cfg.OpenAIPromptSystemPath)
 	if err != nil {
 		return nil, err
 	}
+	systemPrompt = applyPromptCountPlaceholders(systemPrompt, count)
 	userTemplate, err := readPromptFile(s.cfg.OpenAIPromptUserPath)
 	if err != nil {
 		return nil, err
 	}
 	userPrompt := strings.ReplaceAll(userTemplate, openAIUserPlaceholder, instructions)
+	userPrompt = strings.ReplaceAll(userPrompt, openAIPromptCountPlaceholder, strconv.Itoa(count))
 
 	model := strings.TrimSpace(s.cfg.OpenAIModel)
+	maxResponseTokens := promptGenerationMaxTokens(count)
 	reqBody := openAIChatRequest{
 		Model: model,
 		Messages: []openAIChatMessage{
@@ -69,9 +84,9 @@ func (s *Server) generatePromptsFromOpenAI(ctx context.Context, instructions str
 		Temperature: 0.9,
 	}
 	if requiresMaxCompletionTokens(model) {
-		reqBody.MaxCompletionTokens = 700
+		reqBody.MaxCompletionTokens = maxResponseTokens
 	} else {
-		reqBody.MaxTokens = 700
+		reqBody.MaxTokens = maxResponseTokens
 	}
 
 	payload, err := json.Marshal(reqBody)
@@ -118,7 +133,7 @@ func (s *Server) generatePromptsFromOpenAI(ctx context.Context, instructions str
 		return nil, errors.New("OpenAI returned no prompt choices.")
 	}
 
-	prompts := parsePromptList(parsed.Choices[0].Message.Content)
+	prompts := parsePromptList(parsed.Choices[0].Message.Content, count)
 	if len(prompts) == 0 {
 		return nil, errors.New("OpenAI did not return prompts in the expected format.")
 	}
@@ -133,7 +148,7 @@ func readPromptFile(path string) (string, error) {
 	return strings.TrimSpace(string(content)), nil
 }
 
-func parsePromptList(raw string) []GeneratedPrompt {
+func parsePromptList(raw string, maxCount int) []GeneratedPrompt {
 	lines := strings.Split(raw, "\n")
 	out := make([]GeneratedPrompt, 0, len(lines))
 	var current *GeneratedPrompt
@@ -158,10 +173,13 @@ func parsePromptList(raw string) []GeneratedPrompt {
 		out = append(out, entry)
 		current = &out[len(out)-1]
 	}
-	return sanitizePromptList(out)
+	return sanitizePromptList(out, maxCount)
 }
 
-func sanitizePromptList(prompts []GeneratedPrompt) []GeneratedPrompt {
+func sanitizePromptList(prompts []GeneratedPrompt, maxCount int) []GeneratedPrompt {
+	if maxCount < minPromptGenerateCount || maxCount > maxPromptGenerateCount {
+		maxCount = defaultPromptGenerateCount
+	}
 	unique := make(map[string]struct{}, len(prompts))
 	out := make([]GeneratedPrompt, 0, len(prompts))
 	for _, prompt := range prompts {
@@ -180,7 +198,7 @@ func sanitizePromptList(prompts []GeneratedPrompt) []GeneratedPrompt {
 		prompt.Text = clean
 		prompt.Joke = strings.TrimSpace(prompt.Joke)
 		out = append(out, prompt)
-		if len(out) == 20 {
+		if len(out) == maxCount {
 			break
 		}
 	}
@@ -215,6 +233,52 @@ func parseOpenAIErrorMessage(body []byte) string {
 
 func requiresMaxCompletionTokens(model string) bool {
 	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(model)), "gpt-5")
+}
+
+func promptGenerationMaxTokens(count int) int {
+	estimated := 500 + (count * 30)
+	if estimated < 700 {
+		return 700
+	}
+	if estimated > 4000 {
+		return 4000
+	}
+	return estimated
+}
+
+func applyPromptCountPlaceholders(systemPrompt string, count int) string {
+	absurdMin := ceilPercent(count, 30)
+	shortMin := ceilPercent(count, 80)
+	animalChoreMax := count / 20
+	if animalChoreMax < 1 {
+		animalChoreMax = 1
+	}
+	nonAnimalMin := ceilPercent(count, 60)
+	conceptFirstMin := count / 2
+	if conceptFirstMin < 1 {
+		conceptFirstMin = 1
+	}
+
+	replacements := map[string]string{
+		openAIPromptCountPlaceholder:     strconv.Itoa(count),
+		openAIAbsurdMinPlaceholder:       strconv.Itoa(absurdMin),
+		openAIShortMinPlaceholder:        strconv.Itoa(shortMin),
+		openAIAnimalChoreMaxPlaceholder:  strconv.Itoa(animalChoreMax),
+		openAINonAnimalMinPlaceholder:    strconv.Itoa(nonAnimalMin),
+		openAIConceptFirstMinPlaceholder: strconv.Itoa(conceptFirstMin),
+	}
+	result := systemPrompt
+	for placeholder, value := range replacements {
+		result = strings.ReplaceAll(result, placeholder, value)
+	}
+	return result
+}
+
+func ceilPercent(total, percent int) int {
+	if total <= 0 || percent <= 0 {
+		return 0
+	}
+	return (total*percent + 99) / 100
 }
 
 var (

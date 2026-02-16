@@ -67,14 +67,19 @@ func (s *Server) handleAdminPromptGenerate(c *gin.Context) {
 		templ.Handler(web.AdminPromptLibrary(data)).ServeHTTP(c.Writer, c.Request)
 		return
 	}
-	instructions := strings.TrimSpace(c.PostForm("instructions"))
-	if instructions == "" {
-		s.renderPromptLibraryGenerateError(c, "Please provide guidance for the prompt generation.", instructions, searchQuery)
+	count, err := parsePromptGenerateCount(c.PostForm("count"))
+	if err != nil {
+		s.renderPromptLibraryGenerateError(c, err.Error(), strings.TrimSpace(c.PostForm("instructions")), count, searchQuery)
 		return
 	}
-	prompts, err := s.generatePromptsFromOpenAI(c.Request.Context(), instructions)
+	instructions := strings.TrimSpace(c.PostForm("instructions"))
+	if instructions == "" {
+		s.renderPromptLibraryGenerateError(c, "Please provide guidance for the prompt generation.", instructions, count, searchQuery)
+		return
+	}
+	prompts, err := s.generatePromptsFromOpenAI(c.Request.Context(), instructions, count)
 	if err != nil {
-		s.renderPromptLibraryGenerateError(c, err.Error(), instructions, searchQuery)
+		s.renderPromptLibraryGenerateError(c, err.Error(), instructions, count, searchQuery)
 		return
 	}
 
@@ -91,26 +96,26 @@ func (s *Server) handleAdminPromptGenerate(c *gin.Context) {
 		entries = append(entries, db.PromptLibrary{Text: clean, Joke: joke})
 	}
 	if len(entries) == 0 {
-		s.renderPromptLibraryGenerateError(c, "No valid prompts were generated. Try again.", instructions, searchQuery)
+		s.renderPromptLibraryGenerateError(c, "No valid prompts were generated. Try again.", instructions, count, searchQuery)
 		return
 	}
 
 	filteredEntries, embeddingByText, err := s.filterGeneratedPromptEntries(c.Request.Context(), entries)
 	if err != nil {
-		s.renderPromptLibraryGenerateError(c, "Failed to compare generated prompts with existing prompts.", instructions, searchQuery)
+		s.renderPromptLibraryGenerateError(c, "Failed to compare generated prompts with existing prompts.", instructions, count, searchQuery)
 		return
 	}
 	if len(filteredEntries) == 0 {
-		s.renderPromptLibraryGenerateError(c, "All generated prompts were too similar to existing prompts. Try different guidance.", instructions, searchQuery)
+		s.renderPromptLibraryGenerateError(c, "All generated prompts were too similar to existing prompts. Try different guidance.", instructions, count, searchQuery)
 		return
 	}
 	added, err := s.insertPromptLibraryEntries(c.Request.Context(), filteredEntries, embeddingByText)
 	if err != nil {
-		s.renderPromptLibraryGenerateError(c, "Failed to save generated prompts.", instructions, searchQuery)
+		s.renderPromptLibraryGenerateError(c, "Failed to save generated prompts.", instructions, count, searchQuery)
 		return
 	}
 	if added == 0 {
-		s.renderPromptLibraryGenerateError(c, "Generated prompts already exist or were too similar.", instructions, searchQuery)
+		s.renderPromptLibraryGenerateError(c, "Generated prompts already exist or were too similar.", instructions, count, searchQuery)
 		return
 	}
 
@@ -190,7 +195,10 @@ func (s *Server) handleAdminPromptDelete(c *gin.Context) {
 
 func (s *Server) loadPromptLibraryData(page, perPage int, searchQuery string) web.AdminPromptLibraryData {
 	searchQuery = normalizePromptLibraryQuery(searchQuery)
-	data := web.AdminPromptLibraryData{SearchQuery: searchQuery}
+	data := web.AdminPromptLibraryData{
+		SearchQuery:   searchQuery,
+		GenerateCount: defaultPromptGenerateCount,
+	}
 	if s.db == nil {
 		data.Error = "Database not configured."
 		return data
@@ -223,12 +231,25 @@ func (s *Server) renderPromptLibraryError(c *gin.Context, message, text, joke, s
 	templ.Handler(web.AdminPromptLibrary(data)).ServeHTTP(c.Writer, c.Request)
 }
 
-func (s *Server) renderPromptLibraryGenerateError(c *gin.Context, message, instructions, searchQuery string) {
+func (s *Server) renderPromptLibraryGenerateError(c *gin.Context, message, instructions string, count int, searchQuery string) {
 	page, perPage := parsePagination(c, promptLibraryDefaultPerPage, promptLibraryMaxPerPage)
 	data := s.loadPromptLibraryData(page, perPage, searchQuery)
 	data.Error = message
 	data.GenerateInstructions = instructions
+	data.GenerateCount = count
 	templ.Handler(web.AdminPromptLibrary(data)).ServeHTTP(c.Writer, c.Request)
+}
+
+func parsePromptGenerateCount(raw string) (int, error) {
+	clean := strings.TrimSpace(raw)
+	if clean == "" {
+		return defaultPromptGenerateCount, nil
+	}
+	count, err := strconv.Atoi(clean)
+	if err != nil || count < minPromptGenerateCount || count > maxPromptGenerateCount {
+		return defaultPromptGenerateCount, fmt.Errorf("Prompt count must be between %d and %d.", minPromptGenerateCount, maxPromptGenerateCount)
+	}
+	return count, nil
 }
 
 func normalizePromptLibraryQuery(raw string) string {
@@ -261,4 +282,7 @@ func promptLibraryRedirectURL(searchQuery, notice string) string {
 const (
 	promptLibraryDefaultPerPage = 20
 	promptLibraryMaxPerPage     = 200
+	defaultPromptGenerateCount  = 20
+	minPromptGenerateCount      = 1
+	maxPromptGenerateCount      = 100
 )

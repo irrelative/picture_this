@@ -1,4 +1,6 @@
 Additional guidance from the admin (optional):
 "{{instructions}}"
 
+Generate exactly {{count}} prompts.
+
 Follow the system instructions exactly.

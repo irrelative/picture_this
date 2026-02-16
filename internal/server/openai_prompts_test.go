@@ -34,7 +34,7 @@ func TestSanitizePromptListFiltersDisallowedPatterns(t *testing.T) {
 		{Text: "Midlife crisis at a wizard school"},
 	}
 
-	got := sanitizePromptList(input)
+	got := sanitizePromptList(input, defaultPromptGenerateCount)
 	if len(got) != 2 {
 		t.Fatalf("expected 2 prompts after filtering, got %d", len(got))
 	}
@@ -43,5 +43,32 @@ func TestSanitizePromptListFiltersDisallowedPatterns(t *testing.T) {
 	}
 	if got[1].Text != "Midlife crisis at a wizard school" {
 		t.Fatalf("unexpected prompt[1]: %q", got[1].Text)
+	}
+}
+
+func TestParsePromptGenerateCount(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    int
+		wantErr bool
+	}{
+		{name: "default", input: "", want: defaultPromptGenerateCount},
+		{name: "min", input: "1", want: 1},
+		{name: "max", input: "100", want: 100},
+		{name: "too low", input: "0", want: defaultPromptGenerateCount, wantErr: true},
+		{name: "too high", input: "101", want: defaultPromptGenerateCount, wantErr: true},
+		{name: "invalid", input: "x", want: defaultPromptGenerateCount, wantErr: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := parsePromptGenerateCount(tc.input)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("expected err=%v got err=%v", tc.wantErr, err != nil)
+			}
+			if got != tc.want {
+				t.Fatalf("expected count %d, got %d", tc.want, got)
+			}
+		})
 	}
 }

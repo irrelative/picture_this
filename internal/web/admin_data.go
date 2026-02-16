@@ -53,6 +53,7 @@ type AdminPromptLibraryData struct {
 	DraftText            string
 	DraftJoke            string
 	GenerateInstructions string
+	GenerateCount        int
 	Pagination           PaginationData
 }
 
