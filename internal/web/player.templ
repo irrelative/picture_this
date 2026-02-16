@@ -8,7 +8,7 @@ templ PlayerView(gameID string, playerID int, playerName string) {
 			<p id="playerName">Loading...</p>
 		</header>
 
-		<section class="panel">
+		<section class="panel panel--split">
 			<div>
 				<h2>Join code</h2>
 				<p id="joinCode" class="join-code">Loading...</p>
@@ -21,7 +21,7 @@ templ PlayerView(gameID string, playerID int, playerName string) {
 			</div>
 		</section>
 
-		<section class="panel">
+		<section class="panel panel--split">
 			<div>
 				<h2>Players</h2>
 				<p>You're signed in as <strong>{ playerName }</strong>.</p>
@@ -29,7 +29,7 @@ templ PlayerView(gameID string, playerID int, playerName string) {
 			<ul id="playerList" class="player-list"></ul>
 		</section>
 
-		<section id="hostSection" class="panel host-panel" style="display:none;">
+		<section id="hostSection" class="panel panel--stack host-panel is-hidden">
 			<div>
 				<h2>Host controls</h2>
 				<p id="hostHelp" class="hint">Only the host can control game flow.</p>
@@ -60,11 +60,11 @@ templ PlayerView(gameID string, playerID int, playerName string) {
 			</div>
 		</section>
 
-		<section id="avatarSection" class="panel avatar-panel">
+		<section id="avatarSection" class="panel panel--stack avatar-panel">
 			<div>
 				<h2>Lobby portrait</h2>
 				<p>Draw a quick avatar to represent you while everyone joins. Saving locks it for this game.</p>
-				<p id="avatarLockedHint" class="hint" style="display:none;">Avatar saved and locked for this game.</p>
+				<p id="avatarLockedHint" class="hint is-hidden">Avatar saved and locked for this game.</p>
 			</div>
 			<div id="avatarCanvasWrap" class="canvas-wrap">
 				<canvas id="avatarCanvas" class="avatar-canvas media-frame" width="800" height="600" aria-label="Avatar canvas"></canvas>
@@ -74,7 +74,7 @@ templ PlayerView(gameID string, playerID int, playerName string) {
 			</div>
 		</section>
 
-		<section id="scoreboardSection" class="panel scoreboard-panel">
+		<section id="scoreboardSection" class="panel panel--stack scoreboard-panel">
 			<div>
 				<h2>Scoreboard</h2>
 				<p id="scoreboardStatus">Round update pending.</p>
@@ -82,7 +82,7 @@ templ PlayerView(gameID string, playerID int, playerName string) {
 			<div id="scoreboardList" class="results-scores"></div>
 		</section>
 
-		<section id="drawSection" class="panel draw-panel">
+		<section id="drawSection" class="panel panel--stack draw-panel">
 			<div>
 				<h2>Draw your prompt</h2>
 				<p>Use your finger or mouse to sketch. Resolution is fixed for fair play.</p>
@@ -99,7 +99,7 @@ templ PlayerView(gameID string, playerID int, playerName string) {
 			</div>
 		</section>
 
-		<section id="guessSection" class="panel guess-panel">
+		<section id="guessSection" class="panel panel--stack guess-panel">
 			<div>
 				<h2>Guess the prompt</h2>
 				<p id="guessStatus" role="status" aria-live="polite">Waiting for your turn to guess.</p>
@@ -116,7 +116,7 @@ templ PlayerView(gameID string, playerID int, playerName string) {
 			</div>
 		</section>
 
-		<section id="voteSection" class="panel vote-panel">
+		<section id="voteSection" class="panel panel--stack vote-panel">
 			<div>
 				<h2>Pick the real prompt</h2>
 				<p id="voteStatus" role="status" aria-live="polite">Waiting for your turn to vote.</p>
@@ -130,7 +130,7 @@ templ PlayerView(gameID string, playerID int, playerName string) {
 			</div>
 		</section>
 
-		<section id="resultsSection" class="panel results-panel">
+		<section id="resultsSection" class="panel panel--stack results-panel">
 			<div>
 				<h2>Results</h2>
 				<p>See who guessed what and which prompts won the vote.</p>

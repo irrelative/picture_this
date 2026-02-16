@@ -41,7 +41,7 @@ func Home(flash string, playerName string, games []GameSummary, loggedIn bool, u
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"home\"><header class=\"hero\"><span class=\"tag\">Picture This</span><h1>Draw together. Guess boldly.</h1><p>Host a game in seconds or jump into a session with your code.</p></header><section class=\"panel account-panel\"><div><h2>Account</h2>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"home\"><header class=\"hero\"><span class=\"tag\">Picture This</span><h1>Draw together. Guess boldly.</h1><p>Host a game in seconds or jump into a session with your code.</p></header><section class=\"panel panel--stack panel--tone-info account-panel\"><div><h2>Account</h2>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -99,7 +99,7 @@ func Home(flash string, playerName string, games []GameSummary, loggedIn bool, u
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</section><section class=\"panel create-game-panel\"><div><h2>Create a game</h2><p>Generate a new lobby and share the join code with your players. Choose min/max players up front.</p></div><form id=\"createGameForm\" class=\"join-form create-game-form\"><label class=\"field\"><span class=\"label\">Minimum players</span> <input name=\"min_players\" type=\"number\" min=\"2\" max=\"10\" value=\"2\" required")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</section><section class=\"panel panel--split panel--tone-warning create-game-panel\"><div><h2>Create a game</h2><p>Generate a new lobby and share the join code with your players. Choose min/max players up front.</p></div><form id=\"createGameForm\" class=\"join-form create-game-form\"><label class=\"field\"><span class=\"label\">Minimum players</span> <input name=\"min_players\" type=\"number\" min=\"2\" max=\"10\" value=\"2\" required")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -129,7 +129,7 @@ func Home(flash string, playerName string, games []GameSummary, loggedIn bool, u
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, ">Create game</button></form><div id=\"createResult\" class=\"result\" role=\"status\" aria-live=\"polite\"></div></section><section class=\"panel\"><div><h2>Join a game</h2><p>Enter the join code from the host and your display name.</p></div><form id=\"joinForm\" class=\"join-form\"><label class=\"field\"><span class=\"label\">Join code</span> <input name=\"code\" placeholder=\"Join code\" autocomplete=\"off\" required></label> <label class=\"field\"><span class=\"label\">Display name</span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, ">Create game</button></form><div id=\"createResult\" class=\"result\" role=\"status\" aria-live=\"polite\"></div></section><section class=\"panel panel--split\"><div><h2>Join a game</h2><p>Enter the join code from the host and your display name.</p></div><form id=\"joinForm\" class=\"join-form\"><label class=\"field\"><span class=\"label\">Join code</span> <input name=\"code\" placeholder=\"Join code\" autocomplete=\"off\" required></label> <label class=\"field\"><span class=\"label\">Display name</span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -157,14 +157,14 @@ func Home(flash string, playerName string, games []GameSummary, loggedIn bool, u
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</label> <button type=\"submit\" class=\"secondary\">Join game</button></form><div id=\"joinResult\" class=\"result\" role=\"status\" aria-live=\"polite\"></div></section><section class=\"panel active-panel\" id=\"activeGames\" data-player-name=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</label> <button type=\"submit\" class=\"secondary\">Join game</button></form><div id=\"joinResult\" class=\"result\" role=\"status\" aria-live=\"polite\"></div></section><section class=\"panel panel--split panel--tone-success active-panel\" id=\"activeGames\" data-player-name=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(playerName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/home.templ`, Line: 105, Col: 85}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/home.templ`, Line: 105, Col: 118}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {

@@ -312,7 +312,7 @@ func DisplayContent(state DisplayState) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<img id=\"displayStageImage\" class=\"display-image media-frame\" alt=\"Current drawing\" style=\"display:none;\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<img id=\"displayStageImage\" class=\"display-image media-frame is-hidden\" alt=\"Current drawing\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -446,7 +446,7 @@ func DisplayContent(state DisplayState) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<div class=\"display-panel display-scoreboard\" id=\"displayScoreboard\" style=\"display:none;\"><h2>Scoreboard</h2><p class=\"display-status\">Scores will appear after the round ends.</p><div class=\"results-scores\" id=\"displayScoreList\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<div class=\"display-panel display-scoreboard is-hidden\" id=\"displayScoreboard\"><h2>Scoreboard</h2><p class=\"display-status\">Scores will appear after the round ends.</p><div class=\"results-scores\" id=\"displayScoreList\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -473,7 +473,7 @@ func DisplayContent(state DisplayState) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "<div class=\"display-panel display-scoreboard\" id=\"displayFinalScores\" style=\"display:none;\"><h2>Final scores</h2><p class=\"display-status\">Final standings for the game.</p><div class=\"results-scores\" id=\"displayFinalList\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "<div class=\"display-panel display-scoreboard is-hidden\" id=\"displayFinalScores\"><h2>Final scores</h2><p class=\"display-status\">Final standings for the game.</p><div class=\"results-scores\" id=\"displayFinalList\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

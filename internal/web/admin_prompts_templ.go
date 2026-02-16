@@ -46,7 +46,7 @@ func AdminPromptLibrary(data AdminPromptLibraryData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if data.Error != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"panel\"><p class=\"result error\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"panel panel--stack\"><p class=\"result error\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -65,7 +65,7 @@ func AdminPromptLibrary(data AdminPromptLibraryData) templ.Component {
 				}
 			}
 			if data.Notice != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"panel\"><p class=\"result\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"panel panel--stack\"><p class=\"result\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -83,7 +83,7 @@ func AdminPromptLibrary(data AdminPromptLibraryData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div class=\"admin-prompts-editor-grid\"><section class=\"panel admin-prompts-section\"><h2>Generate prompts (OpenAI)</h2><p>Generate 20 new prompts with a short theme or instruction.</p><form method=\"post\" action=\"/admin/prompts/generate\" class=\"settings-form admin-prompts-form\"><input type=\"hidden\" name=\"q\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div class=\"admin-prompts-editor-grid\"><section class=\"panel panel--stack admin-prompts-section\"><h2>Generate prompts (OpenAI)</h2><p>Generate 20 new prompts with a short theme or instruction.</p><form method=\"post\" action=\"/admin/prompts/generate\" class=\"settings-form admin-prompts-form\"><input type=\"hidden\" name=\"q\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -109,7 +109,7 @@ func AdminPromptLibrary(data AdminPromptLibraryData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</textarea></label><div class=\"settings-actions\"><button class=\"primary\" type=\"submit\">Generate 20 prompts</button> <a class=\"secondary\" href=\"/admin\">Back to admin</a></div></form></section><section class=\"panel admin-prompts-section\"><h2>Add prompt</h2><form method=\"post\" action=\"/admin/prompts\" class=\"settings-form admin-prompts-form\"><input type=\"hidden\" name=\"q\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</textarea></label><div class=\"settings-actions\"><button class=\"primary\" type=\"submit\">Generate 20 prompts</button> <a class=\"secondary\" href=\"/admin\">Back to admin</a></div></form></section><section class=\"panel panel--stack admin-prompts-section\"><h2>Add prompt</h2><form method=\"post\" action=\"/admin/prompts\" class=\"settings-form admin-prompts-form\"><input type=\"hidden\" name=\"q\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -148,7 +148,7 @@ func AdminPromptLibrary(data AdminPromptLibraryData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\"></label><div class=\"settings-actions\"><button class=\"primary\" type=\"submit\">Add prompt</button> <a class=\"secondary\" href=\"/admin\">Back to admin</a></div></form></section></div><section class=\"panel admin-prompts-section\"><h2>Library</h2><form method=\"get\" action=\"/admin/prompts\" class=\"settings-form admin-prompts-search-form\"><label class=\"admin-prompts-search-label\"><span class=\"label\">Search prompts</span> <input name=\"q\" placeholder=\"Search prompt text or joke\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\"></label><div class=\"settings-actions\"><button class=\"primary\" type=\"submit\">Add prompt</button> <a class=\"secondary\" href=\"/admin\">Back to admin</a></div></form></section></div><section class=\"panel panel--stack admin-prompts-section\"><h2>Library</h2><form method=\"get\" action=\"/admin/prompts\" class=\"settings-form admin-prompts-search-form\"><label class=\"admin-prompts-search-label\"><span class=\"label\">Search prompts</span> <input name=\"q\" placeholder=\"Search prompt text or joke\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -181,7 +181,7 @@ func AdminPromptLibrary(data AdminPromptLibraryData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"admin-prompts-table-wrap\"><table class=\"data-table admin-prompts-table\"><thead><tr><th>ID</th><th>Prompt</th><th>Joke</th><th>Joke Audio</th><th>Updated</th><th></th></tr></thead> <tbody>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"admin-prompts-table-wrap\"><table class=\"data-table data-table--admin admin-prompts-table\"><thead><tr><th>ID</th><th>Prompt</th><th>Joke</th><th>Joke Audio</th><th>Updated</th><th></th></tr></thead> <tbody>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

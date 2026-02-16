@@ -54,7 +54,7 @@ func Admin(gameID string, data AdminData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</strong>.</p><div class=\"inline-actions\"><a class=\"secondary\" href=\"/admin/prompts\">Prompt library</a></div></header><section class=\"panel\"><h2>Runtime state</h2>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</strong>.</p><div class=\"inline-actions\"><a class=\"secondary\" href=\"/admin/prompts\">Prompt library</a></div></header><section class=\"panel panel--stack\"><h2>Runtime state</h2>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -173,7 +173,7 @@ func Admin(gameID string, data AdminData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if data.Error != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"panel\"><p class=\"result error\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"panel panel--stack\"><p class=\"result error\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -191,7 +191,7 @@ func Admin(gameID string, data AdminData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, " <section class=\"panel\"><h2>Game</h2><table class=\"data-table\"><tbody><tr><th>ID</th><td>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, " <section class=\"panel panel--stack\"><h2>Game</h2><table class=\"data-table data-table--admin\"><tbody><tr><th>ID</th><td>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -308,7 +308,7 @@ func Admin(gameID string, data AdminData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</td></tr></tbody></table></section><section class=\"panel\"><h2>Players</h2><table class=\"data-table\"><thead><tr><th>ID</th><th>Avatar</th><th>Name</th><th>Color</th><th>Host</th><th>Joined</th></tr></thead> <tbody>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</td></tr></tbody></table></section><section class=\"panel panel--stack\"><h2>Players</h2><table class=\"data-table data-table--admin\"><thead><tr><th>ID</th><th>Avatar</th><th>Name</th><th>Color</th><th>Host</th><th>Joined</th></tr></thead> <tbody>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -437,7 +437,7 @@ func Admin(gameID string, data AdminData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "</tbody></table></section><section class=\"panel\"><h2>Rounds</h2><table class=\"data-table\"><thead><tr><th>ID</th><th>Number</th><th>Status</th><th>Created</th></tr></thead> <tbody>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "</tbody></table></section><section class=\"panel panel--stack\"><h2>Rounds</h2><table class=\"data-table data-table--admin\"><thead><tr><th>ID</th><th>Number</th><th>Status</th><th>Created</th></tr></thead> <tbody>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -499,7 +499,7 @@ func Admin(gameID string, data AdminData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "</tbody></table></section><section class=\"panel\"><h2>Prompts</h2><table class=\"data-table\"><thead><tr><th>ID</th><th>Round</th><th>Player</th><th>Text</th><th>Joke</th><th>Joke Audio</th></tr></thead> <tbody>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "</tbody></table></section><section class=\"panel panel--stack\"><h2>Prompts</h2><table class=\"data-table data-table--admin\"><thead><tr><th>ID</th><th>Round</th><th>Player</th><th>Text</th><th>Joke</th><th>Joke Audio</th></tr></thead> <tbody>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -602,7 +602,7 @@ func Admin(gameID string, data AdminData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "</tbody></table></section><section class=\"panel\"><h2>Drawings</h2><table class=\"data-table\"><thead><tr><th>ID</th><th>Round</th><th>Player</th><th>Prompt</th><th>Preview</th><th>Bytes</th></tr></thead> <tbody>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "</tbody></table></section><section class=\"panel panel--stack\"><h2>Drawings</h2><table class=\"data-table data-table--admin\"><thead><tr><th>ID</th><th>Round</th><th>Player</th><th>Prompt</th><th>Preview</th><th>Bytes</th></tr></thead> <tbody>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -705,7 +705,7 @@ func Admin(gameID string, data AdminData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "</tbody></table></section><section class=\"panel\"><h2>Guesses</h2><table class=\"data-table\"><thead><tr><th>ID</th><th>Round</th><th>Player</th><th>Drawing</th><th>Text</th></tr></thead> <tbody>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "</tbody></table></section><section class=\"panel panel--stack\"><h2>Guesses</h2><table class=\"data-table data-table--admin\"><thead><tr><th>ID</th><th>Round</th><th>Player</th><th>Drawing</th><th>Text</th></tr></thead> <tbody>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -780,7 +780,7 @@ func Admin(gameID string, data AdminData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "</tbody></table></section><section class=\"panel\"><h2>Votes</h2><table class=\"data-table\"><thead><tr><th>ID</th><th>Round</th><th>Player</th><th>Drawing</th><th>Choice</th><th>Type</th></tr></thead> <tbody>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "</tbody></table></section><section class=\"panel panel--stack\"><h2>Votes</h2><table class=\"data-table data-table--admin\"><thead><tr><th>ID</th><th>Round</th><th>Player</th><th>Drawing</th><th>Choice</th><th>Type</th></tr></thead> <tbody>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -868,7 +868,7 @@ func Admin(gameID string, data AdminData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 83, "</tbody></table></section><section class=\"panel\"><h2>Event Flow</h2><table class=\"data-table\"><thead><tr><th>ID</th><th>Type</th><th>Round</th><th>Player</th><th>Payload</th><th>Created</th></tr></thead> <tbody>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 83, "</tbody></table></section><section class=\"panel panel--stack\"><h2>Event Flow</h2><table class=\"data-table data-table--admin\"><thead><tr><th>ID</th><th>Type</th><th>Round</th><th>Player</th><th>Payload</th><th>Created</th></tr></thead> <tbody>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1029,7 +1029,7 @@ func AdminHome(data AdminHomeData) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, "<header class=\"hero\"><span class=\"tag\">Admin</span><h1>Admin Dashboard</h1><p>Pick a game to inspect its database records and event flow.</p><div class=\"inline-actions\"><a class=\"secondary\" href=\"/admin/prompts\">Prompt library</a></div></header><section class=\"panel\"><h2>Active games</h2>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, "<header class=\"hero\"><span class=\"tag\">Admin</span><h1>Admin Dashboard</h1><p>Pick a game to inspect its database records and event flow.</p><div class=\"inline-actions\"><a class=\"secondary\" href=\"/admin/prompts\">Prompt library</a></div></header><section class=\"panel panel--stack\"><h2>Active games</h2>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1119,7 +1119,7 @@ func AdminHome(data AdminHomeData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 107, "</section><section class=\"panel\"><h2>Database games</h2>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 107, "</section><section class=\"panel panel--stack\"><h2>Database games</h2>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1129,7 +1129,7 @@ func AdminHome(data AdminHomeData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 109, "<table class=\"data-table\"><thead><tr><th>ID</th><th>Join Code</th><th>Phase</th><th>Players</th><th>Created</th><th>Updated</th><th></th></tr></thead> <tbody>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 109, "<table class=\"data-table data-table--admin\"><thead><tr><th>ID</th><th>Join Code</th><th>Phase</th><th>Players</th><th>Created</th><th>Updated</th><th></th></tr></thead> <tbody>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

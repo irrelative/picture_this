@@ -41,7 +41,7 @@ func JoinView(code string, playerName string) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<header class=\"hero\"><span class=\"tag\">Join Game</span><h1>Jump in from your phone</h1><p>Enter the join code and your display name to get started.</p></header><section class=\"panel join-panel\"><form id=\"joinForm\" class=\"join-form join-only\"><label class=\"field\"><span class=\"label\">Join code</span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<header class=\"hero\"><span class=\"tag\">Join Game</span><h1>Jump in from your phone</h1><p>Enter the join code and your display name to get started.</p></header><section class=\"panel panel--stack join-panel\"><form id=\"joinForm\" class=\"join-form join-only\"><label class=\"field\"><span class=\"label\">Join code</span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

@@ -8,7 +8,7 @@ templ AudienceView(gameID string, playerName string) {
 			<p>Join the crowd and pick the real prompt each round.</p>
 		</header>
 
-		<section class="panel">
+		<section class="panel panel--split">
 			<div>
 				<h2>Game status</h2>
 				<p id="audienceJoinCode" class="join-code">Loading...</p>
@@ -21,7 +21,7 @@ templ AudienceView(gameID string, playerName string) {
 			</div>
 		</section>
 
-		<section id="audienceJoinPanel" class="panel">
+		<section id="audienceJoinPanel" class="panel panel--stack">
 			<div>
 				<h2>Join audience</h2>
 				<p>Pick a display name to submit audience votes.</p>
@@ -39,7 +39,7 @@ templ AudienceView(gameID string, playerName string) {
 			</form>
 		</section>
 
-		<section id="audienceVotePanel" class="panel vote-panel">
+		<section id="audienceVotePanel" class="panel panel--stack vote-panel">
 			<div>
 				<h2>Audience vote</h2>
 				<p id="audienceStatus" role="status" aria-live="polite">Waiting for the voting phase.</p>

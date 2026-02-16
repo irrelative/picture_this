@@ -8,7 +8,7 @@ templ ReplayView(gameID string) {
 			<p>Step through the game timeline using the event log.</p>
 		</header>
 
-		<section class="panel">
+		<section class="panel panel--split">
 			<div>
 				<h2>Game</h2>
 				<p id="replayGameId">{ gameID }</p>
@@ -19,7 +19,7 @@ templ ReplayView(gameID string) {
 			</div>
 		</section>
 
-		<section class="panel replay-panel">
+		<section class="panel panel--stack replay-panel">
 			<div>
 				<h2>Playback</h2>
 				<p>Use the controls to move through rounds and events.</p>

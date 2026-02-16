@@ -41,7 +41,7 @@ func ReplayView(gameID string) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<header class=\"hero\"><span class=\"tag\">Replay</span><h1>Round-by-round playback</h1><p>Step through the game timeline using the event log.</p></header><section class=\"panel\"><div><h2>Game</h2><p id=\"replayGameId\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<header class=\"hero\"><span class=\"tag\">Replay</span><h1>Round-by-round playback</h1><p>Step through the game timeline using the event log.</p></header><section class=\"panel panel--split\"><div><h2>Game</h2><p id=\"replayGameId\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -54,7 +54,7 @@ func ReplayView(gameID string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</p></div><div class=\"status\"><span class=\"label\">Status</span><p id=\"replayStatus\" role=\"status\" aria-live=\"polite\">Loading...</p></div></section><section class=\"panel replay-panel\"><div><h2>Playback</h2><p>Use the controls to move through rounds and events.</p></div><div class=\"replay-controls\"><button id=\"prevEvent\" class=\"secondary\" type=\"button\">Prev</button> <button id=\"nextEvent\" class=\"secondary\" type=\"button\">Next</button> <select id=\"roundSelect\"></select></div><div id=\"eventCard\" class=\"replay-card card-surface\"></div></section><p id=\"replayError\" class=\"result error\" role=\"alert\"></p><div id=\"replayMeta\" data-game-id=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</p></div><div class=\"status\"><span class=\"label\">Status</span><p id=\"replayStatus\" role=\"status\" aria-live=\"polite\">Loading...</p></div></section><section class=\"panel panel--stack replay-panel\"><div><h2>Playback</h2><p>Use the controls to move through rounds and events.</p></div><div class=\"replay-controls\"><button id=\"prevEvent\" class=\"secondary\" type=\"button\">Prev</button> <button id=\"nextEvent\" class=\"secondary\" type=\"button\">Next</button> <select id=\"roundSelect\"></select></div><div id=\"eventCard\" class=\"replay-card card-surface\"></div></section><p id=\"replayError\" class=\"result error\" role=\"alert\"></p><div id=\"replayMeta\" data-game-id=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

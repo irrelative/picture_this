@@ -11,7 +11,7 @@ templ Admin(gameID string, data AdminData) {
 			</div>
 		</header>
 
-		<section class="panel">
+		<section class="panel panel--stack">
 			<h2>Runtime state</h2>
 			if data.InMemory {
 				<p>This game is loaded in memory.</p>
@@ -32,14 +32,14 @@ templ Admin(gameID string, data AdminData) {
 		</section>
 
 		if data.Error != "" {
-			<div class="panel">
+			<div class="panel panel--stack">
 				<p class="result error">{ data.Error }</p>
 			</div>
 		}
 
-		<section class="panel">
+		<section class="panel panel--stack">
 			<h2>Game</h2>
-			<table class="data-table">
+			<table class="data-table data-table--admin">
 				<tbody>
 					<tr><th>ID</th><td>{ data.Game.ID }</td></tr>
 					<tr><th>Join Code</th><td>{ data.Game.JoinCode }</td></tr>
@@ -54,9 +54,9 @@ templ Admin(gameID string, data AdminData) {
 			</table>
 		</section>
 
-		<section class="panel">
+		<section class="panel panel--stack">
 			<h2>Players</h2>
-			<table class="data-table">
+			<table class="data-table data-table--admin">
 				<thead>
 					<tr><th>ID</th><th>Avatar</th><th>Name</th><th>Color</th><th>Host</th><th>Joined</th></tr>
 				</thead>
@@ -82,9 +82,9 @@ templ Admin(gameID string, data AdminData) {
 			</table>
 		</section>
 
-		<section class="panel">
+		<section class="panel panel--stack">
 			<h2>Rounds</h2>
-			<table class="data-table">
+			<table class="data-table data-table--admin">
 				<thead>
 					<tr><th>ID</th><th>Number</th><th>Status</th><th>Created</th></tr>
 				</thead>
@@ -101,9 +101,9 @@ templ Admin(gameID string, data AdminData) {
 			</table>
 		</section>
 
-		<section class="panel">
+		<section class="panel panel--stack">
 			<h2>Prompts</h2>
-			<table class="data-table">
+			<table class="data-table data-table--admin">
 				<thead>
 					<tr><th>ID</th><th>Round</th><th>Player</th><th>Text</th><th>Joke</th><th>Joke Audio</th></tr>
 				</thead>
@@ -128,9 +128,9 @@ templ Admin(gameID string, data AdminData) {
 			</table>
 		</section>
 
-		<section class="panel">
+		<section class="panel panel--stack">
 			<h2>Drawings</h2>
-			<table class="data-table">
+			<table class="data-table data-table--admin">
 				<thead>
 					<tr><th>ID</th><th>Round</th><th>Player</th><th>Prompt</th><th>Preview</th><th>Bytes</th></tr>
 				</thead>
@@ -153,9 +153,9 @@ templ Admin(gameID string, data AdminData) {
 			</table>
 		</section>
 
-		<section class="panel">
+		<section class="panel panel--stack">
 			<h2>Guesses</h2>
-			<table class="data-table">
+			<table class="data-table data-table--admin">
 				<thead>
 					<tr><th>ID</th><th>Round</th><th>Player</th><th>Drawing</th><th>Text</th></tr>
 				</thead>
@@ -173,9 +173,9 @@ templ Admin(gameID string, data AdminData) {
 			</table>
 		</section>
 
-		<section class="panel">
+		<section class="panel panel--stack">
 			<h2>Votes</h2>
-			<table class="data-table">
+			<table class="data-table data-table--admin">
 				<thead>
 					<tr><th>ID</th><th>Round</th><th>Player</th><th>Drawing</th><th>Choice</th><th>Type</th></tr>
 				</thead>
@@ -194,9 +194,9 @@ templ Admin(gameID string, data AdminData) {
 			</table>
 		</section>
 
-		<section class="panel">
+		<section class="panel panel--stack">
 			<h2>Event Flow</h2>
-			<table class="data-table">
+			<table class="data-table data-table--admin">
 				<thead>
 					<tr><th>ID</th><th>Type</th><th>Round</th><th>Player</th><th>Payload</th><th>Created</th></tr>
 				</thead>
@@ -236,7 +236,7 @@ templ AdminHome(data AdminHomeData) {
 			</div>
 		</header>
 
-		<section class="panel">
+		<section class="panel panel--stack">
 			<h2>Active games</h2>
 			if len(data.Active) == 0 {
 				<p>No active games in memory.</p>
@@ -255,12 +255,12 @@ templ AdminHome(data AdminHomeData) {
 			}
 		</section>
 
-		<section class="panel">
+		<section class="panel panel--stack">
 			<h2>Database games</h2>
 			if len(data.History) == 0 {
 				<p>No game records found in the database.</p>
 			} else {
-				<table class="data-table">
+				<table class="data-table data-table--admin">
 					<thead>
 						<tr><th>ID</th><th>Join Code</th><th>Phase</th><th>Players</th><th>Created</th><th>Updated</th><th></th></tr>
 					</thead>
