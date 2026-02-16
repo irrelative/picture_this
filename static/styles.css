@@ -124,7 +124,9 @@ body {
 }
 
 .nav-logout {
-  padding: 6px 12px;
+  padding: 6px 10px;
+  margin: 0;
+  font-size: inherit;
   min-height: 0;
   box-shadow: none;
 }
