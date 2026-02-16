@@ -184,14 +184,17 @@ def build_select_query(args):
 
 def build_tts_kwargs(tts, args, text, wav_path, speaker):
     accepted = set(inspect.signature(tts.tts_to_file).parameters)
+    supports_multi_speaker = bool(getattr(tts, "is_multi_speaker", False))
+    supports_multi_lingual = bool(getattr(tts, "is_multi_lingual", False))
+
     kwargs = {
         "text": text,
         "file_path": str(wav_path),
     }
     optional = {
-        "speaker": speaker,
+        "speaker": speaker if supports_multi_speaker else None,
         "speaker_wav": args.speaker_wav,
-        "language": args.language,
+        "language": args.language if supports_multi_lingual else None,
         "speed": args.speed,
         "split_sentences": args.split_sentences,
         "temperature": args.temperature,
@@ -487,6 +490,8 @@ def load_tts_model(tts_class, model_name, device):
 
 
 def resolve_speaker(tts, requested_speaker, speaker_wav, model_name):
+    if not bool(getattr(tts, "is_multi_speaker", False)) and not speaker_wav:
+        return ""
     speaker = (requested_speaker or "").strip()
     if speaker or speaker_wav:
         return speaker
