@@ -1,3 +1,5 @@
+import { gameAPIPath, postJSON, requestJSON, setPlayerAuthToken } from "./api_client.js";
+
 const joinForm = document.getElementById("joinForm");
 const joinResult = document.getElementById("joinResult");
 const joinAs = document.getElementById("joinAs");
@@ -8,19 +10,12 @@ async function submitJoin(nameOverride) {
   joinResult.textContent = "Joining game...";
   const code = joinForm.elements.code.value.trim();
   const name = (nameOverride || joinForm.elements.name.value || "").trim();
-  const res = await fetch(`/api/games/${encodeURIComponent(code)}/join`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name })
-  });
-  const data = await res.json().catch(() => ({}));
+  const { res, data } = await postJSON(gameAPIPath(code, "/join"), { name });
   if (!res.ok) {
     joinResult.textContent = data.error || "Failed to join game.";
     return;
   }
-  if (data.auth_token && data.game_id && data.player_id) {
-    localStorage.setItem(`pt_auth_${data.game_id}_${data.player_id}`, data.auth_token);
-  }
+  setPlayerAuthToken(data.game_id, data.player_id, data.auth_token);
   window.location.href = `/play/${encodeURIComponent(data.game_id)}/${encodeURIComponent(data.player_id)}`;
 }
 
@@ -51,9 +46,8 @@ async function loadJoinAs() {
   if (!joinForm) return;
   const code = joinForm.elements.code.value.trim();
   if (!code) return;
-  const res = await fetch(`/api/games/${encodeURIComponent(code)}`);
+  const { res, data } = await requestJSON(gameAPIPath(code));
   if (!res.ok) return;
-  const data = await res.json().catch(() => ({}));
   if (!data.paused) {
     if (joinAs) joinAs.hidden = true;
     return;

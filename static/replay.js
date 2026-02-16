@@ -1,3 +1,5 @@
+import { gameAPIPath, requestJSON } from "./api_client.js";
+
 const meta = document.getElementById("replayMeta");
 const status = document.getElementById("replayStatus");
 const error = document.getElementById("replayError");
@@ -13,8 +15,7 @@ let roundMap = new Map();
 async function loadReplay() {
   if (!meta) return;
   const gameId = meta.dataset.gameId;
-  const res = await fetch(`/api/games/${encodeURIComponent(gameId)}/events`);
-  const data = await res.json().catch(() => ({}));
+  const { res, data } = await requestJSON(gameAPIPath(gameId, "/events"));
   if (!res.ok) {
     if (error) {
       error.textContent = data.error || "Unable to load events.";

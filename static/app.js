@@ -1,3 +1,4 @@
+import { gameAPIPath, postJSON, setPlayerAuthToken } from "./api_client.js";
 import { applyHTMLMessage } from "./ws_html.js";
 
 const createGameForm = document.getElementById("createGameForm");
@@ -10,16 +11,6 @@ const registerResult = document.getElementById("registerResult");
 const loginForm = document.getElementById("loginForm");
 const loginResult = document.getElementById("loginResult");
 const logoutButton = document.getElementById("logoutButton");
-
-async function postJSON(url, payload) {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-  const data = await res.json().catch(() => ({}));
-  return { res, data };
-}
 
 if (createGameForm) {
   createGameForm.addEventListener("submit", async (event) => {
@@ -102,7 +93,7 @@ if (joinForm) {
     }
     const code = joinForm.elements.code.value.trim();
     const name = joinForm.elements.name.value.trim();
-    const { res, data } = await postJSON("/api/games/" + encodeURIComponent(code) + "/join", {
+    const { res, data } = await postJSON(gameAPIPath(code, "/join"), {
       name
     });
     if (!res.ok) {
@@ -111,9 +102,7 @@ if (joinForm) {
       }
       return;
     }
-    if (data.auth_token && data.game_id && data.player_id) {
-      localStorage.setItem(`pt_auth_${data.game_id}_${data.player_id}`, data.auth_token);
-    }
+    setPlayerAuthToken(data.game_id, data.player_id, data.auth_token);
     window.location.href = "/play/" + encodeURIComponent(data.game_id) + "/" + encodeURIComponent(data.player_id);
   });
 }
@@ -145,7 +134,7 @@ if (activeGames) {
     if (resultEl) {
       resultEl.textContent = "Joining game...";
     }
-    const { res, data } = await postJSON("/api/games/" + encodeURIComponent(joinCode) + "/join", {
+    const { res, data } = await postJSON(gameAPIPath(joinCode, "/join"), {
       name: playerName
     });
     if (!res.ok) {
@@ -154,9 +143,7 @@ if (activeGames) {
       }
       return;
     }
-    if (data.auth_token && data.game_id && data.player_id) {
-      localStorage.setItem(`pt_auth_${data.game_id}_${data.player_id}`, data.auth_token);
-    }
+    setPlayerAuthToken(data.game_id, data.player_id, data.auth_token);
     const targetGame = data.game_id || gameId;
     window.location.href = "/play/" + encodeURIComponent(targetGame) + "/" + encodeURIComponent(data.player_id);
   });

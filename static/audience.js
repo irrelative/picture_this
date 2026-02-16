@@ -1,3 +1,4 @@
+import { gameAPIPath, requestJSON } from "./api_client.js";
 import { createPhaseTimer, createPolling, createReconnect, formatTime } from "./realtime.js";
 
 const els = {
@@ -65,12 +66,6 @@ function saveAudience(gameId) {
 function clearAudience(gameId) {
   state.audience = null;
   localStorage.removeItem(audienceStorageKey(gameId));
-}
-
-async function requestJSON(url, options) {
-  const res = await fetch(url, options);
-  const data = await res.json().catch(() => ({}));
-  return { res, data };
 }
 
 function markGameMissing() {
@@ -234,7 +229,7 @@ async function loadSnapshot() {
   const gameId = els.meta?.dataset.gameId || "";
   if (!gameId) return;
   if (state.gameMissing) return;
-  const { res, data } = await requestJSON(`/api/games/${encodeURIComponent(gameId)}`);
+  const { res, data } = await requestJSON(gameAPIPath(gameId));
   if (!res.ok) {
     if (res.status === 404) {
       markGameMissing();
@@ -314,7 +309,7 @@ if (els.joinForm) {
       els.result.textContent = "Joining audience...";
     }
     const existing = state.audience || loadAudience(gameId);
-    const { res, data } = await requestJSON(`/api/games/${encodeURIComponent(gameId)}/audience`, {
+    const { res, data } = await requestJSON(gameAPIPath(gameId, "/audience"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, token: existing?.token || "" })
@@ -373,7 +368,7 @@ if (els.voteForm) {
       choice_id: selected.value,
       choice: selected.dataset.choiceText || ""
     };
-    const { res, data } = await requestJSON(`/api/games/${encodeURIComponent(gameId)}/audience/votes`, {
+    const { res, data } = await requestJSON(gameAPIPath(gameId, "/audience/votes"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
