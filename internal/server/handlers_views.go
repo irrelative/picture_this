@@ -19,18 +19,6 @@ type playerViewURI struct {
 	PlayerID int    `uri:"playerID" binding:"required,gt=0"`
 }
 
-func (s *Server) handleGameView(c *gin.Context) {
-	var uri gameURI
-	if !bindURI(c, &uri) {
-		return
-	}
-	if _, ok := s.store.GetGame(uri.GameID); !ok {
-		log.Printf("game view missing game_id=%s", uri.GameID)
-		c.Redirect(http.StatusFound, "/")
-		return
-	}
-	templ.Handler(web.GameView(uri.GameID)).ServeHTTP(c.Writer, c.Request)
-}
 func (s *Server) handleDisplayView(c *gin.Context) {
 	var uri gameURI
 	if !bindURI(c, &uri) {
