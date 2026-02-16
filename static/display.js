@@ -13,6 +13,9 @@ const joinSound = document.getElementById("joinSound");
 const roundStartSound = document.getElementById("roundStartSound");
 const timerEndSound = document.getElementById("timerEndSound");
 const votingStartSound = document.getElementById("votingStartSound");
+const drumRollSound = document.getElementById("drumRollSound");
+const revealCorrectSound = document.getElementById("revealCorrectSound");
+const revealWrongSound = document.getElementById("revealWrongSound");
 const interludeVoiceAudio = document.getElementById("interludeVoiceAudio");
 const jokeNarrationAudio = document.getElementById("jokeNarrationAudio");
 
@@ -375,6 +378,8 @@ function renderVoteRevealCard(option, index, total) {
   verdict.textContent = isPrompt ? "This was the real prompt." : "Not the real prompt.";
   card.appendChild(verdict);
 
+  playSfx(isPrompt ? revealCorrectSound : revealWrongSound, 1, 0.95);
+
   const pickedBy = document.createElement("p");
   pickedBy.className = "display-reveal-voters";
   if (voters.length > 0) {
@@ -400,10 +405,10 @@ function renderVoteRevealCard(option, index, total) {
 }
 
 function playRevealDrumRoll() {
+  const source = drumRollSound || joinSound;
   for (let i = 0; i < 6; i += 1) {
-    setTimeout(() => playSfx(joinSound, 1 + i * 0.04, 0.45), i * 90);
+    setTimeout(() => playSfx(source, 1 + i * 0.04, 0.45), i * 90);
   }
-  setTimeout(() => playSfx(roundStartSound, 0.9, 0.9), 6 * 90);
 }
 
 function runVoteRevealSequence(sequence, key, index) {

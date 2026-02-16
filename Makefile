@@ -1,4 +1,4 @@
-.PHONY: run build init test migrate migrate-repair migrate-create load-prompts joke-audio-venv joke-audio-deps generate-joke-audio generate-interlude-audio e2e-test deploy
+.PHONY: run build init fetch-sfx test migrate migrate-repair migrate-create load-prompts joke-audio-venv joke-audio-deps generate-joke-audio generate-interlude-audio e2e-test deploy
 
 run:
 	templ generate
@@ -11,10 +11,10 @@ build:
 init:
 	@mkdir -p static/sounds static/vendor
 	curl -L -o static/vendor/htmx.min.js https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js
-	curl -L -o static/sounds/join.ogg https://opengameart.org/sites/default/files/audio_preview/pop2.wav.ogg
-	curl -L -o static/sounds/round_start.ogg https://opengameart.org/sites/default/files/pop1.wav
-	curl -L -o static/sounds/timer_end.ogg https://opengameart.org/sites/default/files/pop9.wav
-	curl -L -o static/sounds/voting_start.mp3 https://opengameart.org/sites/default/files/Accept.mp3
+	./scripts/fetch_sfx.sh
+
+fetch-sfx:
+	./scripts/fetch_sfx.sh
 
 test:
 	GOCACHE="$(GOCACHE)" go test ./...

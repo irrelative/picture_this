@@ -45,6 +45,7 @@ When the server starts, it will auto-migrate and load prompts from `prompts.csv`
 
 ## Dev Commands
 - `make init` — download local sound effects + vendor assets for the display view.
+- `make fetch-sfx` — fetch curated CC0 SFX into `static/sounds/`.
 - `make run` — generate templ output and start the server.
 - `make build` — generate templ output and build all packages.
 - `make test` — run all tests.
@@ -156,12 +157,10 @@ What it does:
 - Migrations: store SQL migrations under `db/migrations/`.
 
 ## Sound Effects
-Display-mode sound effects are pulled from OpenGameArt:
-- Join: https://opengameart.org/content/pop-sounds-0 (pop2.wav.ogg) -> `static/sounds/join.ogg`
-- Avatar save confirm (player lobby): `static/sounds/join.ogg`
-- Round start: https://opengameart.org/content/pop-sounds-0 (pop1.wav) -> `static/sounds/round_start.ogg`
-- Timer ending: https://opengameart.org/content/pop-sounds-0 (pop9.wav) -> `static/sounds/timer_end.ogg`
-- Voting start: https://opengameart.org/content/ui-accept-or-forward (Accept.mp3) -> `static/sounds/voting_start.mp3`
+SFX are fetched by script from curated sources and mapped to game events.
+
+- Run `make fetch-sfx` to refresh local files.
+- See `docs/audio-sources.md` for license policy, source links, and event mapping.
 
 
 ## TODO
