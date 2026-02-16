@@ -1,7 +1,7 @@
 package web
 
 templ Admin(gameID string, data AdminData) {
-	@Layout("Picture This | Admin", "", "") {
+	@Layout("Picture This | Admin", "", "", false) {
 		<header class="hero">
 			<span class="tag">Admin</span>
 			<h1>Game Admin View</h1>
@@ -226,7 +226,7 @@ templ Admin(gameID string, data AdminData) {
 }
 
 templ AdminHome(data AdminHomeData) {
-	@Layout("Picture This | Admin", "", "") {
+	@Layout("Picture This | Admin", "", "", false) {
 		<header class="hero">
 			<span class="tag">Admin</span>
 			<h1>Admin Dashboard</h1>

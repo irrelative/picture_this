@@ -63,6 +63,12 @@ body {
   outline-offset: 2px;
 }
 
+.nav-logout {
+  padding: 6px 12px;
+  min-height: 0;
+  box-shadow: none;
+}
+
 .page {
   min-height: 100vh;
 }

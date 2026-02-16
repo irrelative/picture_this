@@ -1,15 +1,10 @@
 package web
 
 templ Home(flash string, playerName string, games []GameSummary, loggedIn bool, username string, email string, isAdmin bool) {
-	@Layout("Picture This", "/static/app.js", flash) {
+	@Layout("Picture This", "/static/app.js", flash, loggedIn) {
 		<div class="home">
 			<header class="hero">
-				<div class="hero-head">
-					<span class="tag">Picture This</span>
-					if loggedIn {
-						<button id="logoutButton" class="secondary" type="button">Log out</button>
-					}
-				</div>
+				<span class="tag">Picture This</span>
 				<h1>Draw together. Guess boldly.</h1>
 				<p>Host a game in seconds or jump into a session with your code.</p>
 			</header>

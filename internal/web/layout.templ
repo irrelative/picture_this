@@ -1,6 +1,6 @@
 package web
 
-templ Layout(title string, scriptPath string, flash string) {
+templ Layout(title string, scriptPath string, flash string, showLogout bool) {
 	<!doctype html>
 	<html lang="en">
 		<head>
@@ -18,6 +18,9 @@ templ Layout(title string, scriptPath string, flash string) {
 					<nav class="top-nav" aria-label="Primary">
 						<a class="nav-link" href="/">Home</a>
 						<a class="nav-link" href="/admin">Admin</a>
+						if showLogout {
+							<button id="logoutButton" class="secondary nav-logout" type="button">Log out</button>
+						}
 					</nav>
 					if flash != "" {
 						<div class="flash" role="status" aria-live="polite">{ flash }</div>
