@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import inspect
+import json
 import os
 import re
 import shutil
@@ -261,6 +262,128 @@ def model_slug(name):
     return cleaned or "model"
 
 
+def ensure_writable_dir(path):
+    target = Path(path).expanduser().resolve(strict=False)
+    target.mkdir(parents=True, exist_ok=True)
+    probe = target / ".write_probe"
+    try:
+        probe.write_text("ok", encoding="utf-8")
+        probe.unlink()
+        return target
+    except OSError:
+        try:
+            probe.unlink()
+        except OSError:
+            pass
+        raise
+
+
+def set_writable_env_path(var_name, preferred_path, fallback_path):
+    chosen = preferred_path
+    if chosen:
+        try:
+            ensure_writable_dir(chosen)
+            os.environ[var_name] = str(Path(chosen).expanduser().resolve(strict=False))
+            return Path(os.environ[var_name])
+        except OSError:
+            pass
+    resolved_fallback = ensure_writable_dir(fallback_path)
+    os.environ[var_name] = str(resolved_fallback)
+    return resolved_fallback
+
+
+def configure_runtime_cache_env(cache_root):
+    xdg_cache = set_writable_env_path("XDG_CACHE_HOME", os.getenv("XDG_CACHE_HOME"), cache_root)
+    xdg_data = set_writable_env_path("XDG_DATA_HOME", os.getenv("XDG_DATA_HOME"), cache_root / "data")
+    tts_home = set_writable_env_path("TTS_HOME", os.getenv("TTS_HOME"), cache_root / "tts")
+    set_writable_env_path("MPLCONFIGDIR", os.getenv("MPLCONFIGDIR"), cache_root / "matplotlib")
+    set_writable_env_path("FC_CACHEDIR", os.getenv("FC_CACHEDIR"), cache_root / "fontconfig")
+    hf_home = set_writable_env_path("HF_HOME", os.getenv("HF_HOME"), cache_root / "huggingface")
+    set_writable_env_path(
+        "HUGGINGFACE_HUB_CACHE",
+        os.getenv("HUGGINGFACE_HUB_CACHE"),
+        hf_home / "hub",
+    )
+    set_writable_env_path(
+        "TRANSFORMERS_CACHE",
+        os.getenv("TRANSFORMERS_CACHE"),
+        hf_home / "transformers",
+    )
+    set_writable_env_path("TORCH_HOME", os.getenv("TORCH_HOME"), cache_root / "torch")
+    os.environ["XDG_CACHE_HOME"] = str(xdg_cache)
+    os.environ["XDG_DATA_HOME"] = str(xdg_data)
+    os.environ["TTS_HOME"] = str(tts_home)
+    os.environ.setdefault("COQUI_TOS_AGREED", "1")
+
+
+def patch_bark_config_file(config_path, bark_cache_dir, bark_speaker_dir):
+    try:
+        raw = config_path.read_text(encoding="utf-8")
+        payload = json.loads(raw)
+    except (OSError, json.JSONDecodeError):
+        return False
+    if not isinstance(payload, dict):
+        return False
+
+    changed = False
+    existing_cache_dir = payload.get("CACHE_DIR")
+    needs_cache_rewrite = isinstance(existing_cache_dir, str) and existing_cache_dir.startswith("/root/")
+    if not needs_cache_rewrite and isinstance(existing_cache_dir, str):
+        try:
+            ensure_writable_dir(existing_cache_dir)
+        except OSError:
+            needs_cache_rewrite = True
+    if needs_cache_rewrite or not isinstance(existing_cache_dir, str):
+        payload["CACHE_DIR"] = str(bark_cache_dir)
+        changed = True
+
+    if payload.get("DEF_SPEAKER_DIR") != str(bark_speaker_dir):
+        payload["DEF_SPEAKER_DIR"] = str(bark_speaker_dir)
+        changed = True
+
+    local_paths = payload.get("LOCAL_MODEL_PATHS")
+    if isinstance(local_paths, dict):
+        rewritten = {}
+        for key, value in local_paths.items():
+            if isinstance(value, str) and value:
+                rewritten[key] = str(bark_cache_dir / Path(value).name)
+            else:
+                rewritten[key] = value
+        if rewritten != local_paths:
+            payload["LOCAL_MODEL_PATHS"] = rewritten
+            changed = True
+
+    if not changed:
+        return False
+
+    try:
+        bark_cache_dir.mkdir(parents=True, exist_ok=True)
+        bark_speaker_dir.mkdir(parents=True, exist_ok=True)
+        config_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        return True
+    except OSError:
+        return False
+
+
+def patch_bark_configs_for_models(models):
+    names = [name for name in models if name and "bark" in name.lower()]
+    if not names:
+        return
+
+    tts_home = Path(os.environ["TTS_HOME"])
+    bark_cache_dir = tts_home / "suno" / "bark_v0"
+    bark_speaker_dir = tts_home / "bark_v0" / "speakers"
+    candidates = []
+    for model_name in names:
+        model_dir = tts_home / "tts" / model_name.replace("/", "--")
+        candidates.append(model_dir / "config.json")
+
+    for config_path in candidates:
+        if config_path.exists():
+            if patch_bark_config_file(config_path, bark_cache_dir, bark_speaker_dir):
+                print(f"Patched Bark config cache paths: {config_path}")
+
+
 def load_tts_model(tts_class, model_name, device):
     print(f"Loading TTS model: {model_name} (device={device})")
     tts = tts_class(model_name=model_name, progress_bar=False, gpu=(device == "cuda"))
@@ -316,22 +439,8 @@ def synthesize_to_file(tts, args, text, output_path, ffmpeg_bin, speaker, langua
 def main():
     args = parse_args()
     cache_root = Path(".cache").resolve()
-    (cache_root / "matplotlib").mkdir(parents=True, exist_ok=True)
-    (cache_root / "fontconfig").mkdir(parents=True, exist_ok=True)
-    (cache_root / "tts").mkdir(parents=True, exist_ok=True)
-    (cache_root / "data").mkdir(parents=True, exist_ok=True)
-    (cache_root / "huggingface").mkdir(parents=True, exist_ok=True)
-    (cache_root / "torch").mkdir(parents=True, exist_ok=True)
-    os.environ.setdefault("XDG_CACHE_HOME", str(cache_root))
-    os.environ.setdefault("XDG_DATA_HOME", str(cache_root / "data"))
-    os.environ.setdefault("TTS_HOME", str(cache_root / "tts"))
-    os.environ.setdefault("MPLCONFIGDIR", str(cache_root / "matplotlib"))
-    os.environ.setdefault("FC_CACHEDIR", str(cache_root / "fontconfig"))
-    os.environ.setdefault("HF_HOME", str(cache_root / "huggingface"))
-    os.environ.setdefault("HUGGINGFACE_HUB_CACHE", str(cache_root / "huggingface" / "hub"))
-    os.environ.setdefault("TRANSFORMERS_CACHE", str(cache_root / "huggingface" / "transformers"))
-    os.environ.setdefault("TORCH_HOME", str(cache_root / "torch"))
-    os.environ.setdefault("COQUI_TOS_AGREED", "1")
+    configure_runtime_cache_env(cache_root)
+    patch_bark_configs_for_models([args.model, args.ab_model])
 
     if args.speaker_wav:
         speaker_wav = Path(args.speaker_wav).expanduser()
