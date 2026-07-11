@@ -72,6 +72,7 @@ func (s *Server) restoreGameFromDB(param string) (*Game, string, error) {
 		AudienceEnabled:  record.AudienceEnabled,
 		JokesEnabled:     record.JokesEnabled,
 		PublicReplay:     record.PublicReplay,
+		Version:          record.Version,
 	}
 	if game.Ruleset == "" {
 		game.Ruleset = rulesetLegacy

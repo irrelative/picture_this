@@ -67,6 +67,7 @@ type Game struct {
 	AudienceEnabled  bool
 	JokesEnabled     bool
 	PublicReplay     bool
+	Version          int64
 }
 
 type Player struct {

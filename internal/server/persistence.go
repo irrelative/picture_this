@@ -29,6 +29,7 @@ func (s *Server) persistGame(game *Game) error {
 		AudienceEnabled:  game.AudienceEnabled,
 		JokesEnabled:     game.JokesEnabled,
 		PublicReplay:     game.PublicReplay,
+		Version:          game.Version,
 	}
 	if err := s.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&record).Error; err != nil {
 		return err
@@ -125,6 +126,9 @@ func (s *Server) persistPhase(game *Game, eventType string, payload EventPayload
 		return errors.New("game not found")
 	}
 	if err := s.db.Model(&db.Game{}).Where("id = ?", game.DBID).Update("phase", game.Phase).Error; err != nil {
+		return err
+	}
+	if err := s.db.Model(&db.Game{}).Where("id = ?", game.DBID).Update("version", game.Version).Error; err != nil {
 		return err
 	}
 	if round := currentRound(game); round != nil && round.DBID != 0 {

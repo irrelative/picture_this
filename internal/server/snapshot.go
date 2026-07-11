@@ -99,6 +99,7 @@ func snapshotWithConfig(game *Game, cfg config.Config) map[string]any {
 	}
 	return map[string]any{
 		"game_id":               game.ID,
+		"version":               game.Version,
 		"join_code":             game.JoinCode,
 		"phase":                 game.Phase,
 		"paused":                game.Phase == phasePaused,

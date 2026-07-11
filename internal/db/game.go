@@ -15,6 +15,7 @@ type Game struct {
 	AudienceEnabled  bool      `gorm:"not null;default:false"`
 	JokesEnabled     bool      `gorm:"not null;default:false"`
 	PublicReplay     bool      `gorm:"not null;default:false"`
+	Version          int64     `gorm:"not null;default:0"`
 	CreatedAt        time.Time `gorm:"not null"`
 	UpdatedAt        time.Time `gorm:"not null"`
 	Players          []Player

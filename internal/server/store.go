@@ -16,6 +16,7 @@ type Store struct {
 	nextID       int
 	nextPlayerID int
 	games        map[string]*Game
+	actors       map[string]*gameActor
 }
 
 func NewStore() *Store {
@@ -23,6 +24,7 @@ func NewStore() *Store {
 		nextID:       1,
 		nextPlayerID: 1,
 		games:        make(map[string]*Game),
+		actors:       make(map[string]*gameActor),
 	}
 }
 
@@ -67,6 +69,7 @@ func (s *Store) CreateGameWithLimits(promptsPerPlayer int, minPlayers int, maxPl
 		Ruleset:          rulesetDrawful,
 	}
 	s.games[id] = game
+	s.actors[id] = newGameActor(game)
 	return game
 }
 
@@ -79,12 +82,16 @@ func (s *Store) GetGame(id string) (*Game, bool) {
 
 func (s *Store) UpdateGame(id string, update func(game *Game) error) (*Game, error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	game, ok := s.games[id]
+	actor := s.actors[id]
+	s.mu.Unlock()
 	if !ok {
 		return nil, errors.New("game not found")
 	}
-	if err := update(game); err != nil {
+	if actor == nil {
+		return nil, errors.New("game actor not found")
+	}
+	if err := actor.execute(update); err != nil {
 		return nil, err
 	}
 	return game, nil
@@ -108,71 +115,78 @@ func (s *Store) UpdateGameID(game *Game, newID string) {
 		return
 	}
 	delete(s.games, game.ID)
+	actor := s.actors[game.ID]
+	delete(s.actors, game.ID)
 	game.ID = newID
 	s.games[newID] = game
+	s.actors[newID] = actor
 }
 
 func (s *Store) AddPlayer(gameIDOrCode, name string, avatar []byte) (*Game, *Player, error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	game, ok := s.games[gameIDOrCode]
+	actor := s.actors[gameIDOrCode]
 	if !ok {
-		for _, candidate := range s.games {
+		for id, candidate := range s.games {
 			if candidate.JoinCode == gameIDOrCode {
 				game = candidate
+				actor = s.actors[id]
 				ok = true
 				break
 			}
 		}
 	}
 	if !ok {
+		s.mu.Unlock()
 		return nil, nil, errors.New("game not found")
 	}
-
-	for i := range game.Players {
-		if game.Players[i].Name == name {
-			if len(avatar) > 0 && !game.Players[i].AvatarLocked {
-				game.Players[i].Avatar = avatar
-			}
-			game.Players[i].Claimed = true
-			ensurePlayerAuthToken(game, game.Players[i].ID)
-			return game, &game.Players[i], nil
-		}
-	}
-	if game.Phase == phasePaused {
-		return nil, nil, errors.New("game is paused")
-	}
-	if game.Phase != phaseLobby {
-		return nil, nil, errors.New("game already started")
-	}
-	if game.LobbyLocked {
-		return nil, nil, errors.New("lobby locked")
-	}
-	if len(game.Players) >= effectiveMaxPlayers(game.MaxPlayers) {
-		return nil, nil, errors.New("lobby full")
-	}
-	if game.KickedPlayers != nil {
-		if _, kicked := game.KickedPlayers[strings.ToLower(name)]; kicked {
-			return nil, nil, errors.New("player removed")
-		}
-	}
-
-	player := Player{
-		ID:      s.nextPlayerID,
-		Name:    name,
-		Avatar:  avatar,
-		IsHost:  len(game.Players) == 0,
-		Color:   pickPlayerColor(len(game.Players)),
-		Claimed: true,
-	}
+	reservedPlayerID := s.nextPlayerID
 	s.nextPlayerID++
-	game.Players = append(game.Players, player)
-	if player.IsHost {
-		game.HostID = player.ID
+	s.mu.Unlock()
+
+	var joined *Player
+	err := actor.execute(func(game *Game) error {
+		for i := range game.Players {
+			if game.Players[i].Name == name {
+				if len(avatar) > 0 && !game.Players[i].AvatarLocked {
+					game.Players[i].Avatar = avatar
+				}
+				game.Players[i].Claimed = true
+				ensurePlayerAuthToken(game, game.Players[i].ID)
+				joined = &game.Players[i]
+				return nil
+			}
+		}
+		if game.Phase == phasePaused {
+			return errors.New("game is paused")
+		}
+		if game.Phase != phaseLobby {
+			return errors.New("game already started")
+		}
+		if game.LobbyLocked {
+			return errors.New("lobby locked")
+		}
+		if len(game.Players) >= effectiveMaxPlayers(game.MaxPlayers) {
+			return errors.New("lobby full")
+		}
+		if game.KickedPlayers != nil {
+			if _, kicked := game.KickedPlayers[strings.ToLower(name)]; kicked {
+				return errors.New("player removed")
+			}
+		}
+		player := Player{ID: reservedPlayerID, Name: name, Avatar: avatar, IsHost: len(game.Players) == 0, Color: pickPlayerColor(len(game.Players)), Claimed: true}
+		game.Players = append(game.Players, player)
+		if player.IsHost {
+			game.HostID = player.ID
+		}
+		ensurePlayerAuthToken(game, player.ID)
+		joined = &game.Players[len(game.Players)-1]
+		return nil
+	})
+	if err != nil {
+		return nil, nil, err
 	}
-	ensurePlayerAuthToken(game, player.ID)
-	return game, &game.Players[len(game.Players)-1], nil
+	return game, joined, nil
 }
 
 func (s *Store) RestoreGame(game *Game) error {
@@ -190,6 +204,7 @@ func (s *Store) RestoreGame(game *Game) error {
 		}
 	}
 	s.games[game.ID] = game
+	s.actors[game.ID] = newGameActor(game)
 	if id := gameSortKey(game.ID); id >= s.nextID {
 		s.nextID = id + 1
 	}
