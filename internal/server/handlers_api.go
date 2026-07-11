@@ -339,7 +339,7 @@ func (s *Server) handleRecoverPlayer(c *gin.Context) {
 	}
 	var playerID int
 	var authToken string
-	game, err := s.store.UpdateGame(c.Param("gameID"), func(game *Game) error {
+	game, err := s.store.UpdateGameDurably(c.Param("gameID"), func(game *Game) error {
 		for i := range game.Players {
 			player := &game.Players[i]
 			if !strings.EqualFold(player.Name, normalizeText(req.Name)) {
@@ -356,12 +356,8 @@ func (s *Server) handleRecoverPlayer(c *gin.Context) {
 			return nil
 		}
 		return errors.New("invalid recovery credentials")
-	})
+	}, func(game *Game) error { return s.persistPlayerRecovery(game, playerID, newRecoveryHash) })
 	if respondGameMutationError(c, err) {
-		return
-	}
-	if err := s.persistPlayerRecovery(game, playerID, newRecoveryHash); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save recovery credential"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"game_id": game.ID, "player_id": playerID, "auth_token": authToken, "recovery_code": newRecoveryCode})
@@ -542,7 +538,7 @@ func (s *Server) handleAvatar(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "avatar exceeds size limit"})
 		return
 	}
-	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+	game, err := s.store.UpdateGameDurably(gameID, func(game *Game) error {
 		if !game.AvatarsEnabled {
 			return errors.New("avatars are disabled for this game")
 		}
@@ -559,24 +555,17 @@ func (s *Server) handleAvatar(c *gin.Context) {
 		player.Avatar = avatar
 		player.AvatarLocked = true
 		return nil
+	}, func(game *Game) error {
+		player, ok := s.store.FindPlayer(game, req.PlayerID)
+		if !ok {
+			return errors.New("player not found")
+		}
+		if err := s.persistPlayerAvatar(game, player); err != nil {
+			return err
+		}
+		return s.persistEvent(game, "avatar_updated", EventPayload{PlayerName: player.Name, PlayerID: player.ID})
 	})
 	if respondGameMutationError(c, err) {
-		return
-	}
-	player, ok := s.store.FindPlayer(game, req.PlayerID)
-	if !ok {
-		c.JSON(http.StatusConflict, gin.H{"error": "player not found"})
-		return
-	}
-	if err := s.persistPlayerAvatar(game, player); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save avatar"})
-		return
-	}
-	if err := s.persistEvent(game, "avatar_updated", EventPayload{
-		PlayerName: player.Name,
-		PlayerID:   player.ID,
-	}); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save avatar event"})
 		return
 	}
 	log.Printf("player avatar updated game_id=%s player_id=%d", game.ID, req.PlayerID)
@@ -644,7 +633,7 @@ func (s *Server) handleSettings(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid settings"})
 		return
 	}
-	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+	game, err := s.store.UpdateGameDurably(gameID, func(game *Game) error {
 		if game.Phase != phaseLobby {
 			return errors.New("settings only available in lobby")
 		}
@@ -660,12 +649,8 @@ func (s *Server) handleSettings(c *gin.Context) {
 		game.JokesEnabled = req.JokesEnabled
 		game.PublicReplay = req.PublicReplay
 		return nil
-	})
+	}, func(game *Game) error { return s.persistSettings(game) })
 	if respondGameMutationError(c, err) {
-		return
-	}
-	if err := s.persistSettings(game); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save settings"})
 		return
 	}
 	log.Printf("settings updated game_id=%s rounds=%d locked=%t", game.ID, game.PromptsPerPlayer, game.LobbyLocked)
@@ -740,7 +725,7 @@ func (s *Server) handleStartGame(c *gin.Context) {
 	}, "player_id is required") {
 		return
 	}
-	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+	game, err := s.store.UpdateGameDurably(gameID, func(game *Game) error {
 		requiredPlayers := game.MinPlayers
 		if requiredPlayers < 2 {
 			requiredPlayers = 2
@@ -762,25 +747,16 @@ func (s *Server) handleStartGame(c *gin.Context) {
 			Number: len(game.Rounds) + 1,
 		})
 		return nil
+	}, func(game *Game) error {
+		if err := s.persistPhase(game, "game_started", EventPayload{Phase: game.Phase}); err != nil {
+			return err
+		}
+		if err := s.persistRound(game); err != nil {
+			return err
+		}
+		return s.assignPrompts(game)
 	})
 	if respondGameMutationError(c, err) {
-		return
-	}
-	if err := s.persistPhase(game, "game_started", EventPayload{Phase: game.Phase}); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to start game"})
-		return
-	}
-	if err := s.persistRound(game); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create round"})
-		return
-	}
-	if err := s.assignPrompts(game); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to assign prompts"})
-		return
-	}
-	game, err = s.store.ReplaceGameState(gameID, game)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to publish prompts"})
 		return
 	}
 	log.Printf("game started game_id=%s phase=%s", game.ID, game.Phase)
@@ -820,7 +796,7 @@ func (s *Server) handleDrawings(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "drawing exceeds size limit"})
 		return
 	}
-	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+	game, err := s.store.UpdateGameDurably(gameID, func(game *Game) error {
 		if game.Phase != phaseDrawings {
 			return errors.New("drawings not accepted in this phase")
 		}
@@ -847,12 +823,8 @@ func (s *Server) handleDrawings(c *gin.Context) {
 			Prompt:    promptEntry.Text,
 		})
 		return nil
-	})
+	}, func(game *Game) error { return s.persistDrawing(game, req.PlayerID, image, promptText) })
 	if respondGameMutationError(c, err) {
-		return
-	}
-	if err := s.persistDrawing(game, req.PlayerID, image, promptText); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save drawings"})
 		return
 	}
 	advanced, updated, err := s.tryAdvanceToGuesses(gameID)
@@ -894,7 +866,7 @@ func (s *Server) handleGuesses(c *gin.Context) {
 	guessText := normalizeText(req.Guess)
 	drawingIndex := -1
 	phaseAdvanced := false
-	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+	game, err := s.store.UpdateGameDurably(gameID, func(game *Game) error {
 		if game.Phase != phaseGuesses {
 			return errors.New("guesses not accepted in this phase")
 		}
@@ -927,19 +899,19 @@ func (s *Server) handleGuesses(c *gin.Context) {
 			phaseAdvanced = true
 		}
 		return nil
+	}, func(game *Game) error {
+		if err := s.persistGuess(game, req.PlayerID, drawingIndex, guessText); err != nil {
+			return err
+		}
+		if phaseAdvanced {
+			return s.persistPhase(game, "game_advanced", EventPayload{Phase: game.Phase})
+		}
+		return nil
 	})
 	if respondGameMutationError(c, err) {
 		return
 	}
-	if err := s.persistGuess(game, req.PlayerID, drawingIndex, guessText); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save guesses"})
-		return
-	}
 	if phaseAdvanced && game.Phase == phaseGuessVotes {
-		if err := s.persistPhase(game, "game_advanced", EventPayload{Phase: game.Phase}); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to advance game"})
-			return
-		}
 		log.Printf("game advanced game_id=%s phase=%s", game.ID, game.Phase)
 	}
 	log.Printf("guess submitted game_id=%s player_id=%d", game.ID, req.PlayerID)
@@ -978,7 +950,7 @@ func (s *Server) handleVotes(c *gin.Context) {
 	voteChoiceText := ""
 	voteChoiceType := voteChoiceGuess
 	phaseAdvanced := false
-	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+	game, err := s.store.UpdateGameDurably(gameID, func(game *Game) error {
 		if game.Phase != phaseGuessVotes {
 			return errors.New("votes not accepted in this phase")
 		}
@@ -1024,20 +996,19 @@ func (s *Server) handleVotes(c *gin.Context) {
 			phaseAdvanced = true
 		}
 		return nil
+	}, func(game *Game) error {
+		if err := s.persistVote(game, req.PlayerID, voteRoundNumber, voteDrawingIndex, voteChoiceText, voteChoiceType); err != nil {
+			return err
+		}
+		if phaseAdvanced {
+			return s.persistPhase(game, "game_advanced", EventPayload{Phase: game.Phase})
+		}
+		return nil
 	})
 	if respondGameMutationError(c, err) {
 		return
 	}
-	if err := s.persistVote(game, req.PlayerID, voteRoundNumber, voteDrawingIndex, voteChoiceText, voteChoiceType); err != nil {
-		log.Printf("persist vote failed game_id=%s player_id=%d error=%v", game.ID, req.PlayerID, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save votes"})
-		return
-	}
 	if phaseAdvanced && game.Phase == phaseResults {
-		if err := s.persistPhase(game, "game_advanced", EventPayload{Phase: game.Phase}); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to advance game"})
-			return
-		}
 		log.Printf("game advanced game_id=%s phase=%s", game.ID, game.Phase)
 	}
 	log.Printf("vote submitted game_id=%s player_id=%d", game.ID, req.PlayerID)
@@ -1055,7 +1026,7 @@ func (s *Server) handleLikes(c *gin.Context) {
 		return
 	}
 	var entry LikeEntry
-	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+	game, err := s.store.UpdateGameDurably(gameID, func(game *Game) error {
 		player, err := s.authenticatePlayerRequest(c, game, req.PlayerID, req.AuthToken)
 		if err != nil {
 			return err
@@ -1083,15 +1054,14 @@ func (s *Server) handleLikes(c *gin.Context) {
 		entry = LikeEntry{PlayerID: player.ID, DrawingIndex: req.DrawingIndex, GuessOwnerID: selected.OwnerID}
 		round.Likes = append(round.Likes, entry)
 		return nil
+	}, func(game *Game) error {
+		if entry.DBID != 0 {
+			return nil
+		}
+		return s.persistLike(game, &entry)
 	})
 	if respondGameMutationError(c, err) {
 		return
-	}
-	if entry.DBID == 0 {
-		if err := s.persistLike(game, &entry); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save like"})
-			return
-		}
 	}
 	c.JSON(http.StatusOK, s.snapshotForPlayer(game, req.PlayerID))
 	s.broadcastGameUpdate(game)
@@ -1186,7 +1156,7 @@ func (s *Server) handleEndGame(c *gin.Context) {
 	}, "player_id is required") {
 		return
 	}
-	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+	game, err := s.store.UpdateGameDurably(gameID, func(game *Game) error {
 		if _, err := s.authenticateHostRequest(c, game, req.PlayerID, req.AuthToken); err != nil {
 			return err
 		}
@@ -1195,12 +1165,8 @@ func (s *Server) handleEndGame(c *gin.Context) {
 		}
 		setPhase(game, phaseComplete)
 		return nil
-	})
+	}, func(game *Game) error { return s.persistPhase(game, "game_ended", EventPayload{Phase: game.Phase}) })
 	if respondGameMutationError(c, err) {
-		return
-	}
-	if err := s.persistPhase(game, "game_ended", EventPayload{Phase: game.Phase}); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to end game"})
 		return
 	}
 	log.Printf("game ended game_id=%s", game.ID)

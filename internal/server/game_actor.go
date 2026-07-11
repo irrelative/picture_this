@@ -3,9 +3,10 @@ package server
 import "errors"
 
 type actorCommand struct {
-	apply  func(*Game) error
-	result chan error
-	read   chan *Game
+	apply   func(*Game) error
+	persist func(*Game) error
+	result  chan error
+	read    chan *Game
 }
 
 // gameActor is the serialization boundary for one active game. HTTP handlers,
@@ -32,9 +33,16 @@ func (a *gameActor) run() {
 			command.result <- errors.New("empty game command")
 			continue
 		}
-		err := command.apply(a.game)
+		candidate := cloneGame(a.game)
+		err := command.apply(candidate)
 		if err == nil {
-			a.game.Version++
+			candidate.Version++
+			if command.persist != nil {
+				err = command.persist(candidate)
+			}
+		}
+		if err == nil {
+			a.game = candidate
 		}
 		command.result <- err
 	}
@@ -43,6 +51,12 @@ func (a *gameActor) run() {
 func (a *gameActor) execute(apply func(*Game) error) error {
 	result := make(chan error, 1)
 	a.commands <- actorCommand{apply: apply, result: result}
+	return <-result
+}
+
+func (a *gameActor) executeDurably(apply, persist func(*Game) error) error {
+	result := make(chan error, 1)
+	a.commands <- actorCommand{apply: apply, persist: persist, result: result}
 	return <-result
 }
 

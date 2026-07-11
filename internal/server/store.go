@@ -84,6 +84,14 @@ func (s *Store) GetGame(id string) (*Game, bool) {
 }
 
 func (s *Store) UpdateGame(id string, update func(game *Game) error) (*Game, error) {
+	return s.updateGame(id, update, nil)
+}
+
+func (s *Store) UpdateGameDurably(id string, update, persist func(game *Game) error) (*Game, error) {
+	return s.updateGame(id, update, persist)
+}
+
+func (s *Store) updateGame(id string, update, persist func(game *Game) error) (*Game, error) {
 	s.mu.Lock()
 	_, ok := s.games[id]
 	actor := s.actors[id]
@@ -94,7 +102,13 @@ func (s *Store) UpdateGame(id string, update func(game *Game) error) (*Game, err
 	if actor == nil {
 		return nil, errors.New("game actor not found")
 	}
-	if err := actor.execute(update); err != nil {
+	var err error
+	if persist == nil {
+		err = actor.execute(update)
+	} else {
+		err = actor.executeDurably(update, persist)
+	}
+	if err != nil {
 		return nil, err
 	}
 	return actor.snapshot(), nil
@@ -157,8 +171,6 @@ func (s *Store) AddPlayer(gameIDOrCode, name string, avatar []byte, recoveryHash
 		s.mu.Unlock()
 		return nil, nil, errors.New("game not found")
 	}
-	reservedPlayerID := s.nextPlayerID
-	s.nextPlayerID++
 	s.mu.Unlock()
 
 	var joined *Player
@@ -185,6 +197,10 @@ func (s *Store) AddPlayer(gameIDOrCode, name string, avatar []byte, recoveryHash
 				return errors.New("player removed")
 			}
 		}
+		s.mu.Lock()
+		reservedPlayerID := s.nextPlayerID
+		s.nextPlayerID++
+		s.mu.Unlock()
 		player := Player{ID: reservedPlayerID, Name: name, Avatar: avatar, IsHost: len(game.Players) == 0, Color: pickPlayerColor(len(game.Players)), Claimed: true, RecoveryHash: recoveryHash}
 		game.Players = append(game.Players, player)
 		if player.IsHost {
