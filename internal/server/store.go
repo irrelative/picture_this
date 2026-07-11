@@ -140,7 +140,7 @@ func (s *Store) UpdateGameID(game *Game, newID string) {
 	s.actors[newID] = actor
 }
 
-func (s *Store) AddPlayer(gameIDOrCode, name string, avatar []byte) (*Game, *Player, error) {
+func (s *Store) AddPlayer(gameIDOrCode, name string, avatar []byte, recoveryHash string) (*Game, *Player, error) {
 	s.mu.Lock()
 	_, ok := s.games[gameIDOrCode]
 	actor := s.actors[gameIDOrCode]
@@ -164,14 +164,8 @@ func (s *Store) AddPlayer(gameIDOrCode, name string, avatar []byte) (*Game, *Pla
 	var joined *Player
 	err := actor.execute(func(game *Game) error {
 		for i := range game.Players {
-			if game.Players[i].Name == name {
-				if len(avatar) > 0 && !game.Players[i].AvatarLocked {
-					game.Players[i].Avatar = avatar
-				}
-				game.Players[i].Claimed = true
-				ensurePlayerAuthToken(game, game.Players[i].ID)
-				joined = &game.Players[i]
-				return nil
+			if strings.EqualFold(game.Players[i].Name, name) {
+				return errors.New("player name already in use")
 			}
 		}
 		if game.Phase == phasePaused {
@@ -191,7 +185,7 @@ func (s *Store) AddPlayer(gameIDOrCode, name string, avatar []byte) (*Game, *Pla
 				return errors.New("player removed")
 			}
 		}
-		player := Player{ID: reservedPlayerID, Name: name, Avatar: avatar, IsHost: len(game.Players) == 0, Color: pickPlayerColor(len(game.Players)), Claimed: true}
+		player := Player{ID: reservedPlayerID, Name: name, Avatar: avatar, IsHost: len(game.Players) == 0, Color: pickPlayerColor(len(game.Players)), Claimed: true, RecoveryHash: recoveryHash}
 		game.Players = append(game.Players, player)
 		if player.IsHost {
 			game.HostID = player.ID

@@ -239,17 +239,14 @@ func TestAdminResumeRequiresClaims(t *testing.T) {
 		t.Fatalf("expected game to remain paused")
 	}
 
-	resp = doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/join", map[string]string{
-		"name": "Ada",
+	_, err = srv.store.UpdateGame(gameID, func(game *Game) error {
+		for i := range game.Players {
+			game.Players[i].Claimed = true
+		}
+		return nil
 	})
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
-	}
-	resp = doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/join", map[string]string{
-		"name": "Bob",
-	})
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	if err != nil {
+		t.Fatalf("claim restored players: %v", err)
 	}
 	game, _ = srv.store.GetGame(gameID)
 	if !allPlayersClaimed(game.Players) {
@@ -501,14 +498,14 @@ func TestKickPlayerBlocksRejoin(t *testing.T) {
 	}
 }
 
-func TestJoinSameNameReturnsSamePlayer(t *testing.T) {
+func TestJoinSameNameRequiresRecovery(t *testing.T) {
 	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
-	playerID := joinPlayer(t, ts, gameID, "Ada")
-	again := joinPlayer(t, ts, gameID, "Ada")
-	if playerID != again {
-		t.Fatalf("expected same player id, got %d and %d", playerID, again)
+	joinPlayer(t, ts, gameID, "Ada")
+	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/join", map[string]string{"name": "Ada"})
+	if resp.StatusCode != http.StatusConflict {
+		t.Fatalf("expected status %d, got %d", http.StatusConflict, resp.StatusCode)
 	}
 }
 

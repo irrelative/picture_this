@@ -1,4 +1,4 @@
-import { gameAPIPath, postJSON, setPlayerAuthToken } from "./api_client.js";
+import { gameAPIPath, postJSON, setPlayerAuthToken, setPlayerRecoveryCode } from "./api_client.js";
 import { applyHTMLMessage } from "./ws_html.js";
 
 const createGameForm = document.getElementById("createGameForm");
@@ -103,6 +103,7 @@ if (joinForm) {
       return;
     }
     setPlayerAuthToken(data.game_id, data.player_id, data.auth_token);
+    setPlayerRecoveryCode(data.game_id, data.player_id, data.recovery_code);
     window.location.href = "/play/" + encodeURIComponent(data.game_id) + "/" + encodeURIComponent(data.player_id);
   });
 }

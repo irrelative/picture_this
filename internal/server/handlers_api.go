@@ -46,6 +46,11 @@ type joinRequest struct {
 	AvatarData string `json:"avatar_data"`
 }
 
+type recoverPlayerRequest struct {
+	Name         string `json:"name" binding:"required,name"`
+	RecoveryCode string `json:"recovery_code" binding:"required"`
+}
+
 type audienceJoinRequest struct {
 	Name  string `json:"name" binding:"required,name"`
 	Token string `json:"token"`
@@ -276,7 +281,12 @@ func (s *Server) handleJoinGame(c *gin.Context) {
 		avatar = decoded
 	}
 
-	game, player, err := s.store.AddPlayer(gameID, name, avatar)
+	recoveryCode, recoveryHash, err := newRecoveryCredential()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create recovery credential"})
+		return
+	}
+	game, player, err := s.store.AddPlayer(gameID, name, avatar, recoveryHash)
 	if err != nil {
 		if err.Error() == "game not found" {
 			c.Status(http.StatusNotFound)
@@ -303,6 +313,7 @@ func (s *Server) handleJoinGame(c *gin.Context) {
 	}
 	resp["player_id"] = playerID
 	resp["auth_token"] = ensurePlayerAuthToken(game, playerID)
+	resp["recovery_code"] = recoveryCode
 	c.JSON(http.StatusOK, resp)
 	log.Printf("player joined game_id=%s player_id=%d player_name=%s", game.ID, playerID, name)
 
@@ -310,6 +321,50 @@ func (s *Server) handleJoinGame(c *gin.Context) {
 		s.sessions.SetName(c.Writer, c.Request, name)
 	}
 
+	s.broadcastGameUpdate(game)
+}
+
+func (s *Server) handleRecoverPlayer(c *gin.Context) {
+	if !s.enforceRateLimit(c, "join") {
+		return
+	}
+	var req recoverPlayerRequest
+	if !bindJSON(c, &req, bindMessages{}, "name and recovery_code are required") {
+		return
+	}
+	newRecoveryCode, newRecoveryHash, err := newRecoveryCredential()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to rotate recovery credential"})
+		return
+	}
+	var playerID int
+	var authToken string
+	game, err := s.store.UpdateGame(c.Param("gameID"), func(game *Game) error {
+		for i := range game.Players {
+			player := &game.Players[i]
+			if !strings.EqualFold(player.Name, normalizeText(req.Name)) {
+				continue
+			}
+			if !verifyRecoveryCredential(player.RecoveryHash, strings.TrimSpace(req.RecoveryCode)) {
+				return errors.New("invalid recovery credentials")
+			}
+			player.RecoveryHash = newRecoveryHash
+			player.Claimed = true
+			playerID = player.ID
+			authToken = newAuthToken()
+			game.PlayerAuthTokens[player.ID] = authToken
+			return nil
+		}
+		return errors.New("invalid recovery credentials")
+	})
+	if respondGameMutationError(c, err) {
+		return
+	}
+	if err := s.persistPlayerRecovery(game, playerID, newRecoveryHash); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save recovery credential"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"game_id": game.ID, "player_id": playerID, "auth_token": authToken, "recovery_code": newRecoveryCode})
 	s.broadcastGameUpdate(game)
 }
 

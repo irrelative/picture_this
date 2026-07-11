@@ -1,9 +1,10 @@
-import { gameAPIPath, postJSON, requestJSON, setPlayerAuthToken } from "./api_client.js";
+import { gameAPIPath, postJSON, requestJSON, setPlayerAuthToken, setPlayerRecoveryCode } from "./api_client.js";
 
 const joinForm = document.getElementById("joinForm");
 const joinResult = document.getElementById("joinResult");
 const joinAs = document.getElementById("joinAs");
 const joinAsButtons = document.getElementById("joinAsButtons");
+const recoverForm = document.getElementById("recoverForm");
 
 async function submitJoin(nameOverride) {
   if (!joinForm) return;
@@ -16,8 +17,26 @@ async function submitJoin(nameOverride) {
     return;
   }
   setPlayerAuthToken(data.game_id, data.player_id, data.auth_token);
+  setPlayerRecoveryCode(data.game_id, data.player_id, data.recovery_code);
   window.location.href = `/play/${encodeURIComponent(data.game_id)}/${encodeURIComponent(data.player_id)}`;
 }
+
+recoverForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  joinResult.textContent = "Recovering your seat...";
+  const code = joinForm.elements.code.value.trim();
+  const { res, data } = await postJSON(gameAPIPath(code, "/players/recover"), {
+    name: recoverForm.elements.name.value.trim(),
+    recovery_code: recoverForm.elements.recovery_code.value.trim()
+  });
+  if (!res.ok) {
+    joinResult.textContent = data.error || "Seat recovery failed.";
+    return;
+  }
+  setPlayerAuthToken(data.game_id, data.player_id, data.auth_token);
+  setPlayerRecoveryCode(data.game_id, data.player_id, data.recovery_code);
+  window.location.href = `/play/${encodeURIComponent(data.game_id)}/${encodeURIComponent(data.player_id)}`;
+});
 
 function renderJoinAs(players) {
   if (!joinAs || !joinAsButtons) return;

@@ -30,3 +30,9 @@ export function setPlayerAuthToken(gameId, playerId, authToken) {
   }
   localStorage.setItem(playerAuthTokenKey(gameId, playerId), authToken);
 }
+
+export function setPlayerRecoveryCode(gameId, playerId, recoveryCode) {
+  if (recoveryCode && gameId && playerId) {
+    localStorage.setItem(`pt_recovery_${gameId}_${playerId}`, recoveryCode);
+  }
+}

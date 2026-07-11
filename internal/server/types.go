@@ -83,6 +83,7 @@ type Player struct {
 	DBID         uint
 	Color        string
 	Claimed      bool
+	RecoveryHash string
 }
 
 type RoundState struct {

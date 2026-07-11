@@ -61,12 +61,13 @@ func (s *Server) persistPlayer(game *Game, player *Player) (int, error) {
 		}
 	}
 	record := db.Player{
-		GameID:      game.DBID,
-		Name:        player.Name,
-		AvatarImage: player.Avatar,
-		Color:       player.Color,
-		IsHost:      player.IsHost,
-		JoinedAt:    time.Now().UTC(),
+		GameID:           game.DBID,
+		Name:             player.Name,
+		AvatarImage:      player.Avatar,
+		Color:            player.Color,
+		IsHost:           player.IsHost,
+		JoinedAt:         time.Now().UTC(),
+		RecoveryCodeHash: player.RecoveryHash,
 	}
 	if err := s.db.Create(&record).Error; err != nil {
 		if isUniqueViolation(err) {
@@ -86,6 +87,17 @@ func (s *Server) persistPlayer(game *Game, player *Player) (int, error) {
 		return player.ID, err
 	}
 	return player.ID, nil
+}
+
+func (s *Server) persistPlayerRecovery(game *Game, playerID int, hash string) error {
+	if s.db == nil {
+		return nil
+	}
+	player, ok := s.store.FindPlayer(game, playerID)
+	if !ok || player.DBID == 0 {
+		return errors.New("player not found")
+	}
+	return s.db.Model(&db.Player{}).Where("id = ?", player.DBID).Update("recovery_code_hash", hash).Error
 }
 
 func (s *Server) persistPlayerAvatar(game *Game, player *Player) error {

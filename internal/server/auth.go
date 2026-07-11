@@ -1,11 +1,14 @@
 package server
 
 import (
+	"crypto/rand"
 	"crypto/subtle"
+	"encoding/base64"
 	"errors"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func (s *Server) authenticatePlayerRequest(c *gin.Context, game *Game, playerID int, authToken string) (*Player, error) {
@@ -27,13 +30,21 @@ func (s *Server) authenticatePlayerRequest(c *gin.Context, game *Game, playerID 
 		}
 		return nil, errors.New("invalid player authentication")
 	}
-	if s.sessions != nil {
-		sessionName := normalizeText(s.sessions.GetName(c.Writer, c.Request))
-		if sessionName != "" && strings.EqualFold(sessionName, player.Name) {
-			return player, nil
-		}
-	}
 	return nil, errors.New("authentication required")
+}
+
+func newRecoveryCredential() (string, string, error) {
+	raw := make([]byte, 18)
+	if _, err := rand.Read(raw); err != nil {
+		return "", "", err
+	}
+	code := base64.RawURLEncoding.EncodeToString(raw)
+	hash, err := bcrypt.GenerateFromPassword([]byte(code), bcrypt.DefaultCost)
+	return code, string(hash), err
+}
+
+func verifyRecoveryCredential(hash, code string) bool {
+	return hash != "" && code != "" && bcrypt.CompareHashAndPassword([]byte(hash), []byte(code)) == nil
 }
 
 func (s *Server) authenticateHostRequest(c *gin.Context, game *Game, playerID int, authToken string) (*Player, error) {

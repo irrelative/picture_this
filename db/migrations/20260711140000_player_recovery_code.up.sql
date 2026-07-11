@@ -1,0 +1,2 @@
+ALTER TABLE players
+    ADD COLUMN IF NOT EXISTS recovery_code_hash VARCHAR(128) NOT NULL DEFAULT '';

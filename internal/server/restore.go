@@ -156,13 +156,14 @@ func buildPlayers(records []db.Player, game *Game) []Player {
 	players := make([]Player, 0, len(records))
 	for _, record := range records {
 		player := Player{
-			ID:      int(record.ID),
-			DBID:    record.ID,
-			Name:    record.Name,
-			Avatar:  record.AvatarImage,
-			IsHost:  record.IsHost,
-			Color:   record.Color,
-			Claimed: false,
+			ID:           int(record.ID),
+			DBID:         record.ID,
+			Name:         record.Name,
+			Avatar:       record.AvatarImage,
+			IsHost:       record.IsHost,
+			Color:        record.Color,
+			Claimed:      false,
+			RecoveryHash: record.RecoveryCodeHash,
 		}
 		players = append(players, player)
 		if record.IsHost {
