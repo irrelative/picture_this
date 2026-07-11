@@ -1,5 +1,7 @@
 package server
 
+import "picture-this/internal/game"
+
 func effectiveMaxPlayers(maxPlayers int) int {
 	if maxPlayers <= 0 || maxPlayers > maxLobbyPlayers {
 		return maxLobbyPlayers
@@ -8,8 +10,5 @@ func effectiveMaxPlayers(maxPlayers int) int {
 }
 
 func drawfulRoundsForPlayers(players int) int {
-	if players >= 7 {
-		return 1
-	}
-	return 2
+	return game.AdaptiveRounds(players)
 }

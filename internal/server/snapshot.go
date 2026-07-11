@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"picture-this/internal/config"
+	domain "picture-this/internal/game"
 )
 
 func snapshotWithConfig(game *Game, cfg config.Config) map[string]any {
@@ -301,56 +302,39 @@ func buildResults(game *Game) []map[string]any {
 }
 
 func buildScores(game *Game) []map[string]any {
-	scores := map[int]int{}
-	for _, player := range game.Players {
-		scores[player.ID] = 0
-	}
 	if game == nil {
 		return nil
 	}
-	for i := range game.Rounds {
-		round := &game.Rounds[i]
-		if len(round.Drawings) == 0 {
-			continue
-		}
-		for drawingIndex, drawing := range round.Drawings {
-			fooledVotes := 0
-			correctVotes := 0
-			for _, vote := range round.Votes {
-				if vote.DrawingIndex != drawingIndex {
-					continue
-				}
-				if vote.ChoiceType == voteChoicePrompt {
-					scores[vote.PlayerID] += 1000
-					correctVotes++
-				} else if vote.ChoiceType == voteChoiceGuess {
-					if ownerID := guessOwner(round, drawingIndex, vote.ChoiceText); ownerID != 0 {
-						scores[ownerID] += 500
-						fooledVotes++
-					}
-				}
-			}
-			if game.Ruleset == rulesetDrawful {
-				scores[drawing.PlayerID] += 500 * correctVotes
-			} else if fooledVotes == 0 {
-				scores[drawing.PlayerID] += 1000
-			} else {
-				scores[drawing.PlayerID] += 500 * fooledVotes
-			}
-		}
-	}
+	names := buildNameMap(game.Players)
+	scores := domain.Scores(domainStateForScores(game))
 	results := make([]map[string]any, 0, len(scores))
-	for _, player := range game.Players {
+	for _, score := range scores {
 		results = append(results, map[string]any{
-			"player_id":   player.ID,
-			"player_name": player.Name,
-			"score":       scores[player.ID],
+			"player_id": score.PlayerID, "player_name": names[score.PlayerID], "score": score.Points,
 		})
 	}
-	sort.Slice(results, func(i, j int) bool {
-		return results[i]["score"].(int) > results[j]["score"].(int)
-	})
 	return results
+}
+
+func domainStateForScores(source *Game) domain.State {
+	state := domain.State{Ruleset: domain.Ruleset(source.Ruleset)}
+	for _, player := range source.Players {
+		state.Players = append(state.Players, player.ID)
+	}
+	for _, sourceRound := range source.Rounds {
+		round := domain.Round{}
+		for _, drawing := range sourceRound.Drawings {
+			round.Drawings = append(round.Drawings, domain.Drawing{ArtistID: drawing.PlayerID})
+		}
+		for _, lie := range sourceRound.Guesses {
+			round.Lies = append(round.Lies, domain.Lie{PlayerID: lie.PlayerID, DrawingIndex: lie.DrawingIndex, Text: lie.Text})
+		}
+		for _, vote := range sourceRound.Votes {
+			round.Votes = append(round.Votes, domain.Vote{PlayerID: vote.PlayerID, DrawingIndex: vote.DrawingIndex, ChoiceText: vote.ChoiceText, Correct: vote.ChoiceType == voteChoicePrompt})
+		}
+		state.Rounds = append(state.Rounds, round)
+	}
+	return state
 }
 
 func buildReveal(game *Game) map[string]any {

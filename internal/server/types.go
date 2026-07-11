@@ -1,20 +1,24 @@
 package server
 
-import "time"
+import (
+	"time"
 
-const (
-	phaseLobby      = "lobby"
-	phaseDrawings   = "drawings"
-	phaseGuesses    = "guesses"
-	phaseGuessVotes = "guesses-votes"
-	phaseResults    = "results"
-	phasePaused     = "paused"
-	phaseComplete   = "complete"
+	domain "picture-this/internal/game"
 )
 
 const (
-	rulesetLegacy  = "picture_this_v1"
-	rulesetDrawful = "drawful_v1"
+	phaseLobby      = string(domain.PhaseLobby)
+	phaseDrawings   = string(domain.PhaseDrawings)
+	phaseGuesses    = string(domain.PhaseLies)
+	phaseGuessVotes = string(domain.PhaseVoting)
+	phaseResults    = string(domain.PhaseResults)
+	phasePaused     = string(domain.PhasePaused)
+	phaseComplete   = string(domain.PhaseComplete)
+)
+
+const (
+	rulesetLegacy  = string(domain.RulesetLegacy)
+	rulesetDrawful = string(domain.RulesetDrawful)
 )
 
 const (
