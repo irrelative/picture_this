@@ -457,7 +457,7 @@ func (s *Server) handleAudienceVote(c *gin.Context) {
 	if respondGameMutationError(c, err) {
 		return
 	}
-	c.JSON(http.StatusOK, s.snapshot(game))
+	c.JSON(http.StatusOK, s.snapshotForAudience(game))
 	s.broadcastGameUpdate(game)
 }
 
@@ -525,7 +525,7 @@ func (s *Server) handleAvatar(c *gin.Context) {
 		return
 	}
 	log.Printf("player avatar updated game_id=%s player_id=%d", game.ID, req.PlayerID)
-	c.JSON(http.StatusOK, s.snapshot(game))
+	c.JSON(http.StatusOK, s.snapshotForPlayer(game, req.PlayerID))
 	s.broadcastGameUpdate(game)
 }
 
@@ -614,7 +614,7 @@ func (s *Server) handleSettings(c *gin.Context) {
 		return
 	}
 	log.Printf("settings updated game_id=%s rounds=%d locked=%t", game.ID, game.PromptsPerPlayer, game.LobbyLocked)
-	c.JSON(http.StatusOK, s.snapshot(game))
+	c.JSON(http.StatusOK, s.snapshotForPlayer(game, req.PlayerID))
 	s.broadcastGameUpdate(game)
 }
 
@@ -667,7 +667,7 @@ func (s *Server) handleKick(c *gin.Context) {
 		return
 	}
 	log.Printf("player removed game_id=%s target_id=%d", game.ID, req.TargetID)
-	c.JSON(http.StatusOK, s.snapshot(game))
+	c.JSON(http.StatusOK, s.snapshotForPlayer(game, req.PlayerID))
 	s.broadcastGameUpdate(game)
 }
 
@@ -724,7 +724,7 @@ func (s *Server) handleStartGame(c *gin.Context) {
 		return
 	}
 	log.Printf("game started game_id=%s phase=%s", game.ID, game.Phase)
-	c.JSON(http.StatusOK, s.snapshot(game))
+	c.JSON(http.StatusOK, s.snapshotForPlayer(game, req.PlayerID))
 	s.broadcastGameUpdate(game)
 	s.schedulePhaseTimer(game)
 }
@@ -809,7 +809,7 @@ func (s *Server) handleDrawings(c *gin.Context) {
 		log.Printf("game advanced game_id=%s phase=%s", game.ID, game.Phase)
 	}
 	log.Printf("drawing submitted game_id=%s player_id=%d", game.ID, req.PlayerID)
-	c.JSON(http.StatusOK, s.snapshot(game))
+	c.JSON(http.StatusOK, s.snapshotForPlayer(game, req.PlayerID))
 	s.broadcastGameUpdate(game)
 }
 
@@ -883,7 +883,7 @@ func (s *Server) handleGuesses(c *gin.Context) {
 		log.Printf("game advanced game_id=%s phase=%s", game.ID, game.Phase)
 	}
 	log.Printf("guess submitted game_id=%s player_id=%d", game.ID, req.PlayerID)
-	c.JSON(http.StatusOK, s.snapshot(game))
+	c.JSON(http.StatusOK, s.snapshotForPlayer(game, req.PlayerID))
 	s.broadcastGameUpdate(game)
 	if phaseAdvanced {
 		s.schedulePhaseTimer(game)
@@ -981,7 +981,7 @@ func (s *Server) handleVotes(c *gin.Context) {
 		log.Printf("game advanced game_id=%s phase=%s", game.ID, game.Phase)
 	}
 	log.Printf("vote submitted game_id=%s player_id=%d", game.ID, req.PlayerID)
-	c.JSON(http.StatusOK, s.snapshot(game))
+	c.JSON(http.StatusOK, s.snapshotForPlayer(game, req.PlayerID))
 	s.broadcastGameUpdate(game)
 	if phaseAdvanced {
 		s.schedulePhaseTimer(game)
@@ -1033,7 +1033,7 @@ func (s *Server) handleLikes(c *gin.Context) {
 			return
 		}
 	}
-	c.JSON(http.StatusOK, s.snapshot(game))
+	c.JSON(http.StatusOK, s.snapshotForPlayer(game, req.PlayerID))
 	s.broadcastGameUpdate(game)
 }
 
@@ -1102,7 +1102,7 @@ func (s *Server) handleAdvance(c *gin.Context) {
 		return
 	}
 	log.Printf("game advanced game_id=%s phase=%s", game.ID, game.Phase)
-	c.JSON(http.StatusOK, s.snapshot(game))
+	c.JSON(http.StatusOK, s.snapshotForPlayer(game, req.PlayerID))
 	s.broadcastGameUpdate(game)
 	s.schedulePhaseTimer(game)
 }
@@ -1139,7 +1139,7 @@ func (s *Server) handleEndGame(c *gin.Context) {
 		return
 	}
 	log.Printf("game ended game_id=%s", game.ID)
-	c.JSON(http.StatusOK, s.snapshot(game))
+	c.JSON(http.StatusOK, s.snapshotForPlayer(game, req.PlayerID))
 	s.broadcastGameUpdate(game)
 }
 
@@ -1148,6 +1148,10 @@ func (s *Server) handleResults(c *gin.Context) {
 	game, ok := s.store.GetGame(gameID)
 	if !ok {
 		c.Status(http.StatusNotFound)
+		return
+	}
+	if game.Phase != phaseComplete {
+		c.JSON(http.StatusForbidden, gin.H{"error": "results are unavailable until the game is complete"})
 		return
 	}
 	round := currentRound(game)

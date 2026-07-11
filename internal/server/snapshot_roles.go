@@ -5,6 +5,12 @@ package server
 // authenticated role-specific endpoint.
 func (s *Server) snapshotForPublic(game *Game) map[string]any {
 	snapshot := s.snapshot(game)
+	delete(snapshot, "guess_focus")
+	delete(snapshot, "vote_focus")
+	delete(snapshot, "guess_assignments")
+	delete(snapshot, "vote_assignments")
+	delete(snapshot, "guess_remaining")
+	delete(snapshot, "vote_remaining")
 	if game.Phase != phaseComplete {
 		delete(snapshot, "results")
 	}
@@ -15,6 +21,10 @@ func (s *Server) snapshotForPlayer(game *Game, playerID int) map[string]any {
 	snapshot := s.snapshot(game)
 	snapshot["guess_assignments"] = filterAssignments(snapshot["guess_assignments"], playerID)
 	snapshot["vote_assignments"] = filterAssignments(snapshot["vote_assignments"], playerID)
+	delete(snapshot, "guess_focus")
+	delete(snapshot, "vote_focus")
+	delete(snapshot, "guess_remaining")
+	delete(snapshot, "vote_remaining")
 	if game.Phase != phaseComplete {
 		delete(snapshot, "results")
 	}

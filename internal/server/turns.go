@@ -423,8 +423,7 @@ func voteOptionsForPlayerPayload(game *Game, options []VoteOption, playerID int)
 	for _, option := range options {
 		result = append(result, map[string]any{
 			"id": option.ID, "text": option.Text,
-			"is_own":   option.Type == voteChoiceGuess && option.OwnerID == playerID,
-			"is_decoy": option.Type == voteChoiceGuess,
+			"is_own": option.Type == voteChoiceGuess && option.OwnerID == playerID,
 		})
 	}
 	return result

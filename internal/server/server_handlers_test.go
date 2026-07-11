@@ -556,8 +556,8 @@ func TestResults(t *testing.T) {
 
 	gameID := createGame(t, ts)
 	resp := doRequest(t, ts, http.MethodGet, "/api/games/"+gameID+"/results", nil)
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d", http.StatusForbidden, resp.StatusCode)
 	}
 }
 

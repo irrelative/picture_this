@@ -89,11 +89,25 @@ func fetchPrompt(t *testing.T, ts *httptest.Server, gameID string, playerID int)
 
 func fetchSnapshot(t *testing.T, ts *httptest.Server, gameID string) map[string]any {
 	t.Helper()
-	resp := doRequest(t, ts, http.MethodGet, "/api/games/"+gameID, nil)
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	testServers.Lock()
+	srv := testServers.byURL[ts.URL]
+	testServers.Unlock()
+	if srv == nil {
+		t.Fatal("test server is not registered")
 	}
-	return decodeBody(t, resp)
+	game, ok := srv.store.GetGame(gameID)
+	if !ok {
+		t.Fatal("game not found")
+	}
+	data, err := json.Marshal(srv.snapshot(game))
+	if err != nil {
+		t.Fatalf("marshal snapshot: %v", err)
+	}
+	var snapshot map[string]any
+	if err := json.Unmarshal(data, &snapshot); err != nil {
+		t.Fatalf("unmarshal snapshot: %v", err)
+	}
+	return snapshot
 }
 
 func doRequest(t *testing.T, ts *httptest.Server, method, path string, payload any) *http.Response {

@@ -4,10 +4,16 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 
 	"picture-this/internal/config"
 )
+
+var testServers = struct {
+	sync.Mutex
+	byURL map[string]*Server
+}{byURL: make(map[string]*Server)}
 
 func newTestServer(t *testing.T, handler http.Handler) *httptest.Server {
 	t.Helper()
@@ -33,6 +39,14 @@ func newServerHarnessWithConfig(t *testing.T, cfg config.Config) (*Server, *http
 	t.Helper()
 	srv := New(nil, cfg)
 	ts := newTestServer(t, srv.Handler())
-	t.Cleanup(ts.Close)
+	testServers.Lock()
+	testServers.byURL[ts.URL] = srv
+	testServers.Unlock()
+	t.Cleanup(func() {
+		testServers.Lock()
+		delete(testServers.byURL, ts.URL)
+		testServers.Unlock()
+		ts.Close()
+	})
 	return srv, ts
 }
