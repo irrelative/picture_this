@@ -4,6 +4,8 @@ import { applyHTMLMessage } from "./ws_html.js";
 let displayContent = document.getElementById("displayContent");
 const displayEventFx = document.getElementById("displayEventFx");
 const displayShell = document.querySelector(".display-shell");
+const fullscreenButton = document.getElementById("displayFullscreen");
+const muteButton = document.getElementById("displayMute");
 const gameError = document.getElementById("gameError");
 const lobbyAudio = document.getElementById("lobbyAudio");
 const drawingAudio = document.getElementById("drawingAudio");
@@ -54,6 +56,7 @@ const interludeCues = {
 };
 
 const state = {
+  muted: false,
   phase: "",
   phaseEndsAt: 0,
   revealStage: "",
@@ -103,6 +106,7 @@ const reconnect = createReconnect(() => connectWS(), {
 });
 
 function playAudio(audio) {
+  if (state.muted) return;
   if (!audio) return;
   if (!audio.paused) return;
   const playPromise = audio.play();
@@ -114,6 +118,7 @@ function playAudio(audio) {
 }
 
 function playSfx(audio, rate = 1, volume = 1) {
+  if (state.muted) return;
   if (!audio) return;
   const clip = audio.cloneNode(true);
   clip.playbackRate = rate;
@@ -694,6 +699,29 @@ function connectWS() {
     socket.close();
   });
 }
+
+fullscreenButton?.addEventListener("click", async () => {
+  if (document.fullscreenElement) {
+    await document.exitFullscreen();
+  } else {
+    await document.documentElement.requestFullscreen();
+  }
+});
+
+document.addEventListener("fullscreenchange", () => {
+  if (fullscreenButton) {
+    fullscreenButton.textContent = document.fullscreenElement ? "Exit full screen" : "Full screen";
+  }
+});
+
+muteButton?.addEventListener("click", () => {
+  state.muted = !state.muted;
+  document.querySelectorAll("audio").forEach((audio) => {
+    audio.muted = state.muted;
+  });
+  muteButton.setAttribute("aria-pressed", String(state.muted));
+  muteButton.textContent = state.muted ? "Sound off" : "Sound on";
+});
 
 syncFromContent();
 connectWS();

@@ -6,6 +6,7 @@ function normalizePhase(phase) {
 }
 
 export function updateFromSnapshot(ctx, data) {
+  document.body.dataset.phase = data.phase || "lobby";
   const { els, state, actions } = ctx;
   const phase = normalizePhase(data.phase);
   els.joinCode.textContent = data.join_code || "Unavailable";

@@ -1,0 +1,14 @@
+{
+  "name": "picture-this-ui",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "biome check tests/browser playwright.config.js",
+    "test:browser": "playwright test"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.2",
+    "@biomejs/biome": "^2.1.2",
+    "@playwright/test": "^1.54.1"
+  }
+}

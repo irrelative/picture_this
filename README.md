@@ -49,6 +49,8 @@ When the server starts, it will auto-migrate and load prompts from `prompts.csv`
 - `make run` — generate templ output and start the server.
 - `make build` — generate templ output and build all packages.
 - `make test` — run all tests.
+- `make frontend-check` — lint and format-check browser code with Biome.
+- `make browser-test` — run Playwright smoke and accessibility tests against the configured base URL.
 - `make migrate` — apply SQL migrations in `db/migrations/`.
 - `make migrate-repair` — repair a dirty `schema_migrations` state and re-run migrations.
 - `make migrate-create name=add_table` — create a new migration pair.

@@ -7,6 +7,9 @@ exp/
 scripts/__pycache__/
 __pycache__/
 .DS_Store
+node_modules/
+playwright-report/
+test-results/
 screenshots/*
 static/sounds/*
 static/audio/

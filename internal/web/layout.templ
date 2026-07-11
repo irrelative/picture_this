@@ -8,10 +8,8 @@ templ Layout(title string, scriptPath string, flash string, showLogout bool, sho
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>{ title }</title>
 			<link rel="icon" href={ assetPath("/static/favicon.svg") } type="image/svg+xml"/>
-			<link rel="preconnect" href="https://fonts.googleapis.com"/>
-			<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous"/>
-			<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 			<link rel="stylesheet" href={ assetPath("/static/styles.css") }/>
+			<link rel="stylesheet" href={ assetPath("/static/css/sketchbook.css") }/>
 			<script src={ assetPath("/static/vendor/htmx-2.0.8.js") } defer></script>
 		</head>
 		<body>
@@ -52,24 +50,16 @@ templ DisplayLayout(title string, scriptPath string, showAdmin bool) {
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>{ title }</title>
 			<link rel="icon" href={ assetPath("/static/favicon.svg") } type="image/svg+xml"/>
-			<link rel="preconnect" href="https://fonts.googleapis.com"/>
-			<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous"/>
-			<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 			<link rel="stylesheet" href={ assetPath("/static/styles.css") }/>
+			<link rel="stylesheet" href={ assetPath("/static/css/sketchbook.css") }/>
 			<script src={ assetPath("/static/vendor/htmx-2.0.8.js") } defer></script>
 		</head>
 		<body class="display-body">
 			<div class="display-shell confetti-bg">
-				<nav class="top-nav" aria-label="Primary">
-					<div class="top-nav-left">
-						<a class="nav-link" href="/">Home</a>
-					</div>
-					<div class="top-nav-right">
-						if showAdmin {
-							<a class="nav-link" href="/admin">Admin</a>
-						}
-					</div>
-				</nav>
+				<div class="display-controls" aria-label="Display controls">
+					<button id="displayMute" class="display-control" type="button" aria-pressed="false">Sound on</button>
+					<button id="displayFullscreen" class="display-control" type="button">Full screen</button>
+				</div>
 				{ children... }
 			</div>
 			if scriptPath != "" {

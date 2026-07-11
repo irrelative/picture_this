@@ -1,4 +1,4 @@
-.PHONY: run build init fetch-sfx cloc test migrate migrate-repair migrate-create load-prompts joke-audio-venv joke-audio-deps generate-joke-audio generate-joke-audio-ab generate-interlude-audio e2e-test deploy
+.PHONY: run build init fetch-sfx cloc test frontend-install frontend-check browser-test migrate migrate-repair migrate-create load-prompts joke-audio-venv joke-audio-deps generate-joke-audio generate-joke-audio-ab generate-interlude-audio e2e-test deploy
 
 run:
 	templ generate
@@ -27,6 +27,15 @@ cloc:
 
 test:
 	GOCACHE="$(GOCACHE)" go test ./...
+
+frontend-install:
+	npm ci
+
+frontend-check:
+	npx biome check tests/browser playwright.config.js
+
+browser-test:
+	npx playwright test
 
 migrate:
 	go run ./cmd/migrate
