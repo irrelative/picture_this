@@ -41,22 +41,22 @@ func TestWebsocketRolePayloadIsolation(t *testing.T) {
 	}
 	defer playerConn.Close()
 
-	if messageType := readWSMessageType(t, hostConn, 5*time.Second); messageType != "snapshot" {
-		t.Fatalf("expected host first message snapshot, got %s", messageType)
+	if messageType := readWSMessageType(t, hostConn, 5*time.Second); messageType != "state-changed" {
+		t.Fatalf("expected host first message state-changed, got %s", messageType)
 	}
 	if messageType := readWSMessageType(t, hostConn, 5*time.Second); messageType != "html" {
 		t.Fatalf("expected host second message html, got %s", messageType)
 	}
-	if messageType := readWSMessageType(t, playerConn, 5*time.Second); messageType != "snapshot" {
-		t.Fatalf("expected player first message snapshot, got %s", messageType)
+	if messageType := readWSMessageType(t, playerConn, 5*time.Second); messageType != "state-changed" {
+		t.Fatalf("expected player first message state-changed, got %s", messageType)
 	}
 
 	joinPlayer(t, ts, gameID, "Ada")
 
-	waitForWSMessageTypes(t, hostConn, 5*time.Second, "snapshot", "html")
+	waitForWSMessageTypes(t, hostConn, 5*time.Second, "state-changed", "html")
 
-	if messageType := readWSMessageType(t, playerConn, 5*time.Second); messageType != "snapshot" {
-		t.Fatalf("expected player broadcast message snapshot, got %s", messageType)
+	if messageType := readWSMessageType(t, playerConn, 5*time.Second); messageType != "state-changed" {
+		t.Fatalf("expected player broadcast message state-changed, got %s", messageType)
 	}
 	expectNoWSMessage(t, playerConn, 350*time.Millisecond)
 }
@@ -91,6 +91,9 @@ func classifyWSMessage(payload []byte) string {
 	}
 	switch value := decoded.(type) {
 	case map[string]any:
+		if messageType, ok := value["type"].(string); ok && messageType == "state_changed" {
+			return "state-changed"
+		}
 		if messageType, ok := value["type"].(string); ok && messageType == "html" {
 			return "html"
 		}

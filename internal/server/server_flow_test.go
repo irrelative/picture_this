@@ -359,10 +359,10 @@ func TestAudienceJoinAndVote(t *testing.T) {
 	if voteResp.StatusCode != http.StatusOK {
 		t.Fatalf("expected audience vote 200, got %d", voteResp.StatusCode)
 	}
-	updated := fetchSnapshot(t, ts, gameID)
-	results := updated["results"].([]any)
-	entry := results[drawingIndex].(map[string]any)
-	if raw, ok := entry["audience_votes"].([]any); !ok || len(raw) == 0 {
+	updated := srv.snapshot(game)
+	results := updated["results"].([]map[string]any)
+	entry := results[drawingIndex]
+	if raw, ok := entry["audience_votes"].([]map[string]any); !ok || len(raw) == 0 {
 		t.Fatalf("expected audience vote breakdown in results")
 	}
 }

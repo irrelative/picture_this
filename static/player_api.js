@@ -1,7 +1,9 @@
 import { gameAPIPath, getPlayerAuthToken, requestJSON } from "./api_client.js";
 
-export async function fetchSnapshot(gameId) {
-  return requestJSON(gameAPIPath(gameId));
+export async function fetchSnapshot(gameId, playerId) {
+	const authToken = getPlayerAuthToken(gameId, playerId);
+	const query = authToken ? `?auth_token=${encodeURIComponent(authToken)}` : "";
+	return requestJSON(gameAPIPath(gameId, `/players/${encodeURIComponent(playerId)}/state${query}`));
 }
 
 export async function fetchPrompt(gameId, playerId) {

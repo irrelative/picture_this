@@ -273,7 +273,7 @@ func (s *Server) handleWebsocket(c *gin.Context) {
 		if role == wsRoleDisplay {
 			s.ws.SendDisplay(conn, htmlMessage("#displayContent", "outer", s.renderDisplayHTML(game)))
 		} else {
-			s.ws.Send(conn, s.snapshot(game))
+			s.ws.Send(conn, stateChangedMessage{Type: "state_changed"})
 			if role == wsRoleHost {
 				s.ws.SendHTML(conn, s.renderGameHTMLMessages(game))
 			}
@@ -322,7 +322,7 @@ func (s *Server) broadcastGameUpdate(game *Game) {
 	if s.ws == nil {
 		return
 	}
-	s.ws.Broadcast(game.ID, s.snapshot(game))
+	s.ws.Broadcast(game.ID, stateChangedMessage{Type: "state_changed"})
 	s.ws.BroadcastHTML(game.ID, s.renderGameHTMLMessages(game))
 	s.ws.BroadcastDisplay(game.ID, htmlMessage("#displayContent", "outer", s.renderDisplayHTML(game)))
 	s.broadcastHomeUpdate()

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,14 +15,14 @@ import (
 )
 
 type settingsRequest struct {
-	PlayerID    int    `json:"player_id" binding:"required,gt=0"`
-	AuthToken   string `json:"auth_token"`
-	Rounds      int    `json:"rounds" binding:"min=0,max=10"`
-	LobbyLocked bool   `json:"lobby_locked"`
-	AvatarsEnabled  bool `json:"avatars_enabled"`
-	AudienceEnabled bool `json:"audience_enabled"`
-	JokesEnabled    bool `json:"jokes_enabled"`
-	PublicReplay    bool `json:"public_replay"`
+	PlayerID        int    `json:"player_id" binding:"required,gt=0"`
+	AuthToken       string `json:"auth_token"`
+	Rounds          int    `json:"rounds" binding:"min=0,max=10"`
+	LobbyLocked     bool   `json:"lobby_locked"`
+	AvatarsEnabled  bool   `json:"avatars_enabled"`
+	AudienceEnabled bool   `json:"audience_enabled"`
+	JokesEnabled    bool   `json:"jokes_enabled"`
+	PublicReplay    bool   `json:"public_replay"`
 }
 
 type createGameRequest struct {
@@ -202,7 +203,48 @@ func (s *Server) handleGetGame(c *gin.Context) {
 		c.Status(http.StatusNotFound)
 		return
 	}
-	c.JSON(http.StatusOK, s.snapshot(game))
+	c.JSON(http.StatusOK, s.snapshotForPublic(game))
+}
+
+func (s *Server) handlePlayerState(c *gin.Context) {
+	var uri playerPromptURI
+	if !bindURI(c, &uri) {
+		return
+	}
+	game, player, ok := s.store.GetPlayer(uri.GameID, uri.PlayerID)
+	if !ok || game == nil || player == nil {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	if _, err := s.authenticatePlayerRequest(c, game, player.ID, c.Query("auth_token")); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, s.snapshotForPlayer(game, player.ID))
+}
+
+func (s *Server) handleAudienceState(c *gin.Context) {
+	gameID := c.Param("gameID")
+	game, ok := s.store.GetGame(gameID)
+	if !ok || !game.AudienceEnabled {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	id, err := strconv.Atoi(c.Query("audience_id"))
+	if err != nil || !authenticateAudience(game, id, c.Query("token")) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid audience authentication"})
+		return
+	}
+	c.JSON(http.StatusOK, s.snapshotForAudience(game))
+}
+
+func authenticateAudience(game *Game, id int, token string) bool {
+	for _, member := range game.Audience {
+		if member.ID == id && strings.TrimSpace(member.Token) != "" {
+			return subtle.ConstantTimeCompare([]byte(member.Token), []byte(strings.TrimSpace(token))) == 1
+		}
+	}
+	return false
 }
 
 func (s *Server) handleJoinGame(c *gin.Context) {

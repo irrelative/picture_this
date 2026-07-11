@@ -173,7 +173,7 @@ async function loadPlayerView() {
   if (!ctx.state.authToken) {
     ctx.state.authToken = localStorage.getItem(`pt_auth_${gameId}_${playerId}`) || "";
   }
-  const { res, data } = await fetchSnapshot(gameId);
+	const { res, data } = await fetchSnapshot(gameId, playerId);
   if (!res.ok) {
     if (res.status === 404) {
       markGameMissing();
@@ -228,13 +228,17 @@ function connectWS() {
     loadPlayerView();
   });
 
-  socket.addEventListener("message", (event) => {
+	socket.addEventListener("message", (event) => {
     const htmlResult = applyHTMLMessage(event.data);
     if (htmlResult) {
       return;
     }
-    try {
-      const data = JSON.parse(event.data);
+		try {
+			const data = JSON.parse(event.data);
+			if (data.type === "state_changed") {
+				loadPlayerView();
+				return;
+			}
       updateFromSnapshot(ctx, data);
       syncTimer(data);
     } catch {
