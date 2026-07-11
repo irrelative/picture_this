@@ -94,7 +94,7 @@ var phaseTransitions = map[string]phaseTransition{
 			case revealStageGuesses:
 				nextRevealStage = revealStageVotes
 			case revealStageVotes:
-				if revealHasJoke(round) {
+				if game.JokesEnabled && revealHasJoke(round) {
 					nextRevealStage = revealStageJoke
 					break
 				}

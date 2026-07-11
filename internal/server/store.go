@@ -27,7 +27,7 @@ func NewStore() *Store {
 }
 
 func (s *Store) CreateGame(promptsPerPlayer int) *Game {
-	return s.CreateGameWithLimits(promptsPerPlayer, 2, 0)
+	return s.CreateGameWithLimits(promptsPerPlayer, 3, 8)
 }
 
 func (s *Store) CreateGameWithLimits(promptsPerPlayer int, minPlayers int, maxPlayers int) *Game {
@@ -64,6 +64,7 @@ func (s *Store) CreateGameWithLimits(promptsPerPlayer int, minPlayers int, maxPl
 		KickedPlayers:    make(map[string]struct{}),
 		PlayerAuthTokens: make(map[int]string),
 		PromptsPerPlayer: promptsPerPlayer,
+		Ruleset:          rulesetDrawful,
 	}
 	s.games[id] = game
 	return game

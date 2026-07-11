@@ -6,6 +6,7 @@ import {
   postEndGame,
   postDrawing,
   postGuess,
+	postLike,
   postKick,
   postSettings,
   postStartGame,
@@ -60,6 +61,10 @@ const ctx = {
     hostSettingsForm: document.getElementById("hostSettingsForm"),
     hostRoundsInput: document.getElementById("hostRoundsInput"),
     hostLobbyLocked: document.getElementById("hostLobbyLocked"),
+		hostAvatarsEnabled: document.getElementById("hostAvatarsEnabled"),
+		hostAudienceEnabled: document.getElementById("hostAudienceEnabled"),
+		hostJokesEnabled: document.getElementById("hostJokesEnabled"),
+		hostPublicReplay: document.getElementById("hostPublicReplay"),
     hostSettingsStatus: document.getElementById("hostSettingsStatus"),
     hostPlayerActions: document.getElementById("hostPlayerActions"),
     phaseTimer: document.getElementById("phaseTimer")
@@ -404,7 +409,11 @@ if (ctx.els.hostSettingsForm) {
       player_id: playerId,
       auth_token: ctx.state.authToken,
       rounds,
-      lobby_locked: locked
+			lobby_locked: locked,
+			avatars_enabled: Boolean(ctx.els.hostAvatarsEnabled?.checked),
+			audience_enabled: Boolean(ctx.els.hostAudienceEnabled?.checked),
+			jokes_enabled: Boolean(ctx.els.hostJokesEnabled?.checked),
+			public_replay: Boolean(ctx.els.hostPublicReplay?.checked)
     });
     if (!res.ok) {
       if (ctx.els.hostSettingsStatus) {
@@ -480,6 +489,15 @@ if (ctx.els.guessForm) {
 }
 
 if (ctx.els.voteForm) {
+	ctx.els.voteOptions?.addEventListener("click", async (event) => {
+		const button = event.target.closest?.("button[data-like-choice]");
+		if (!button || !ctx.els.meta) return;
+		button.disabled = true;
+		const gameId = ctx.els.meta.dataset.gameId;
+		const playerId = Number(ctx.els.meta.dataset.playerId);
+		const { res, data } = await postLike(gameId, playerId, Number(button.dataset.drawingIndex), button.dataset.likeChoice);
+		if (!res.ok && ctx.els.playerError) ctx.els.playerError.textContent = data.error || "Unable to like title.";
+	});
   ctx.els.voteForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!ctx.els.meta || !ctx.els.voteOptions) return;

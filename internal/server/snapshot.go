@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"time"
 
 	"picture-this/internal/config"
@@ -87,7 +88,7 @@ func snapshotWithConfig(game *Game, cfg config.Config) map[string]any {
 				drawing := round.Drawings[drawingIndex]
 				voteFocus["drawing_owner"] = drawing.PlayerID
 				voteFocus["drawing_image"] = encodeImageData(drawing.ImageData)
-				voteFocus["options"] = voteOptionsPayload(voteOptionEntries(round, drawingIndex))
+				voteFocus["options"] = voteOptionsForPlayerPayload(game, voteOptionEntries(round, drawingIndex), 0)
 			}
 		}
 	}
@@ -113,6 +114,11 @@ func snapshotWithConfig(game *Game, cfg config.Config) map[string]any {
 		"min_players":           game.MinPlayers,
 		"max_players":           game.MaxPlayers,
 		"lobby_locked":          game.LobbyLocked,
+		"ruleset":               game.Ruleset,
+		"avatars_enabled":       game.AvatarsEnabled,
+		"audience_enabled":      game.AudienceEnabled,
+		"jokes_enabled":         game.JokesEnabled,
+		"public_replay":         game.PublicReplay,
 		"host_id":               game.HostID,
 		"scores":                scores,
 		"results":               buildResults(game),
@@ -308,12 +314,14 @@ func buildScores(game *Game) []map[string]any {
 		}
 		for drawingIndex, drawing := range round.Drawings {
 			fooledVotes := 0
+			correctVotes := 0
 			for _, vote := range round.Votes {
 				if vote.DrawingIndex != drawingIndex {
 					continue
 				}
 				if vote.ChoiceType == voteChoicePrompt {
 					scores[vote.PlayerID] += 1000
+					correctVotes++
 				} else if vote.ChoiceType == voteChoiceGuess {
 					if ownerID := guessOwner(round, drawingIndex, vote.ChoiceText); ownerID != 0 {
 						scores[ownerID] += 500
@@ -321,7 +329,9 @@ func buildScores(game *Game) []map[string]any {
 					}
 				}
 			}
-			if fooledVotes == 0 {
+			if game.Ruleset == rulesetDrawful {
+				scores[drawing.PlayerID] += 500 * correctVotes
+			} else if fooledVotes == 0 {
 				scores[drawing.PlayerID] += 1000
 			} else {
 				scores[drawing.PlayerID] += 500 * fooledVotes
@@ -425,6 +435,7 @@ func revealOptionsPayload(round *RoundState, drawingIndex int, playerNames map[i
 		playerCount  int
 		audience     int
 		totalVoteCnt int
+		likes        int
 	}
 	statsByID := make(map[string]*optionStats, len(options))
 	for _, option := range options {
@@ -498,6 +509,14 @@ func revealOptionsPayload(round *RoundState, drawingIndex int, playerNames map[i
 		stats.audience++
 		stats.totalVoteCnt++
 	}
+	for _, like := range round.Likes {
+		if like.DrawingIndex != drawingIndex {
+			continue
+		}
+		if stats := statsByID[voteOptionIDGuess+strconv.Itoa(like.GuessOwnerID)]; stats != nil {
+			stats.likes++
+		}
+	}
 
 	result := make([]map[string]any, 0, len(options))
 	for _, option := range options {
@@ -512,6 +531,7 @@ func revealOptionsPayload(round *RoundState, drawingIndex int, playerNames map[i
 			"player_vote_count": stats.playerCount,
 			"audience_count":    stats.audience,
 			"total_count":       stats.totalVoteCnt,
+			"like_count":        stats.likes,
 		}
 		result = append(result, entry)
 	}
@@ -544,12 +564,14 @@ func drawingScoreDeltas(game *Game, round *RoundState, drawingIndex int, playerN
 	}
 
 	fooledVotes := 0
+	correctVotes := 0
 	for _, vote := range round.Votes {
 		if vote.DrawingIndex != drawingIndex {
 			continue
 		}
 		if vote.ChoiceType == voteChoicePrompt {
 			addDelta(vote.PlayerID, 1000, "Correct vote")
+			correctVotes++
 			continue
 		}
 		if vote.ChoiceType == voteChoiceGuess {
@@ -566,7 +588,9 @@ func drawingScoreDeltas(game *Game, round *RoundState, drawingIndex int, playerN
 	}
 
 	drawingOwner := round.Drawings[drawingIndex].PlayerID
-	if fooledVotes == 0 {
+	if game.Ruleset == rulesetDrawful {
+		addDelta(drawingOwner, 500*correctVotes, fmt.Sprintf("%d players found the real title", correctVotes))
+	} else if fooledVotes == 0 {
 		addDelta(drawingOwner, 1000, "No one picked a lie")
 	} else {
 		addDelta(drawingOwner, 500*fooledVotes, fmt.Sprintf("%d players picked lies", fooledVotes))

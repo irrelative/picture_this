@@ -24,6 +24,11 @@ func (s *Server) persistGame(game *Game) error {
 		MinPlayers:       game.MinPlayers,
 		MaxPlayers:       game.MaxPlayers,
 		LobbyLocked:      game.LobbyLocked,
+		Ruleset:          game.Ruleset,
+		AvatarsEnabled:   game.AvatarsEnabled,
+		AudienceEnabled:  game.AudienceEnabled,
+		JokesEnabled:     game.JokesEnabled,
+		PublicReplay:     game.PublicReplay,
 	}
 	if err := s.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&record).Error; err != nil {
 		return err
@@ -123,7 +128,9 @@ func (s *Server) persistPhase(game *Game, eventType string, payload EventPayload
 		return err
 	}
 	if round := currentRound(game); round != nil && round.DBID != 0 {
-		if err := s.db.Model(&db.Round{}).Where("id = ?", round.DBID).Update("status", game.Phase).Error; err != nil {
+		if err := s.db.Model(&db.Round{}).Where("id = ?", round.DBID).Updates(map[string]any{
+			"status": game.Phase, "active_drawing_index": round.RevealIndex, "reveal_stage": round.RevealStage,
+		}).Error; err != nil {
 			return err
 		}
 	}
@@ -147,6 +154,10 @@ func (s *Server) persistSettings(game *Game) error {
 		"min_players":        game.MinPlayers,
 		"max_players":        game.MaxPlayers,
 		"lobby_locked":       game.LobbyLocked,
+		"avatars_enabled":    game.AvatarsEnabled,
+		"audience_enabled":   game.AudienceEnabled,
+		"jokes_enabled":      game.JokesEnabled,
+		"public_replay":      game.PublicReplay,
 	}
 	if err := s.db.Model(&db.Game{}).Where("id = ?", game.DBID).Updates(updates).Error; err != nil {
 		return err
@@ -243,9 +254,8 @@ func (s *Server) persistRound(game *Game) error {
 		return errors.New("game not found")
 	}
 	record := db.Round{
-		GameID: game.DBID,
-		Number: round.Number,
-		Status: game.Phase,
+		GameID: game.DBID, Number: round.Number, Status: game.Phase,
+		ActiveDrawingIndex: round.RevealIndex, RevealStage: round.RevealStage,
 	}
 	if err := s.db.Create(&record).Error; err != nil {
 		return err
@@ -414,6 +424,37 @@ func (s *Server) persistVote(game *Game, playerID int, roundNumber int, drawingI
 		PlayerID: playerID,
 		Choice:   choiceText,
 	})
+}
+
+func (s *Server) persistLike(game *Game, entry *LikeEntry) error {
+	if s.db == nil || entry == nil {
+		return nil
+	}
+	round := currentRound(game)
+	if round == nil || entry.DrawingIndex < 0 || entry.DrawingIndex >= len(round.Drawings) {
+		return errors.New("drawing not found")
+	}
+	liker, ok := s.store.FindPlayer(game, entry.PlayerID)
+	if !ok || liker.DBID == 0 {
+		return errors.New("player not found")
+	}
+	owner, ok := s.store.FindPlayer(game, entry.GuessOwnerID)
+	if !ok || owner.DBID == 0 {
+		return errors.New("lie owner not found")
+	}
+	record := db.Like{RoundID: round.DBID, PlayerID: liker.DBID, DrawingID: round.Drawings[entry.DrawingIndex].DBID, GuessOwnerID: owner.DBID}
+	if err := s.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&record).Error; err != nil {
+		return err
+	}
+	entry.DBID = record.ID
+	for i := range round.Likes {
+		like := &round.Likes[i]
+		if like.PlayerID == entry.PlayerID && like.DrawingIndex == entry.DrawingIndex && like.GuessOwnerID == entry.GuessOwnerID {
+			like.DBID = record.ID
+			break
+		}
+	}
+	return s.persistEvent(game, "lie_liked", EventPayload{PlayerID: entry.PlayerID})
 }
 
 func (s *Server) findPlayerDBID(gameDBID uint, name string) (uint, error) {

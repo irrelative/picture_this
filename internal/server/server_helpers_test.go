@@ -33,7 +33,7 @@ func resetTestAuthTokens() {
 func createGame(t *testing.T, ts *httptest.Server) string {
 	t.Helper()
 	ensureAuthenticatedUser(t, ts)
-	resp := doRequest(t, ts, http.MethodPost, "/api/games", nil)
+	resp := doRequest(t, ts, http.MethodPost, "/api/games", map[string]any{"min_players": 2, "max_players": 0})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("expected status %d, got %d", http.StatusCreated, resp.StatusCode)
 	}
@@ -44,7 +44,7 @@ func createGame(t *testing.T, ts *httptest.Server) string {
 func createGameWithCode(t *testing.T, ts *httptest.Server) (string, string) {
 	t.Helper()
 	ensureAuthenticatedUser(t, ts)
-	resp := doRequest(t, ts, http.MethodPost, "/api/games", nil)
+	resp := doRequest(t, ts, http.MethodPost, "/api/games", map[string]any{"min_players": 2, "max_players": 0})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("expected status %d, got %d", http.StatusCreated, resp.StatusCode)
 	}

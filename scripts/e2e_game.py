@@ -19,12 +19,6 @@ AVATAR_IMAGES = [
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGPwmvAIAALkAb2JlVB1AAAAAElFTkSuQmCC",
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4elQCAASFAdNllrGDAAAAAElFTkSuQmCC",
 ]
-AVATAR_UPDATES = [
-    AVATAR_IMAGES[2],
-    AVATAR_IMAGES[3],
-    AVATAR_IMAGES[0],
-    AVATAR_IMAGES[1],
-]
 OPENER = urllib.request.build_opener(urllib.request.HTTPCookieProcessor())
 
 
@@ -93,7 +87,6 @@ def main():
     player_tokens = {}
     for idx, name in enumerate(player_names):
         avatar_data = f"data:image/png;base64,{AVATAR_IMAGES[idx % len(AVATAR_IMAGES)]}"
-        updated_avatar_data = f"data:image/png;base64,{AVATAR_UPDATES[idx % len(AVATAR_UPDATES)]}"
         status, player = request_json(
             "POST",
             f"{base_url}/api/games/{game_id}/join",
@@ -102,16 +95,6 @@ def main():
         assert status == 200, f"join {name} failed: {status} {player}"
         players.append(player)
         player_tokens[player["player_id"]] = player.get("auth_token", "")
-        status, _ = request_json(
-            "POST",
-            f"{base_url}/api/games/{game_id}/avatar",
-            {
-                "player_id": player["player_id"],
-                "avatar_data": updated_avatar_data,
-                "auth_token": player_tokens.get(player["player_id"], ""),
-            },
-        )
-        assert status == 200, f"avatar update failed for {name}"
     joined = " ".join(f"{player_names[idx]}={player['player_id']}" for idx, player in enumerate(players))
     print(f"Joined players: {joined}")
 
@@ -217,7 +200,7 @@ def main():
                         owner_id = int(option.get("owner_id") or 0)
                         option_type = str(option.get("type") or "")
                         # Mirror server rules: allow prompt votes, and disallow voting for your own lie.
-                        if option_type == "prompt" or owner_id != voter:
+                        if not option.get("is_own") and (option_type == "prompt" or owner_id != voter):
                             selected = option
                             break
                     if selected is None:

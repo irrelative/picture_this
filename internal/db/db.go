@@ -32,6 +32,7 @@ func Migrate(conn *gorm.DB) error {
 		&Drawing{},
 		&Guess{},
 		&Vote{},
+		&Like{},
 		&Event{},
 		&PromptLibrary{},
 		&Session{},

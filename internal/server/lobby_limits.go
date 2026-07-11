@@ -6,3 +6,10 @@ func effectiveMaxPlayers(maxPlayers int) int {
 	}
 	return maxPlayers
 }
+
+func drawfulRoundsForPlayers(players int) int {
+	if players >= 7 {
+		return 1
+	}
+	return 2
+}

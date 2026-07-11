@@ -77,6 +77,10 @@ func (s *Server) handleAudienceView(c *gin.Context) {
 		c.Redirect(http.StatusFound, "/")
 		return
 	}
+	if !game.AudienceEnabled {
+		c.Status(http.StatusNotFound)
+		return
+	}
 	name := ""
 	if s.sessions != nil {
 		name = s.sessions.GetName(c.Writer, c.Request)
@@ -89,7 +93,8 @@ func (s *Server) handleReplayView(c *gin.Context) {
 	if !bindURI(c, &uri) {
 		return
 	}
-	if _, exists := s.store.GetGame(uri.GameID); !exists {
+	game, exists := s.store.GetGame(uri.GameID)
+	if !exists || !game.PublicReplay {
 		c.Status(http.StatusNotFound)
 		return
 	}

@@ -311,6 +311,9 @@ func revealOptionsForDisplay(reveal map[string]any) []string {
 				if audienceCount > 0 {
 					lines = append(lines, fmt.Sprintf("Audience picks: %d", audienceCount))
 				}
+				if likes := displayInt(option["like_count"]); likes > 0 {
+					lines = append(lines, fmt.Sprintf("Likes: %d", likes))
+				}
 			}
 		} else {
 			if prompt, _ := reveal["prompt"].(string); prompt != "" {

@@ -48,7 +48,7 @@ func (s *Server) restoreGameFromDB(param string) (*Game, string, error) {
 		roundIDs = append(roundIDs, round.ID)
 	}
 
-	prompts, drawings, guesses, votes, err := s.loadRoundAssets(roundIDs)
+	prompts, drawings, guesses, votes, likes, err := s.loadRoundAssets(roundIDs)
 	if err != nil {
 		return nil, displayID, err
 	}
@@ -67,13 +67,21 @@ func (s *Server) restoreGameFromDB(param string) (*Game, string, error) {
 		KickedPlayers:    make(map[string]struct{}),
 		PlayerAuthTokens: make(map[int]string),
 		PromptsPerPlayer: record.PromptsPerPlayer,
+		Ruleset:          record.Ruleset,
+		AvatarsEnabled:   record.AvatarsEnabled,
+		AudienceEnabled:  record.AudienceEnabled,
+		JokesEnabled:     record.JokesEnabled,
+		PublicReplay:     record.PublicReplay,
+	}
+	if game.Ruleset == "" {
+		game.Ruleset = rulesetLegacy
 	}
 
 	game.Players = buildPlayers(players, game)
 	for _, player := range game.Players {
 		ensurePlayerAuthToken(game, player.ID)
 	}
-	game.Rounds = buildRounds(rounds, prompts, drawings, guesses, votes)
+	game.Rounds = buildRounds(rounds, prompts, drawings, guesses, votes, likes)
 	game.UsedPrompts = usedPrompts(game.Rounds)
 
 	if round := currentRound(game); round != nil {
@@ -116,27 +124,31 @@ func (s *Server) loadRounds(gameID uint) ([]db.Round, error) {
 	return rounds, nil
 }
 
-func (s *Server) loadRoundAssets(roundIDs []uint) ([]db.Prompt, []db.Drawing, []db.Guess, []db.Vote, error) {
+func (s *Server) loadRoundAssets(roundIDs []uint) ([]db.Prompt, []db.Drawing, []db.Guess, []db.Vote, []db.Like, error) {
 	if len(roundIDs) == 0 {
-		return nil, nil, nil, nil, nil
+		return nil, nil, nil, nil, nil, nil
 	}
 	var prompts []db.Prompt
 	if err := s.db.Where("round_id IN ?", roundIDs).Order("id asc").Find(&prompts).Error; err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
 	var drawings []db.Drawing
 	if err := s.db.Where("round_id IN ?", roundIDs).Order("id asc").Find(&drawings).Error; err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
 	var guesses []db.Guess
 	if err := s.db.Where("round_id IN ?", roundIDs).Order("id asc").Find(&guesses).Error; err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
 	var votes []db.Vote
 	if err := s.db.Where("round_id IN ?", roundIDs).Order("id asc").Find(&votes).Error; err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
-	return prompts, drawings, guesses, votes, nil
+	var likes []db.Like
+	if err := s.db.Where("round_id IN ?", roundIDs).Order("id asc").Find(&likes).Error; err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
+	return prompts, drawings, guesses, votes, likes, nil
 }
 
 func buildPlayers(records []db.Player, game *Game) []Player {
@@ -159,7 +171,7 @@ func buildPlayers(records []db.Player, game *Game) []Player {
 	return players
 }
 
-func buildRounds(rounds []db.Round, prompts []db.Prompt, drawings []db.Drawing, guesses []db.Guess, votes []db.Vote) []RoundState {
+func buildRounds(rounds []db.Round, prompts []db.Prompt, drawings []db.Drawing, guesses []db.Guess, votes []db.Vote, likes []db.Like) []RoundState {
 	promptsByRound := map[uint][]db.Prompt{}
 	for _, prompt := range prompts {
 		promptsByRound[prompt.RoundID] = append(promptsByRound[prompt.RoundID], prompt)
@@ -176,10 +188,14 @@ func buildRounds(rounds []db.Round, prompts []db.Prompt, drawings []db.Drawing, 
 	for _, vote := range votes {
 		votesByRound[vote.RoundID] = append(votesByRound[vote.RoundID], vote)
 	}
+	likesByRound := map[uint][]db.Like{}
+	for _, like := range likes {
+		likesByRound[like.RoundID] = append(likesByRound[like.RoundID], like)
+	}
 
 	states := make([]RoundState, 0, len(rounds))
 	for _, round := range rounds {
-		state := RoundState{Number: round.Number, DBID: round.ID}
+		state := RoundState{Number: round.Number, DBID: round.ID, RevealIndex: round.ActiveDrawingIndex, RevealStage: round.RevealStage}
 		promptRecords := promptsByRound[round.ID]
 		promptTextByID := map[uint]string{}
 		for _, prompt := range promptRecords {
@@ -242,6 +258,13 @@ func buildRounds(rounds []db.Round, prompts []db.Prompt, drawings []db.Drawing, 
 				ChoiceType:   vote.ChoiceType,
 				DBID:         vote.ID,
 			})
+		}
+		for _, like := range likesByRound[round.ID] {
+			index, ok := drawingIndexByID[like.DrawingID]
+			if !ok {
+				continue
+			}
+			state.Likes = append(state.Likes, LikeEntry{PlayerID: int(like.PlayerID), DrawingIndex: index, GuessOwnerID: int(like.GuessOwnerID), DBID: like.ID})
 		}
 
 		states = append(states, state)

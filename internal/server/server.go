@@ -87,6 +87,7 @@ func (s *Server) Handler() http.Handler {
 		api.POST("/games/:gameID/drawings", s.handleDrawings)
 		api.POST("/games/:gameID/guesses", s.handleGuesses)
 		api.POST("/games/:gameID/votes", s.handleVotes)
+		api.POST("/games/:gameID/likes", s.handleLikes)
 		api.POST("/games/:gameID/settings", s.handleSettings)
 		api.POST("/games/:gameID/kick", s.handleKick)
 		api.POST("/games/:gameID/advance", s.handleAdvance)

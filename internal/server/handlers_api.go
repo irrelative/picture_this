@@ -18,6 +18,10 @@ type settingsRequest struct {
 	AuthToken   string `json:"auth_token"`
 	Rounds      int    `json:"rounds" binding:"min=0,max=10"`
 	LobbyLocked bool   `json:"lobby_locked"`
+	AvatarsEnabled  bool `json:"avatars_enabled"`
+	AudienceEnabled bool `json:"audience_enabled"`
+	JokesEnabled    bool `json:"jokes_enabled"`
+	PublicReplay    bool `json:"public_replay"`
 }
 
 type createGameRequest struct {
@@ -85,6 +89,13 @@ type votesRequest struct {
 	AuthToken string `json:"auth_token"`
 }
 
+type likesRequest struct {
+	PlayerID     int    `json:"player_id" binding:"required,gt=0"`
+	DrawingIndex int    `json:"drawing_index" binding:"min=0"`
+	ChoiceID     string `json:"choice_id" binding:"required"`
+	AuthToken    string `json:"auth_token"`
+}
+
 type advanceRequest struct {
 	PlayerID  int    `json:"player_id" binding:"required,gt=0"`
 	AuthToken string `json:"auth_token"`
@@ -114,7 +125,7 @@ func (s *Server) handleCreateGame(c *gin.Context) {
 	if _, ok := s.requireSessionUser(c); !ok {
 		return
 	}
-	req := createGameRequest{MinPlayers: 2, MaxPlayers: 10}
+	req := createGameRequest{MinPlayers: 3, MaxPlayers: 8}
 	if c.Request.ContentLength > 0 {
 		if !bindJSON(c, &req, bindMessages{
 			"MinPlayers": {
@@ -135,7 +146,7 @@ func (s *Server) handleCreateGame(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "min players cannot exceed max players"})
 		return
 	}
-	game := s.store.CreateGameWithLimits(s.cfg.PromptsPerPlayer, req.MinPlayers, req.MaxPlayers)
+	game := s.store.CreateGameWithLimits(0, req.MinPlayers, req.MaxPlayers)
 	if err := s.persistGame(game); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create game"})
 		return
@@ -278,6 +289,9 @@ func (s *Server) handleAudienceJoin(c *gin.Context) {
 	token := strings.TrimSpace(req.Token)
 	var joined AudienceMember
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+		if !game.AudienceEnabled {
+			return errors.New("audience is disabled for this game")
+		}
 		if game.Phase == phaseComplete {
 			return errors.New("game already ended")
 		}
@@ -347,6 +361,9 @@ func (s *Server) handleAudienceVote(c *gin.Context) {
 		return
 	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+		if !game.AudienceEnabled {
+			return errors.New("audience is disabled for this game")
+		}
 		if game.Phase != phaseGuessVotes {
 			return errors.New("votes not accepted in this phase")
 		}
@@ -429,6 +446,9 @@ func (s *Server) handleAvatar(c *gin.Context) {
 		return
 	}
 	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+		if !game.AvatarsEnabled {
+			return errors.New("avatars are disabled for this game")
+		}
 		if game.Phase != phaseLobby {
 			return errors.New("avatars only available in lobby")
 		}
@@ -538,6 +558,10 @@ func (s *Server) handleSettings(c *gin.Context) {
 			game.PromptsPerPlayer = req.Rounds
 		}
 		game.LobbyLocked = req.LobbyLocked
+		game.AvatarsEnabled = req.AvatarsEnabled
+		game.AudienceEnabled = req.AudienceEnabled
+		game.JokesEnabled = req.JokesEnabled
+		game.PublicReplay = req.PublicReplay
 		return nil
 	})
 	if respondGameMutationError(c, err) {
@@ -632,6 +656,9 @@ func (s *Server) handleStartGame(c *gin.Context) {
 		}
 		if game.Phase != phaseLobby {
 			return errors.New("game already started")
+		}
+		if game.Ruleset == rulesetDrawful && game.PromptsPerPlayer <= 0 {
+			game.PromptsPerPlayer = drawfulRoundsForPlayers(len(game.Players))
 		}
 		setPhase(game, phaseDrawings)
 		game.Rounds = append(game.Rounds, RoundState{
@@ -917,6 +944,55 @@ func (s *Server) handleVotes(c *gin.Context) {
 	if phaseAdvanced {
 		s.schedulePhaseTimer(game)
 	}
+}
+
+func (s *Server) handleLikes(c *gin.Context) {
+	gameID := c.Param("gameID")
+	var req likesRequest
+	if !bindJSON(c, &req, bindMessages{}, "invalid like") {
+		return
+	}
+	var entry LikeEntry
+	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+		player, err := s.authenticatePlayerRequest(c, game, req.PlayerID, req.AuthToken)
+		if err != nil {
+			return err
+		}
+		if game.Phase != phaseGuessVotes {
+			return errors.New("likes not accepted in this phase")
+		}
+		round := currentRound(game)
+		if round == nil || req.DrawingIndex != normalizeDrawingIndex(round) {
+			return errors.New("drawing is not active")
+		}
+		selected, ok := selectVoteOption(voteOptionEntries(round, req.DrawingIndex), req.ChoiceID, "")
+		if !ok || selected.Type != voteChoiceGuess {
+			return errors.New("only decoy titles can be liked")
+		}
+		if selected.OwnerID == player.ID {
+			return errors.New("cannot like your own lie")
+		}
+		for _, like := range round.Likes {
+			if like.PlayerID == player.ID && like.DrawingIndex == req.DrawingIndex && like.GuessOwnerID == selected.OwnerID {
+				entry = like
+				return nil
+			}
+		}
+		entry = LikeEntry{PlayerID: player.ID, DrawingIndex: req.DrawingIndex, GuessOwnerID: selected.OwnerID}
+		round.Likes = append(round.Likes, entry)
+		return nil
+	})
+	if respondGameMutationError(c, err) {
+		return
+	}
+	if entry.DBID == 0 {
+		if err := s.persistLike(game, &entry); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save like"})
+			return
+		}
+	}
+	c.JSON(http.StatusOK, s.snapshot(game))
+	s.broadcastGameUpdate(game)
 }
 
 func (s *Server) handleAdvance(c *gin.Context) {

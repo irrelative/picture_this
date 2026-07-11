@@ -13,6 +13,11 @@ const (
 )
 
 const (
+	rulesetLegacy  = "picture_this_v1"
+	rulesetDrawful = "drawful_v1"
+)
+
+const (
 	wsRolePlayer   = "player"
 	wsRoleHost     = "host"
 	wsRoleDisplay  = "display"
@@ -57,6 +62,11 @@ type Game struct {
 	Players          []Player
 	Rounds           []RoundState
 	PromptsPerPlayer int
+	Ruleset          string
+	AvatarsEnabled   bool
+	AudienceEnabled  bool
+	JokesEnabled     bool
+	PublicReplay     bool
 }
 
 type Player struct {
@@ -78,8 +88,16 @@ type RoundState struct {
 	Guesses       []GuessEntry
 	Votes         []VoteEntry
 	AudienceVotes []AudienceVoteEntry
+	Likes         []LikeEntry
 	RevealIndex   int
 	RevealStage   string
+}
+
+type LikeEntry struct {
+	PlayerID     int
+	DrawingIndex int
+	GuessOwnerID int
+	DBID         uint
 }
 
 type PromptEntry struct {

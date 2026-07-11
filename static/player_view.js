@@ -121,6 +121,10 @@ export function updateFromSnapshot(ctx, data) {
   if (els.hostLobbyLocked) {
     els.hostLobbyLocked.checked = Boolean(data.lobby_locked);
   }
+	if (els.hostAvatarsEnabled) els.hostAvatarsEnabled.checked = Boolean(data.avatars_enabled);
+	if (els.hostAudienceEnabled) els.hostAudienceEnabled.checked = Boolean(data.audience_enabled);
+	if (els.hostJokesEnabled) els.hostJokesEnabled.checked = Boolean(data.jokes_enabled);
+	if (els.hostPublicReplay) els.hostPublicReplay.checked = Boolean(data.public_replay);
   if (els.hostSettingsForm) {
     const disabled = phase !== "lobby" || !isHost;
     Array.from(els.hostSettingsForm.elements).forEach((el) => {
@@ -137,7 +141,7 @@ export function updateFromSnapshot(ctx, data) {
   }
 
   if (els.avatarSection) {
-    els.avatarSection.style.display = phase === "lobby" ? "grid" : "none";
+	els.avatarSection.style.display = phase === "lobby" && data.avatars_enabled ? "grid" : "none";
   }
   state.avatarLocked = Boolean(avatarLocks[String(playerId)] || avatarLocks[playerId]);
   if (els.avatarCanvasWrap) {
@@ -279,15 +283,21 @@ function updateVotePhase(ctx, data, phase) {
   const playerId = Number(els.meta?.dataset.playerId || 0);
   const assignments = Array.isArray(data.vote_assignments) ? data.vote_assignments : [];
   const assignment = assignments.find((entry) => Number(entry.player_id) === playerId) || null;
-  const isOwnDrawing = assignment && Number(assignment.drawing_owner) === playerId;
+	const focus = data.vote_focus || null;
+	const isOwnDrawing = !assignment && focus && Number(focus.drawing_owner) === playerId;
+	const view = assignment || (isOwnDrawing ? {
+		drawing_index: focus.drawing_index,
+		drawing_image: focus.drawing_image,
+		options: focus.options
+	} : null);
   const remainingMap = data.vote_remaining || {};
   const remaining = Number(remainingMap[String(playerId)] || 0);
   const hasSubmitted = !assignment || remaining === 0;
   const canSubmit = Boolean(assignment) && !isOwnDrawing;
-  const voteKey = `${assignment ? assignment.drawing_index : "none"}`;
+	const voteKey = `${view ? view.drawing_index : "none"}`;
   if (voteKey !== state.lastVoteKey) {
     const note = isOwnDrawing ? "This is your drawing. No vote needed." : "";
-    renderVoteOptions(ctx, assignment ? assignment.options : [], note);
+		renderVoteOptions(ctx, view ? view.options : [], note, isOwnDrawing);
     state.lastVoteKey = voteKey;
   }
   if (els.voteStatus) {
@@ -304,14 +314,14 @@ function updateVotePhase(ctx, data, phase) {
     }
   }
   if (els.voteImage) {
-    const drawingImage = assignment ? assignment.drawing_image : "";
+		const drawingImage = view ? view.drawing_image : "";
     els.voteImage.src = drawingImage || "";
     els.voteImage.style.display = drawingImage ? "block" : "none";
   }
   if (els.voteForm) {
-    const showForm = canSubmit;
+		const showForm = canSubmit || isOwnDrawing;
     els.voteForm.style.display = showForm ? "grid" : "none";
-    const submitButton = els.voteForm.querySelector("button");
+		const submitButton = els.voteForm.querySelector("button[type='submit']");
     if (submitButton) {
       submitButton.disabled = !showForm;
     }
@@ -382,12 +392,12 @@ function renderScoreList(container, scores) {
   container.appendChild(list);
 }
 
-function renderVoteOptions(ctx, options, noteText) {
+function renderVoteOptions(ctx, options, noteText, likeOnly = false) {
   const { els } = ctx;
   const playerId = Number(els.meta?.dataset.playerId || 0);
   if (!els.voteOptions) return;
   els.voteOptions.innerHTML = "";
-  if (noteText) {
+	if (noteText && !likeOnly) {
     const note = document.createElement("p");
     note.className = "hint";
     note.textContent = noteText;
@@ -410,7 +420,8 @@ function renderVoteOptions(ctx, options, noteText) {
     input.name = "voteOption";
     input.value = choice.id || choice.text || "";
     input.dataset.choiceText = choice.text || "";
-    if (choice.type === "guess" && Number(choice.owner_id || 0) === playerId) {
+		if (likeOnly) input.disabled = true;
+		if (choice.is_own || (choice.type === "guess" && Number(choice.owner_id || 0) === playerId)) {
       input.disabled = true;
     }
     const span = document.createElement("span");
@@ -423,6 +434,15 @@ function renderVoteOptions(ctx, options, noteText) {
     }
     label.appendChild(input);
     label.appendChild(span);
+		if ((choice.is_decoy || choice.type === "guess") && !input.disabled) {
+			const like = document.createElement("button");
+			like.type = "button";
+			like.className = "secondary";
+			like.textContent = "Like";
+			like.dataset.likeChoice = choice.id || "";
+			like.dataset.drawingIndex = String(Number(ctx.state.lastVoteKey || 0));
+			label.appendChild(like);
+		}
     els.voteOptions.appendChild(label);
   });
 }
@@ -510,10 +530,12 @@ function renderResults(ctx, results, scores) {
           const voters = playerVotes.map((vote) => vote.player_name || "Player");
           text += ` | Picked by: ${voters.join(", ")}`;
         }
-        const audienceCount = Number(option.audience_count || 0);
-        if (audienceCount > 0) {
+		const audienceCount = Number(option.audience_count || 0);
+		if (audienceCount > 0) {
           text += ` | Audience: ${audienceCount}`;
         }
+		const likeCount = Number(option.like_count || 0);
+		if (likeCount > 0) text += ` | Likes: ${likeCount}`;
         item.textContent = text;
         votesList.appendChild(item);
       });

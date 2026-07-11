@@ -49,6 +49,13 @@ templ PlayerView(gameID string, playerID int, playerName string) {
 					<input id="hostLobbyLocked" name="lobby_locked" type="checkbox"/>
 					<span>Lock lobby to new players</span>
 				</label>
+				<details>
+					<summary>Picture This extensions</summary>
+					<label class="checkbox"><input id="hostAvatarsEnabled" type="checkbox"/><span>Lobby avatars</span></label>
+					<label class="checkbox"><input id="hostAudienceEnabled" type="checkbox"/><span>Audience voting</span></label>
+					<label class="checkbox"><input id="hostJokesEnabled" type="checkbox"/><span>Narrated jokes</span></label>
+					<label class="checkbox"><input id="hostPublicReplay" type="checkbox"/><span>Public replay</span></label>
+				</details>
 				<div class="settings-actions">
 					<button type="submit" class="secondary">Save settings</button>
 					<span id="hostSettingsStatus" class="result" role="status" aria-live="polite"></span>

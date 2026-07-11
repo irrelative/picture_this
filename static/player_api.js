@@ -64,6 +64,15 @@ export async function postVote(gameId, playerId, payload) {
   });
 }
 
+export async function postLike(gameId, playerId, drawingIndex, choiceId) {
+  const authToken = getPlayerAuthToken(gameId, playerId);
+  return requestJSON(gameAPIPath(gameId, "/likes"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ player_id: playerId, drawing_index: drawingIndex, choice_id: choiceId, auth_token: authToken })
+  });
+}
+
 export async function postAdvance(gameId, playerId, authToken) {
   return requestJSON(gameAPIPath(gameId, "/advance"), {
     method: "POST",

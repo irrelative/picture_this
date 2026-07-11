@@ -1,6 +1,6 @@
 # Picture This
 
-Picture This is a Drawful-style party game with a Go backend, templ-rendered UI, and Postgres persistence. Players join from their phones, receive prompts from a prompt library, draw, guess, and vote while the host runs the lobby on a shared screen.
+Picture This follows the original Drawful game flow with a Go backend, templ-rendered UI, and Postgres persistence. Players join from their phones, receive prompts, draw, write decoy titles, vote for the real title, and watch each drawing's result before the next drawing begins.
 
 ## How It Works
 - A registered user creates a game lobby (min/max players) and shares the join code.
@@ -8,7 +8,7 @@ Picture This is a Drawful-style party game with a Go backend, templ-rendered UI,
 - Host controls game flow from their player screen at `/play/{game_id}/{player_id}`.
 - In the lobby, each player can save their avatar once; after saving, it is locked for that game, the save button disappears, and a confirmation SFX plays.
 - Audience can join from the home page (or `/audience/{game_id}`) to vote during guessing rounds.
-- The game advances through drawing, guessing, guess-voting, and staged results phases.
+- After simultaneous drawing, each drawing runs through decoy-title entry, title voting, and staged results before the next drawing.
 - Results are shown after each drawing, with final results after all rounds and state synced via websockets.
 
 ## Tech Stack
@@ -118,30 +118,17 @@ What it does:
 - `POST /api/games/{game_id}/start` moves `lobby` to `drawings`.
 - Each round assigns one prompt per player from the prompt library.
 - Prompts do not repeat within a game session.
-- When all drawings are in, players guess concurrently on one drawing at a time, then advance to the next drawing once everyone assigned has answered.
-- Voting follows the same per-drawing concurrent flow.
-- `results` reveals each drawing in sequence with staged reveals: guesses -> votes -> optional joke.
+- When all drawings are in, one drawing is presented at a time: non-artists write decoy titles, vote among the shuffled real and fake titles, then see votes and scoring revealed.
+- The next drawing begins only after the current drawing's reveal. Optional narrated jokes run after scoring when enabled.
+- Drawful scoring awards 1,000 for finding the real title, 500 to a decoy author per fooled player, and 500 to the artist per correct guess. Likes are non-scoring.
+- New games default to 3–8 players, two rounds for 3–6 players and one round for 7–8 players. Host round overrides remain available.
+- Avatars, audience voting, narrated jokes, and public replay are opt-in lobby extensions.
 - After all drawings in the round are revealed, a new round starts (if `PROMPTS_PER_PLAYER` > round count) or the game moves to `complete`.
 
-## Roadmap (Drawful Parity)
-### Priority 1: Core Game Scoring & Flow
-- Scoring rules (correct guesses, fooled players, edge cases) and score display.
-- Timed phases with countdowns and auto-advance on timeouts.
-- Reveal sequence per drawing (guesses, then votes) instead of one-shot results.
-
-### Priority 2: Lobby & Round Configuration
-- Host controls for rounds, player limits, and prompt pack selection.
-- Prompt pack filtering and variety rules (no repeats within a game).
-- Player management (kick/rename) and lobby readiness UX.
-
-### Priority 3: Audience & Replay Features
-- Audience mode for non-players with voting.
-- Game replay view using event log for round-by-round playback.
-
-### Priority 4: UX
-- Drawing tool enhancements (brush sizes/colors, undo).
-- Assign each player a consistent drawing color across the game.
-- Accessibility pass and mobile polish (screen reader labels, touch affordances).
+## Roadmap
+- Prompt pack selection and custom episodes.
+- Content moderation and configurable text filtering.
+- Accessibility and mobile-polish pass.
 
 ## Database Schema & ORM Plan (Draft)
 - ORM: use GORM with the Postgres driver.

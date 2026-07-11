@@ -244,8 +244,9 @@ func TestResultsJokeStageAndHostAdvanceAuth(t *testing.T) {
 	hostID := joinPlayer(t, ts, gameID, "Ada")
 	playerID2 := joinPlayer(t, ts, gameID, "Ben")
 	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/settings", map[string]any{
-		"player_id": hostID,
-		"rounds":    1,
+		"player_id":     hostID,
+		"rounds":        1,
+		"jokes_enabled": true,
 	})
 	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/start", map[string]any{"player_id": hostID})
 
@@ -310,15 +311,17 @@ func TestResultsJokeStageAndHostAdvanceAuth(t *testing.T) {
 		t.Fatalf("expected host advance success, got %d", resp.StatusCode)
 	}
 	snapshot = fetchSnapshot(t, ts, gameID)
-	if snapshot["phase"] != "complete" {
-		t.Fatalf("expected complete phase, got %v", snapshot["phase"])
+	if snapshot["phase"] != "guesses" {
+		t.Fatalf("expected next drawing guess phase, got %v", snapshot["phase"])
 	}
 }
 
 func TestAudienceJoinAndVote(t *testing.T) {
-	_, ts := newServerHarness(t)
+	srv, ts := newServerHarness(t)
 
 	gameID, _ := setupThreePlayerRound(t, ts)
+	game, _ := srv.store.GetGame(gameID)
+	game.AudienceEnabled = true
 	submitAllGuesses(t, ts, gameID)
 	snapshot := fetchSnapshot(t, ts, gameID)
 	if snapshot["phase"] != "guesses-votes" {
@@ -400,7 +403,7 @@ func TestAutoAdvanceFromDrawings(t *testing.T) {
 	}
 }
 
-func TestGuessAndVoteAssignmentsAreGlobalPerDrawing(t *testing.T) {
+func TestGuessAndVoteAssignmentsAreInterleavedPerDrawing(t *testing.T) {
 	_, ts := newServerHarness(t)
 
 	gameID, _ := setupThreePlayerRound(t, ts)
@@ -429,28 +432,8 @@ func TestGuessAndVoteAssignmentsAreGlobalPerDrawing(t *testing.T) {
 	}
 
 	snapshot = fetchSnapshot(t, ts, gameID)
-	if snapshot["phase"] != "guesses" {
-		t.Fatalf("expected guesses phase, got %v", snapshot["phase"])
-	}
-	assignments, ok = snapshot["guess_assignments"].([]any)
-	if !ok || len(assignments) == 0 {
-		t.Fatalf("expected additional guess assignments")
-	}
-	nextDrawing := int(assignments[0].(map[string]any)["drawing_index"].(float64))
-	if nextDrawing == firstDrawing {
-		t.Fatalf("expected next guess assignments to advance drawings")
-	}
-	for _, raw := range assignments {
-		entry := raw.(map[string]any)
-		if int(entry["drawing_index"].(float64)) != nextDrawing {
-			t.Fatalf("expected all guess assignments on the same drawing after advance")
-		}
-	}
-
-	submitAllGuesses(t, ts, gameID)
-	snapshot = fetchSnapshot(t, ts, gameID)
 	if snapshot["phase"] != "guesses-votes" {
-		t.Fatalf("expected guesses-votes phase, got %v", snapshot["phase"])
+		t.Fatalf("expected vote phase for the same drawing, got %v", snapshot["phase"])
 	}
 
 	voteAssignments, ok := snapshot["vote_assignments"].([]any)
@@ -458,6 +441,9 @@ func TestGuessAndVoteAssignmentsAreGlobalPerDrawing(t *testing.T) {
 		t.Fatalf("expected vote assignments")
 	}
 	voteDrawing := int(voteAssignments[0].(map[string]any)["drawing_index"].(float64))
+	if voteDrawing != firstDrawing {
+		t.Fatalf("expected voting to remain on drawing %d, got %d", firstDrawing, voteDrawing)
+	}
 	for _, raw := range voteAssignments {
 		entry := raw.(map[string]any)
 		if int(entry["drawing_index"].(float64)) != voteDrawing {
@@ -485,7 +471,7 @@ func TestAutoAdvanceAutoFillsMissingGuessesAndVotes(t *testing.T) {
 	if round == nil {
 		t.Fatalf("round not found")
 	}
-	if len(round.Guesses) != requiredGuessCount(game, round) {
+	if len(round.Guesses) != requiredGuessCountForDrawing(game, round, round.RevealIndex) {
 		t.Fatalf("expected auto-filled guesses to satisfy requirement, got %d", len(round.Guesses))
 	}
 
@@ -503,7 +489,7 @@ func TestAutoAdvanceAutoFillsMissingGuessesAndVotes(t *testing.T) {
 	if round == nil {
 		t.Fatalf("round not found")
 	}
-	if len(round.Votes) != requiredVoteCount(game, round) {
+	if len(round.Votes) != requiredVoteCountForDrawing(game, round, round.RevealIndex) {
 		t.Fatalf("expected auto-filled votes to satisfy requirement, got %d", len(round.Votes))
 	}
 }
@@ -545,7 +531,7 @@ func TestManualAdvanceAutoFillsMissingGuessesAndVotes(t *testing.T) {
 	if round == nil {
 		t.Fatalf("round not found")
 	}
-	if len(round.Guesses) != requiredGuessCount(game, round) {
+	if len(round.Guesses) != requiredGuessCountForDrawing(game, round, round.RevealIndex) {
 		t.Fatalf("expected manual advance to auto-fill guesses, got %d", len(round.Guesses))
 	}
 
@@ -566,9 +552,10 @@ func TestManualAdvanceAutoFillsMissingGuessesAndVotes(t *testing.T) {
 		if !ok {
 			continue
 		}
-		ownerID := int(option["owner_id"].(float64))
+		ownerID, _ := option["owner_id"].(float64)
 		optionType, _ := option["type"].(string)
-		if optionType == "guess" && ownerID == voterID {
+		isOwn, _ := option["is_own"].(bool)
+		if isOwn || (optionType == "guess" && int(ownerID) == voterID) {
 			continue
 		}
 		selected = option
@@ -604,15 +591,17 @@ func TestManualAdvanceAutoFillsMissingGuessesAndVotes(t *testing.T) {
 	if round == nil {
 		t.Fatalf("round not found")
 	}
-	if len(round.Votes) != requiredVoteCount(game, round) {
+	if len(round.Votes) != requiredVoteCountForDrawing(game, round, round.RevealIndex) {
 		t.Fatalf("expected manual advance to auto-fill votes, got %d", len(round.Votes))
 	}
 }
 
 func TestAudienceJoinUsesTokenIdentity(t *testing.T) {
-	_, ts := newServerHarness(t)
+	srv, ts := newServerHarness(t)
 
 	gameID, _ := setupThreePlayerRound(t, ts)
+	game, _ := srv.store.GetGame(gameID)
+	game.AudienceEnabled = true
 
 	joinOneResp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/audience", map[string]any{
 		"name": "Spectator",
@@ -731,9 +720,10 @@ func submitAllVotes(t *testing.T, ts *httptest.Server, gameID string) {
 				if !ok {
 					continue
 				}
-				ownerID := int(option["owner_id"].(float64))
+				ownerID, _ := option["owner_id"].(float64)
 				optionType, _ := option["type"].(string)
-				if optionType == "guess" && ownerID == playerID {
+				isOwn, _ := option["is_own"].(bool)
+				if isOwn || (optionType == "guess" && int(ownerID) == playerID) {
 					continue
 				}
 				selected = option

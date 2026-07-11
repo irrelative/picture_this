@@ -154,9 +154,11 @@ func TestDisplayView(t *testing.T) {
 }
 
 func TestAudienceView(t *testing.T) {
-	_, ts := newServerHarness(t)
+	srv, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
+	game, _ := srv.store.GetGame(gameID)
+	game.AudienceEnabled = true
 	resp := doRequest(t, ts, http.MethodGet, "/audience/"+gameID, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
@@ -194,8 +196,8 @@ func TestAdminGameView(t *testing.T) {
 	srv, ts := newServerHarness(t)
 
 	ensureAuthenticatedUser(t, ts)
-	promoteSessionUsersToAdmin(t, srv)
 	gameID := createGame(t, ts)
+	promoteSessionUsersToAdmin(t, srv)
 	resp := doRequest(t, ts, http.MethodGet, "/admin/"+gameID, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
@@ -206,8 +208,8 @@ func TestAdminResumeRequiresClaims(t *testing.T) {
 	srv, ts := newServerHarness(t)
 
 	ensureAuthenticatedUser(t, ts)
-	promoteSessionUsersToAdmin(t, srv)
 	gameID := createGame(t, ts)
+	promoteSessionUsersToAdmin(t, srv)
 	_ = joinPlayer(t, ts, gameID, "Ada")
 	_ = joinPlayer(t, ts, gameID, "Bob")
 
@@ -244,6 +246,10 @@ func TestAdminResumeRequiresClaims(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
 	}
+	game, _ = srv.store.GetGame(gameID)
+	if !allPlayersClaimed(game.Players) {
+		t.Fatalf("expected all restored players to be claimed: %#v", game.Players)
+	}
 
 	resp = doRequestNoRedirect(t, ts, http.MethodPost, "/admin/"+gameID+"/resume", nil)
 	if resp.StatusCode != http.StatusFound {
@@ -251,7 +257,7 @@ func TestAdminResumeRequiresClaims(t *testing.T) {
 	}
 	game, _ = srv.store.GetGame(gameID)
 	if game.Phase != phaseDrawings {
-		t.Fatalf("expected game to resume to drawings")
+		t.Fatalf("expected game to resume to drawings, got %s paused=%s", game.Phase, game.PausedPhase)
 	}
 }
 
@@ -366,10 +372,12 @@ func TestJoinGameWithoutAvatar(t *testing.T) {
 }
 
 func TestAvatarSaveIsImmutableInLobby(t *testing.T) {
-	_, ts := newServerHarness(t)
+	srv, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
 	playerID := joinPlayer(t, ts, gameID, "Ada")
+	game, _ := srv.store.GetGame(gameID)
+	game.AvatarsEnabled = true
 
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/avatar", map[string]any{
 		"player_id":   playerID,
@@ -432,7 +440,7 @@ func TestUpdateSettings(t *testing.T) {
 	if snapshot["total_rounds"] != float64(3) {
 		t.Fatalf("expected rounds 3, got %v", snapshot["total_rounds"])
 	}
-	if snapshot["max_players"] != float64(10) {
+	if snapshot["max_players"] != float64(0) {
 		t.Fatalf("expected max players unchanged, got %v", snapshot["max_players"])
 	}
 	if snapshot["lobby_locked"] != true {

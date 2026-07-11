@@ -408,11 +408,26 @@ func voteAssignmentsPayload(game *Game, round *RoundState, assignments map[int]i
 			"drawing_index":   drawingIndex,
 			"drawing_owner":   drawing.PlayerID,
 			"drawing_image":   encodeImageData(drawing.ImageData),
-			"options":         voteOptionsPayload(voteOptionEntries(round, drawingIndex)),
+			"options":         voteOptionsForPlayerPayload(game, voteOptionEntries(round, drawingIndex), player.ID),
 			"pending_for_one": pendingVotersForDrawing(game, assignments, drawingIndex),
 		})
 	}
 	return payload
+}
+
+func voteOptionsForPlayerPayload(game *Game, options []VoteOption, playerID int) []map[string]any {
+	if game == nil || game.Ruleset != rulesetDrawful {
+		return voteOptionsPayload(options)
+	}
+	result := make([]map[string]any, 0, len(options))
+	for _, option := range options {
+		result = append(result, map[string]any{
+			"id": option.ID, "text": option.Text,
+			"is_own":   option.Type == voteChoiceGuess && option.OwnerID == playerID,
+			"is_decoy": option.Type == voteChoiceGuess,
+		})
+	}
+	return result
 }
 
 func voteOptionsPayload(options []VoteOption) []map[string]any {
