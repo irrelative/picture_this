@@ -5,6 +5,7 @@ import "errors"
 type actorCommand struct {
 	apply  func(*Game) error
 	result chan error
+	read   chan *Game
 }
 
 // gameActor is the serialization boundary for one active game. HTTP handlers,
@@ -23,6 +24,10 @@ func newGameActor(game *Game) *gameActor {
 
 func (a *gameActor) run() {
 	for command := range a.commands {
+		if command.read != nil {
+			command.read <- cloneGame(a.game)
+			continue
+		}
 		if command.apply == nil {
 			command.result <- errors.New("empty game command")
 			continue
@@ -38,5 +43,11 @@ func (a *gameActor) run() {
 func (a *gameActor) execute(apply func(*Game) error) error {
 	result := make(chan error, 1)
 	a.commands <- actorCommand{apply: apply, result: result}
+	return <-result
+}
+
+func (a *gameActor) snapshot() *Game {
+	result := make(chan *Game, 1)
+	a.commands <- actorCommand{read: result}
 	return <-result
 }

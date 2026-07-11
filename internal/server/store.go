@@ -75,14 +75,17 @@ func (s *Store) CreateGameWithLimits(promptsPerPlayer int, minPlayers int, maxPl
 
 func (s *Store) GetGame(id string) (*Game, bool) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	game, ok := s.games[id]
-	return game, ok
+	actor, ok := s.actors[id]
+	s.mu.Unlock()
+	if !ok || actor == nil {
+		return nil, false
+	}
+	return actor.snapshot(), true
 }
 
 func (s *Store) UpdateGame(id string, update func(game *Game) error) (*Game, error) {
 	s.mu.Lock()
-	game, ok := s.games[id]
+	_, ok := s.games[id]
 	actor := s.actors[id]
 	s.mu.Unlock()
 	if !ok {
@@ -94,13 +97,28 @@ func (s *Store) UpdateGame(id string, update func(game *Game) error) (*Game, err
 	if err := actor.execute(update); err != nil {
 		return nil, err
 	}
-	return game, nil
+	return actor.snapshot(), nil
+}
+
+func (s *Store) ReplaceGameState(id string, state *Game) (*Game, error) {
+	return s.UpdateGame(id, func(game *Game) error {
+		replacement := cloneGame(state)
+		version := game.Version
+		*game = *replacement
+		game.Version = version
+		return nil
+	})
 }
 
 func (s *Store) FindGameByJoinCode(code string) (*Game, bool) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	for _, game := range s.games {
+	actors := make([]*gameActor, 0, len(s.actors))
+	for _, actor := range s.actors {
+		actors = append(actors, actor)
+	}
+	s.mu.Unlock()
+	for _, actor := range actors {
+		game := actor.snapshot()
 		if game.JoinCode == code {
 			return game, true
 		}
@@ -124,12 +142,11 @@ func (s *Store) UpdateGameID(game *Game, newID string) {
 
 func (s *Store) AddPlayer(gameIDOrCode, name string, avatar []byte) (*Game, *Player, error) {
 	s.mu.Lock()
-	game, ok := s.games[gameIDOrCode]
+	_, ok := s.games[gameIDOrCode]
 	actor := s.actors[gameIDOrCode]
 	if !ok {
 		for id, candidate := range s.games {
 			if candidate.JoinCode == gameIDOrCode {
-				game = candidate
 				actor = s.actors[id]
 				ok = true
 				break
@@ -186,7 +203,13 @@ func (s *Store) AddPlayer(gameIDOrCode, name string, avatar []byte) (*Game, *Pla
 	if err != nil {
 		return nil, nil, err
 	}
-	return game, joined, nil
+	result := actor.snapshot()
+	for i := range result.Players {
+		if result.Players[i].ID == joined.ID {
+			return result, &result.Players[i], nil
+		}
+	}
+	return nil, nil, errors.New("joined player not found")
 }
 
 func (s *Store) RestoreGame(game *Game) error {
@@ -222,9 +245,14 @@ func (s *Store) RestoreGame(game *Game) error {
 
 func (s *Store) ListGameSummaries() []GameSummary {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	list := make([]GameSummary, 0, len(s.games))
-	for _, game := range s.games {
+	actors := make([]*gameActor, 0, len(s.actors))
+	for _, actor := range s.actors {
+		actors = append(actors, actor)
+	}
+	s.mu.Unlock()
+	list := make([]GameSummary, 0, len(actors))
+	for _, actor := range actors {
+		game := actor.snapshot()
 		list = append(list, GameSummary{
 			ID:       game.ID,
 			JoinCode: game.JoinCode,
@@ -251,9 +279,7 @@ func gameSortKey(id string) int {
 }
 
 func (s *Store) GetPlayer(gameID string, playerID int) (*Game, *Player, bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	game, ok := s.games[gameID]
+	game, ok := s.GetGame(gameID)
 	if !ok {
 		return nil, nil, false
 	}

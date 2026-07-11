@@ -723,6 +723,11 @@ func (s *Server) handleStartGame(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to assign prompts"})
 		return
 	}
+	game, err = s.store.ReplaceGameState(gameID, game)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to publish prompts"})
+		return
+	}
 	log.Printf("game started game_id=%s phase=%s", game.ID, game.Phase)
 	c.JSON(http.StatusOK, s.snapshotForPlayer(game, req.PlayerID))
 	s.broadcastGameUpdate(game)
@@ -1093,6 +1098,11 @@ func (s *Server) handleAdvance(c *gin.Context) {
 		if len(game.Players) > 0 {
 			if err := s.assignPrompts(game); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to assign prompts"})
+				return
+			}
+			game, err = s.store.ReplaceGameState(gameID, game)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to publish prompts"})
 				return
 			}
 		}

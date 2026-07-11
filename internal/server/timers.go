@@ -13,11 +13,21 @@ func (s *Server) schedulePhaseTimer(game *Game) {
 		return
 	}
 	s.timersMu.Lock()
+	s.timerGeneration[game.ID]++
+	generation := s.timerGeneration[game.ID]
 	if existing, ok := s.timers[game.ID]; ok {
 		existing.Stop()
 	}
+	gameID := game.ID
+	expectedPhase := game.Phase
 	timer := time.AfterFunc(duration, func() {
-		s.autoAdvancePhase(game.ID, game.Phase)
+		s.timersMu.Lock()
+		current := s.timerGeneration[gameID]
+		s.timersMu.Unlock()
+		if current != generation {
+			return
+		}
+		s.autoAdvancePhase(gameID, expectedPhase)
 	})
 	s.timers[game.ID] = timer
 	s.timersMu.Unlock()
@@ -26,6 +36,7 @@ func (s *Server) schedulePhaseTimer(game *Game) {
 func (s *Server) cancelPhaseTimer(gameID string) {
 	s.timersMu.Lock()
 	defer s.timersMu.Unlock()
+	s.timerGeneration[gameID]++
 	if timer, ok := s.timers[gameID]; ok {
 		timer.Stop()
 		delete(s.timers, gameID)
@@ -107,6 +118,11 @@ func (s *Server) autoAdvancePhase(gameID string, expectedPhase string) {
 		}
 		if err := s.assignPrompts(game); err != nil {
 			log.Printf("auto-advance assign prompts failed game_id=%s error=%v", game.ID, err)
+			return
+		}
+		game, err = s.store.ReplaceGameState(gameID, game)
+		if err != nil {
+			log.Printf("auto-advance publish prompts failed game_id=%s error=%v", gameID, err)
 			return
 		}
 	}

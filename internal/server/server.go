@@ -20,6 +20,7 @@ type Server struct {
 	sessions        *sessionStore
 	timersMu        sync.Mutex
 	timers          map[string]*time.Timer
+	timerGeneration map[string]uint64
 	jobsMu          sync.Mutex
 	promptJobs      map[string]*promptGenerateJob
 	nextPromptJobID uint64
@@ -28,14 +29,15 @@ type Server struct {
 func New(conn *gorm.DB, cfg config.Config) *Server {
 	registerValidators()
 	return &Server{
-		store:      NewStore(),
-		db:         conn,
-		ws:         newWSHub(),
-		homeWS:     newHomeHub(),
-		cfg:        cfg,
-		sessions:   newSessionStore(conn),
-		timers:     make(map[string]*time.Timer),
-		promptJobs: make(map[string]*promptGenerateJob),
+		store:           NewStore(),
+		db:              conn,
+		ws:              newWSHub(),
+		homeWS:          newHomeHub(),
+		cfg:             cfg,
+		sessions:        newSessionStore(conn),
+		timers:          make(map[string]*time.Timer),
+		timerGeneration: make(map[string]uint64),
+		promptJobs:      make(map[string]*promptGenerateJob),
 	}
 }
 

@@ -44,6 +44,10 @@ func TestAssignPromptsNoRepeat(t *testing.T) {
 	if err != nil {
 		t.Fatalf("update game: %v", err)
 	}
+	game, ok = srv.store.GetGame(gameID)
+	if !ok {
+		t.Fatal("game not found after update")
+	}
 
 	if err := srv.assignPrompts(game); err != nil {
 		t.Fatalf("assign prompts: %v", err)
@@ -320,8 +324,13 @@ func TestAudienceJoinAndVote(t *testing.T) {
 	srv, ts := newServerHarness(t)
 
 	gameID, _ := setupThreePlayerRound(t, ts)
-	game, _ := srv.store.GetGame(gameID)
-	game.AudienceEnabled = true
+	_, err := srv.store.UpdateGame(gameID, func(game *Game) error {
+		game.AudienceEnabled = true
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("enable audience: %v", err)
+	}
 	submitAllGuesses(t, ts, gameID)
 	snapshot := fetchSnapshot(t, ts, gameID)
 	if snapshot["phase"] != "guesses-votes" {
@@ -358,6 +367,10 @@ func TestAudienceJoinAndVote(t *testing.T) {
 	})
 	if voteResp.StatusCode != http.StatusOK {
 		t.Fatalf("expected audience vote 200, got %d", voteResp.StatusCode)
+	}
+	game, ok := srv.store.GetGame(gameID)
+	if !ok {
+		t.Fatal("game not found")
 	}
 	updated := srv.snapshot(game)
 	results := updated["results"].([]map[string]any)
@@ -600,8 +613,13 @@ func TestAudienceJoinUsesTokenIdentity(t *testing.T) {
 	srv, ts := newServerHarness(t)
 
 	gameID, _ := setupThreePlayerRound(t, ts)
-	game, _ := srv.store.GetGame(gameID)
-	game.AudienceEnabled = true
+	_, err := srv.store.UpdateGame(gameID, func(game *Game) error {
+		game.AudienceEnabled = true
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("enable audience: %v", err)
+	}
 
 	joinOneResp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/audience", map[string]any{
 		"name": "Spectator",

@@ -157,8 +157,13 @@ func TestAudienceView(t *testing.T) {
 	srv, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
-	game, _ := srv.store.GetGame(gameID)
-	game.AudienceEnabled = true
+	_, err := srv.store.UpdateGame(gameID, func(game *Game) error {
+		game.AudienceEnabled = true
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("enable audience: %v", err)
+	}
 	resp := doRequest(t, ts, http.MethodGet, "/audience/"+gameID, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
@@ -376,8 +381,13 @@ func TestAvatarSaveIsImmutableInLobby(t *testing.T) {
 
 	gameID := createGame(t, ts)
 	playerID := joinPlayer(t, ts, gameID, "Ada")
-	game, _ := srv.store.GetGame(gameID)
-	game.AvatarsEnabled = true
+	_, err := srv.store.UpdateGame(gameID, func(game *Game) error {
+		game.AvatarsEnabled = true
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("enable avatars: %v", err)
+	}
 
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/avatar", map[string]any{
 		"player_id":   playerID,
