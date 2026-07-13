@@ -26,6 +26,24 @@ func TestAddPlayerDurablyRollsBackPersistenceFailure(t *testing.T) {
 	}
 }
 
+func TestDurableKickStyleMutationRollsBackPersistenceFailure(t *testing.T) {
+	store := NewStore()
+	game := store.CreateGame(0)
+	_, _, _ = store.AddPlayer(game.ID, "Host", nil, "hash")
+	_, _, _ = store.AddPlayer(game.ID, "Ada", nil, "hash")
+	_, err := store.UpdateGameDurably(game.ID, func(candidate *Game) error {
+		candidate.Players = candidate.Players[:1]
+		return nil
+	}, func(*Game) error { return errors.New("database unavailable") })
+	if err == nil {
+		t.Fatal("expected persistence failure")
+	}
+	got, _ := store.GetGame(game.ID)
+	if len(got.Players) != 2 || got.Players[1].Name != "Ada" {
+		t.Fatalf("failed kick leaked state: %+v", got.Players)
+	}
+}
+
 func TestAddPlayerPausedRejectsNameTakeover(t *testing.T) {
 	store := NewStore()
 	game := store.CreateGame(2)

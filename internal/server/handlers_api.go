@@ -705,7 +705,8 @@ func (s *Server) handleKick(c *gin.Context) {
 	}, "player_id and target_id are required") {
 		return
 	}
-	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+	var removedDBID uint
+	game, err := s.store.UpdateGameDurably(gameID, func(game *Game) error {
 		if game.Phase != phaseLobby {
 			return errors.New("kick only available in lobby")
 		}
@@ -725,12 +726,18 @@ func (s *Server) handleKick(c *gin.Context) {
 		if index == -1 {
 			return errors.New("player not found")
 		}
+		removedDBID = game.Players[index].DBID
 		if game.KickedPlayers == nil {
 			game.KickedPlayers = make(map[string]struct{})
 		}
 		game.KickedPlayers[strings.ToLower(game.Players[index].Name)] = struct{}{}
 		game.Players = append(game.Players[:index], game.Players[index+1:]...)
 		return nil
+	}, func(game *Game) error {
+		if s.db == nil || removedDBID == 0 {
+			return nil
+		}
+		return s.db.Delete(&db.Player{}, removedDBID).Error
 	})
 	if respondGameMutationError(c, err) {
 		return
