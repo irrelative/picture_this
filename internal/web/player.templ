@@ -21,6 +21,12 @@ templ PlayerView(gameID string, playerID int, playerName string) {
 			</div>
 		</section>
 
+		<section id="recoveryCredentials" class="panel panel--stack is-hidden">
+			<div><h2>Save your recovery code</h2><p class="hint">Keep this code somewhere safe so you can reclaim your seat on another device.</p></div>
+			<div class="inline-actions"><code id="recoveryCode"></code><button id="copyRecoveryCode" type="button" class="secondary">Copy code</button></div>
+			<p id="recoveryCopyStatus" class="result" role="status" aria-live="polite"></p>
+		</section>
+
 		<section class="panel panel--split">
 			<div>
 				<h2>Players</h2>

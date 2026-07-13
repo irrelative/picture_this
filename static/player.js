@@ -16,6 +16,7 @@ import { applyBrushColor, clearCanvas, setupCanvas } from "./player_canvas.js";
 import { createPhaseTimer, createPolling, createReconnect, formatTime } from "./realtime.js";
 import { updateFromSnapshot } from "./player_view.js";
 import { applyHTMLMessage } from "./ws_html.js";
+import { getPlayerRecoveryCredentials } from "./api_client.js";
 
 const ctx = {
   els: {
@@ -67,7 +68,11 @@ const ctx = {
 		hostPublicReplay: document.getElementById("hostPublicReplay"),
     hostSettingsStatus: document.getElementById("hostSettingsStatus"),
     hostPlayerActions: document.getElementById("hostPlayerActions"),
-    phaseTimer: document.getElementById("phaseTimer")
+    phaseTimer: document.getElementById("phaseTimer"),
+    recoveryCredentials: document.getElementById("recoveryCredentials"),
+    recoveryCode: document.getElementById("recoveryCode"),
+    copyRecoveryCode: document.getElementById("copyRecoveryCode"),
+    recoveryCopyStatus: document.getElementById("recoveryCopyStatus")
   },
   state: {
     assignedPrompt: "",
@@ -89,10 +94,23 @@ const ctx = {
     avatarLocked: false,
     wsConn: null,
     unloading: false,
-    gameMissing: false
+    gameMissing: false,
+    recoveryCode: ""
   },
   actions: {}
 };
+
+if (ctx.els.meta) {
+  const credentials = getPlayerRecoveryCredentials(ctx.els.meta.dataset.gameId, ctx.els.meta.dataset.playerId);
+  ctx.state.recoveryCode = credentials?.recovery_code || "";
+  if (ctx.els.recoveryCode) ctx.els.recoveryCode.textContent = ctx.state.recoveryCode;
+}
+
+ctx.els.copyRecoveryCode?.addEventListener("click", async () => {
+  if (!ctx.state.recoveryCode) return;
+  await navigator.clipboard.writeText(ctx.state.recoveryCode);
+  if (ctx.els.recoveryCopyStatus) ctx.els.recoveryCopyStatus.textContent = "Recovery code copied.";
+});
 
 ctx.actions.applyBrushColor = () => applyBrushColor(ctx);
 ctx.actions.applyAvatarColor = () => {

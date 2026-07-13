@@ -181,6 +181,7 @@ func (s *Server) handleCreateGame(c *gin.Context) {
 		"player_id":     host.ID,
 		"auth_token":    ensurePlayerAuthToken(game, host.ID),
 		"recovery_code": recoveryCode,
+		"player":        host.Name,
 	}
 	s.sessions.SetName(c.Writer, c.Request, host.Name)
 	c.JSON(http.StatusCreated, resp)

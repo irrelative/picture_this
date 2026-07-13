@@ -41,14 +41,14 @@ func PlayerView(gameID string, playerID int, playerName string) templ.Component 
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<header class=\"hero\"><span class=\"tag\">Player View</span><h1>You're in!</h1><p id=\"playerName\">Loading...</p></header><section class=\"panel panel--split\"><div><h2>Join code</h2><p id=\"joinCode\" class=\"join-code\">Loading...</p></div><div class=\"status\"><span class=\"label\">Status</span><p id=\"gameStatus\" role=\"status\" aria-live=\"polite\">Loading...</p><span class=\"label\">Time left</span><p id=\"phaseTimer\" class=\"display-timer\">--:--</p></div></section><section class=\"panel panel--split\"><div><h2>Players</h2><p>You're signed in as <strong>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<header class=\"hero\"><span class=\"tag\">Player View</span><h1>You're in!</h1><p id=\"playerName\">Loading...</p></header><section class=\"panel panel--split\"><div><h2>Join code</h2><p id=\"joinCode\" class=\"join-code\">Loading...</p></div><div class=\"status\"><span class=\"label\">Status</span><p id=\"gameStatus\" role=\"status\" aria-live=\"polite\">Loading...</p><span class=\"label\">Time left</span><p id=\"phaseTimer\" class=\"display-timer\">--:--</p></div></section><section id=\"recoveryCredentials\" class=\"panel panel--stack is-hidden\"><div><h2>Save your recovery code</h2><p class=\"hint\">Keep this code somewhere safe so you can reclaim your seat on another device.</p></div><div class=\"inline-actions\"><code id=\"recoveryCode\"></code><button id=\"copyRecoveryCode\" type=\"button\" class=\"secondary\">Copy code</button></div><p id=\"recoveryCopyStatus\" class=\"result\" role=\"status\" aria-live=\"polite\"></p></section><section class=\"panel panel--split\"><div><h2>Players</h2><p>You're signed in as <strong>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(playerName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 27, Col: 47}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 33, Col: 47}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -61,7 +61,7 @@ func PlayerView(gameID string, playerID int, playerName string) templ.Component 
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(assetPath("/static/sounds/join.ogg"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 151, Col: 73}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 157, Col: 73}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -74,7 +74,7 @@ func PlayerView(gameID string, playerID int, playerName string) templ.Component 
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(gameID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 152, Col: 44}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 158, Col: 44}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -87,7 +87,7 @@ func PlayerView(gameID string, playerID int, playerName string) templ.Component 
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(playerID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 152, Col: 72}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 158, Col: 72}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -100,7 +100,7 @@ func PlayerView(gameID string, playerID int, playerName string) templ.Component 
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(playerName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 152, Col: 104}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/player.templ`, Line: 158, Col: 104}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {

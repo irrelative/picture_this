@@ -9,6 +9,9 @@ export function updateFromSnapshot(ctx, data) {
   document.body.dataset.phase = data.phase || "lobby";
   const { els, state, actions } = ctx;
   const phase = normalizePhase(data.phase);
+  if (ctx.els.recoveryCredentials) {
+    ctx.els.recoveryCredentials.classList.toggle("is-hidden", phase !== "lobby" || !ctx.state.recoveryCode);
+  }
   els.joinCode.textContent = data.join_code || "Unavailable";
   els.gameStatus.textContent = phase || "Unknown";
   els.playerList.innerHTML = "";

@@ -29,7 +29,7 @@ if (createGameForm) {
     }
     createResult.textContent = "Game created. Join code: " + data.join_code;
     setPlayerAuthToken(data.game_id, data.player_id, data.auth_token);
-    setPlayerRecoveryCode(data.game_id, data.player_id, data.recovery_code);
+    setPlayerRecoveryCode(data.game_id, data.player_id, data.recovery_code, data.player || data.username || "");
     window.location.href = "/play/" + encodeURIComponent(data.game_id) + "/" + encodeURIComponent(data.player_id);
   });
 }
@@ -111,7 +111,7 @@ if (joinForm) {
       return;
     }
     setPlayerAuthToken(data.game_id, data.player_id, data.auth_token);
-    setPlayerRecoveryCode(data.game_id, data.player_id, data.recovery_code);
+    setPlayerRecoveryCode(data.game_id, data.player_id, data.recovery_code, data.player || name);
     window.location.href = "/play/" + encodeURIComponent(data.game_id) + "/" + encodeURIComponent(data.player_id);
   });
 }
@@ -153,6 +153,7 @@ if (activeGames) {
       return;
     }
     setPlayerAuthToken(data.game_id, data.player_id, data.auth_token);
+    setPlayerRecoveryCode(data.game_id, data.player_id, data.recovery_code, data.player || playerName);
     const targetGame = data.game_id || gameId;
     window.location.href = "/play/" + encodeURIComponent(targetGame) + "/" + encodeURIComponent(data.player_id);
   });
