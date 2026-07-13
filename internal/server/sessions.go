@@ -125,6 +125,29 @@ func (s *sessionStore) SetUserID(w http.ResponseWriter, r *http.Request, userID 
 	s.saveSessionRecord(&record)
 }
 
+func (s *sessionStore) RotateUser(w http.ResponseWriter, r *http.Request, userID uint) {
+	oldID := s.ensureSessionID(w, r)
+	newID := newSessionID()
+	secure := r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https")
+	http.SetCookie(w, &http.Cookie{Name: "pt_session", Value: newID, Path: "/", HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode})
+	if s.db == nil {
+		s.mu.Lock()
+		data := s.sessions[oldID]
+		delete(s.sessions, oldID)
+		data.UserID = userID
+		s.sessions[newID] = data
+		s.mu.Unlock()
+		return
+	}
+	record := s.loadSessionRecord(oldID)
+	_ = s.db.Delete(&db.Session{}, "id = ?", oldID).Error
+	record.ID = newID
+	record.UserID = &userID
+	record.CreatedAt = time.Time{}
+	record.UpdatedAt = time.Time{}
+	s.saveSessionRecord(&record)
+}
+
 func (s *sessionStore) ClearUser(w http.ResponseWriter, r *http.Request) {
 	id := s.ensureSessionID(w, r)
 	if s.db == nil {
@@ -228,6 +251,7 @@ func (s *sessionStore) ensureSessionID(w http.ResponseWriter, r *http.Request) s
 		Value:    id,
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https"),
 		SameSite: http.SameSiteLaxMode,
 	})
 	return id

@@ -78,7 +78,7 @@ func (s *Server) handleRegister(c *gin.Context) {
 		return
 	}
 
-	s.sessions.SetUserID(c.Writer, c.Request, user.ID)
+	s.sessions.RotateUser(c.Writer, c.Request, user.ID)
 	c.JSON(http.StatusCreated, gin.H{
 		"id":       user.ID,
 		"email":    user.Email,
@@ -123,7 +123,7 @@ func (s *Server) handleLogin(c *gin.Context) {
 		return
 	}
 
-	s.sessions.SetUserID(c.Writer, c.Request, user.ID)
+	s.sessions.RotateUser(c.Writer, c.Request, user.ID)
 	s.clearRateLimit(c, loginAction)
 	c.JSON(http.StatusOK, gin.H{
 		"id":       user.ID,
