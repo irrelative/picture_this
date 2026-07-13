@@ -350,7 +350,12 @@ func (s *Server) persistDrawing(game *Game, playerID int, image []byte, promptTe
 		PromptID:  promptEntry.DBID,
 		ImageData: image,
 	}
-	if err := s.db.Create(&record).Error; err != nil {
+	if err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&record).Error; err != nil {
+			return err
+		}
+		return s.persistEventWithDB(tx, game, "drawings_submitted", EventPayload{PlayerID: playerID})
+	}); err != nil {
 		return err
 	}
 	for i := range round.Drawings {
@@ -359,9 +364,7 @@ func (s *Server) persistDrawing(game *Game, playerID int, image []byte, promptTe
 			break
 		}
 	}
-	return s.persistEvent(game, "drawings_submitted", EventPayload{
-		PlayerID: playerID,
-	})
+	return nil
 }
 
 func (s *Server) persistGuess(game *Game, playerID int, drawingIndex int, guess string) error {
@@ -394,12 +397,11 @@ func (s *Server) persistGuess(game *Game, playerID int, drawingIndex int, guess 
 		DrawingID: drawingID,
 		Text:      guess,
 	}
-	if err := s.db.Create(&record).Error; err != nil {
-		return err
-	}
-	return s.persistEvent(game, "guesses_submitted", EventPayload{
-		PlayerID: playerID,
-		Guess:    guess,
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&record).Error; err != nil {
+			return err
+		}
+		return s.persistEventWithDB(tx, game, "guesses_submitted", EventPayload{PlayerID: playerID, Guess: guess})
 	})
 }
 
@@ -433,12 +435,11 @@ func (s *Server) persistVote(game *Game, playerID int, roundNumber int, drawingI
 		ChoiceText: choiceText,
 		ChoiceType: choiceType,
 	}
-	if err := s.db.Create(&record).Error; err != nil {
-		return err
-	}
-	return s.persistEvent(game, "votes_submitted", EventPayload{
-		PlayerID: playerID,
-		Choice:   choiceText,
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&record).Error; err != nil {
+			return err
+		}
+		return s.persistEventWithDB(tx, game, "votes_submitted", EventPayload{PlayerID: playerID, Choice: choiceText})
 	})
 }
 
@@ -459,7 +460,12 @@ func (s *Server) persistLike(game *Game, entry *LikeEntry) error {
 		return errors.New("lie owner not found")
 	}
 	record := db.Like{RoundID: round.DBID, PlayerID: liker.DBID, DrawingID: round.Drawings[entry.DrawingIndex].DBID, GuessOwnerID: owner.DBID}
-	if err := s.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&record).Error; err != nil {
+	if err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&record).Error; err != nil {
+			return err
+		}
+		return s.persistEventWithDB(tx, game, "lie_liked", EventPayload{PlayerID: entry.PlayerID})
+	}); err != nil {
 		return err
 	}
 	entry.DBID = record.ID
@@ -470,7 +476,7 @@ func (s *Server) persistLike(game *Game, entry *LikeEntry) error {
 			break
 		}
 	}
-	return s.persistEvent(game, "lie_liked", EventPayload{PlayerID: entry.PlayerID})
+	return nil
 }
 
 func (s *Server) findPlayerDBID(gameDBID uint, name string) (uint, error) {
