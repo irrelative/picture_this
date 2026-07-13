@@ -109,8 +109,17 @@ if (ctx.els.meta) {
 
 ctx.els.copyRecoveryCode?.addEventListener("click", async () => {
   if (!ctx.state.recoveryCode) return;
-  await navigator.clipboard.writeText(ctx.state.recoveryCode);
-  if (ctx.els.recoveryCopyStatus) ctx.els.recoveryCopyStatus.textContent = "Recovery code copied.";
+  try {
+    await navigator.clipboard.writeText(ctx.state.recoveryCode);
+    if (ctx.els.recoveryCopyStatus) ctx.els.recoveryCopyStatus.textContent = "Recovery code copied.";
+  } catch {
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(ctx.els.recoveryCode);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    if (ctx.els.recoveryCopyStatus) ctx.els.recoveryCopyStatus.textContent = "Copy was blocked. The code is selected for manual copying.";
+  }
 });
 
 ctx.actions.applyBrushColor = () => applyBrushColor(ctx);
