@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgconn"
 	pgconnv5 "github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/datatypes"
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
@@ -70,7 +71,14 @@ func (s *Server) persistPlayer(game *Game, player *Player) (int, error) {
 		JoinedAt:         time.Now().UTC(),
 		RecoveryCodeHash: player.RecoveryHash,
 	}
-	if err := s.db.Create(&record).Error; err != nil {
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&record).Error; err != nil {
+			return err
+		}
+		player.DBID = record.ID
+		return s.persistEventWithDB(tx, game, "player_joined", EventPayload{PlayerName: player.Name, PlayerID: player.ID})
+	})
+	if err != nil {
 		if isUniqueViolation(err) {
 			existing, lookupErr := s.findPlayerDBID(game.DBID, player.Name)
 			if lookupErr == nil && existing != 0 {
@@ -81,12 +89,6 @@ func (s *Server) persistPlayer(game *Game, player *Player) (int, error) {
 		return 0, err
 	}
 	player.DBID = record.ID
-	if err := s.persistEvent(game, "player_joined", EventPayload{
-		PlayerName: player.Name,
-		PlayerID:   player.ID,
-	}); err != nil {
-		return player.ID, err
-	}
 	return player.ID, nil
 }
 
@@ -199,6 +201,10 @@ func (s *Server) persistEvent(game *Game, eventType string, payload EventPayload
 	if game.DBID == 0 {
 		return errors.New("game not found")
 	}
+	return s.persistEventWithDB(s.db, game, eventType, payload)
+}
+
+func (s *Server) persistEventWithDB(conn *gorm.DB, game *Game, eventType string, payload EventPayload) error {
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return err
@@ -210,7 +216,7 @@ func (s *Server) persistEvent(game *Game, eventType string, payload EventPayload
 		Type:     eventType,
 		Payload:  datatypes.JSON(data),
 	}
-	return s.db.Create(&event).Error
+	return conn.Create(&event).Error
 }
 
 func (s *Server) resolveEventRoundID(game *Game) *uint {
