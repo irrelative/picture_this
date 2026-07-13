@@ -155,6 +155,10 @@ func TestLoginRateLimit(t *testing.T) {
 	if resp.Header.Get("Retry-After") == "" {
 		t.Fatal("missing Retry-After")
 	}
+	resp = doRequest(t, ts, http.MethodPost, "/api/auth/login", map[string]any{"email": "another@example.com", "password": "wrong"})
+	if resp.StatusCode == http.StatusTooManyRequests {
+		t.Fatal("one account locked out another account on the same IP")
+	}
 }
 
 func TestHomePage(t *testing.T) {

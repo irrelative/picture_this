@@ -95,15 +95,24 @@ type rateEntry struct {
 
 func ratePolicy(action string) (int, time.Duration) {
 	switch action {
-	case "login", "recover":
+	case "recover":
 		return 10, time.Minute
 	case "register", "create":
 		return 20, time.Minute
 	case "join", "audience-join":
 		return 60, time.Minute
 	default:
+		if strings.HasPrefix(action, "login:") {
+			return 10, time.Minute
+		}
 		return 240, time.Minute
 	}
+}
+
+func (s *Server) clearRateLimit(c *gin.Context, action string) {
+	s.rateMu.Lock()
+	delete(s.rateEntries, action+":"+requestClientIP(c.Request))
+	s.rateMu.Unlock()
 }
 
 func requestClientIP(r *http.Request) string {

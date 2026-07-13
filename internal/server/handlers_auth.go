@@ -88,9 +88,6 @@ func (s *Server) handleRegister(c *gin.Context) {
 }
 
 func (s *Server) handleLogin(c *gin.Context) {
-	if !s.enforceRateLimit(c, "login") {
-		return
-	}
 	if s.sessions == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "authentication is unavailable"})
 		return
@@ -111,6 +108,10 @@ func (s *Server) handleLogin(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	loginAction := "login:" + email
+	if !s.enforceRateLimit(c, loginAction) {
+		return
+	}
 
 	user, ok := s.sessions.FindUserByEmail(email)
 	if !ok {
@@ -123,6 +124,7 @@ func (s *Server) handleLogin(c *gin.Context) {
 	}
 
 	s.sessions.SetUserID(c.Writer, c.Request, user.ID)
+	s.clearRateLimit(c, loginAction)
 	c.JSON(http.StatusOK, gin.H{
 		"id":       user.ID,
 		"email":    user.Email,
