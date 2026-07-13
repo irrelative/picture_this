@@ -203,6 +203,10 @@ async function loadPlayerView() {
   }
 	const { res, data } = await fetchSnapshot(gameId, playerId);
   if (!res.ok) {
+		if (res.status === 401 && getPlayerRecoveryCredentials(gameId, playerId)) {
+			window.location.replace(`/join/${encodeURIComponent(gameId)}`);
+			return;
+		}
     if (res.status === 404) {
       markGameMissing();
       return;
