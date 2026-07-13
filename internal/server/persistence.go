@@ -347,19 +347,12 @@ func (s *Server) persistDrawing(game *Game, playerID int, image []byte, promptTe
 	if err := s.db.Create(&record).Error; err != nil {
 		return err
 	}
-	s.store.UpdateGame(game.ID, func(game *Game) error {
-		round := currentRound(game)
-		if round == nil {
-			return nil
+	for i := range round.Drawings {
+		if round.Drawings[i].PlayerID == playerID {
+			round.Drawings[i].DBID = record.ID
+			break
 		}
-		for i := range round.Drawings {
-			if round.Drawings[i].PlayerID == playerID {
-				round.Drawings[i].DBID = record.ID
-				break
-			}
-		}
-		return nil
-	})
+	}
 	return s.persistEvent(game, "drawings_submitted", EventPayload{
 		PlayerID: playerID,
 	})

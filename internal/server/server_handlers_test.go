@@ -34,6 +34,11 @@ func TestCreateGame(t *testing.T) {
 	body := decodeBody(t, createdResp)
 	assertString(t, body["game_id"])
 	assertString(t, body["join_code"])
+	assertString(t, body["auth_token"])
+	assertString(t, body["recovery_code"])
+	if int(body["player_id"].(float64)) <= 0 {
+		t.Fatal("expected creator player id")
+	}
 }
 
 func TestJoinGameEnforcesTenPlayerCap(t *testing.T) {

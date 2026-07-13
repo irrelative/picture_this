@@ -28,7 +28,9 @@ if (createGameForm) {
       return;
     }
     createResult.textContent = "Game created. Join code: " + data.join_code;
-    window.location.href = "/display/" + encodeURIComponent(data.game_id);
+    setPlayerAuthToken(data.game_id, data.player_id, data.auth_token);
+    setPlayerRecoveryCode(data.game_id, data.player_id, data.recovery_code);
+    window.location.href = "/play/" + encodeURIComponent(data.game_id) + "/" + encodeURIComponent(data.player_id);
   });
 }
 

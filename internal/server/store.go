@@ -83,6 +83,13 @@ func (s *Store) GetGame(id string) (*Game, bool) {
 	return actor.snapshot(), true
 }
 
+func (s *Store) DeleteGame(id string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.games, id)
+	delete(s.actors, id)
+}
+
 func (s *Store) UpdateGame(id string, update func(game *Game) error) (*Game, error) {
 	return s.updateGame(id, update, nil)
 }

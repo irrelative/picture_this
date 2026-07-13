@@ -82,10 +82,10 @@ def main():
     game_id = game["game_id"]
     print(f"Created game {game_id} join_code={game['join_code']}")
 
-    player_names = ["Alice", "Bob", "Carol", "Dave"]
-    players = []
-    player_tokens = {}
-    for idx, name in enumerate(player_names):
+    player_names = ["e2e", "Alice", "Bob", "Carol"]
+    players = [game]
+    player_tokens = {game["player_id"]: game.get("auth_token", "")}
+    for idx, name in enumerate(player_names[1:]):
         avatar_data = f"data:image/png;base64,{AVATAR_IMAGES[idx % len(AVATAR_IMAGES)]}"
         status, player = request_json(
             "POST",

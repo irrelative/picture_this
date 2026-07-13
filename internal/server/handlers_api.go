@@ -128,7 +128,8 @@ func (s *Server) handleCreateGame(c *gin.Context) {
 	if !s.enforceRateLimit(c, "create") {
 		return
 	}
-	if _, ok := s.requireSessionUser(c); !ok {
+	user, ok := s.requireSessionUser(c)
+	if !ok {
 		return
 	}
 	req := createGameRequest{MinPlayers: 3, MaxPlayers: 8}
@@ -157,13 +158,43 @@ func (s *Server) handleCreateGame(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create game"})
 		return
 	}
-	log.Printf("game created game_id=%s join_code=%s", game.ID, game.JoinCode)
-	resp := map[string]string{
-		"game_id":   game.ID,
-		"join_code": game.JoinCode,
+	recoveryCode, recoveryHash, err := newRecoveryCredential()
+	if err != nil {
+		s.deleteFailedGame(game)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create host credentials"})
+		return
 	}
+	createdGame := game
+	game, host, err := s.store.AddPlayerDurably(game.ID, user.Username, nil, recoveryHash, func(game *Game, player *Player) error {
+		_, err := s.persistPlayer(game, player)
+		return err
+	})
+	if err != nil {
+		s.deleteFailedGame(createdGame)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create host player"})
+		return
+	}
+	log.Printf("game created game_id=%s join_code=%s", game.ID, game.JoinCode)
+	resp := map[string]any{
+		"game_id":       game.ID,
+		"join_code":     game.JoinCode,
+		"player_id":     host.ID,
+		"auth_token":    ensurePlayerAuthToken(game, host.ID),
+		"recovery_code": recoveryCode,
+	}
+	s.sessions.SetName(c.Writer, c.Request, host.Name)
 	c.JSON(http.StatusCreated, resp)
 	s.broadcastHomeUpdate()
+}
+
+func (s *Server) deleteFailedGame(game *Game) {
+	if game == nil {
+		return
+	}
+	s.store.DeleteGame(game.ID)
+	if s.db != nil && game.DBID != 0 {
+		_ = s.db.Delete(&db.Game{}, game.DBID).Error
+	}
 }
 
 func (s *Server) handlePlayerPrompt(c *gin.Context) {
