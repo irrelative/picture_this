@@ -102,6 +102,9 @@ func (s *Server) autoAdvancePhase(gameID string, expectedPhase string) {
 	})
 	if err != nil {
 		log.Printf("game auto-advance failed game_id=%s phase=%s error=%v", gameID, expectedPhase, err)
+		if s.db != nil {
+			s.schedulePhaseRetry(gameID, expectedPhase)
+		}
 		return
 	}
 	if game.Phase != expectedPhase {
@@ -113,4 +116,23 @@ func (s *Server) autoAdvancePhase(gameID string, expectedPhase string) {
 		s.schedulePhaseTimer(game)
 	}
 	s.broadcastGameUpdate(game)
+}
+
+func (s *Server) schedulePhaseRetry(gameID, expectedPhase string) {
+	s.timersMu.Lock()
+	s.timerGeneration[gameID]++
+	generation := s.timerGeneration[gameID]
+	timer := time.AfterFunc(2*time.Second, func() {
+		s.timersMu.Lock()
+		current := s.timerGeneration[gameID]
+		s.timersMu.Unlock()
+		if current == generation {
+			s.autoAdvancePhase(gameID, expectedPhase)
+		}
+	})
+	if existing := s.timers[gameID]; existing != nil {
+		existing.Stop()
+	}
+	s.timers[gameID] = timer
+	s.timersMu.Unlock()
 }
