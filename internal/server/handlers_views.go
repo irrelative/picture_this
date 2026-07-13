@@ -115,14 +115,6 @@ func (s *Server) handlePlayerView(c *gin.Context) {
 		c.Redirect(http.StatusFound, "/")
 		return
 	}
-	if game.Phase == phaseComplete {
-		if s.sessions != nil {
-			s.sessions.SetFlash(c.Writer, c.Request, "That game has ended. Start a new one!")
-		}
-		log.Printf("player view ended game_id=%s player_id=%d", uri.GameID, uri.PlayerID)
-		c.Redirect(http.StatusFound, "/")
-		return
-	}
 	templ.Handler(web.PlayerView(uri.GameID, uri.PlayerID, player.Name)).ServeHTTP(c.Writer, c.Request)
 }
 

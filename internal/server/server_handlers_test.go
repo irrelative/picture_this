@@ -306,7 +306,7 @@ func TestJoinView(t *testing.T) {
 }
 
 func TestPlayerView(t *testing.T) {
-	_, ts := newServerHarness(t)
+	srv, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/join", map[string]string{
@@ -322,6 +322,16 @@ func TestPlayerView(t *testing.T) {
 	resp = doRequest(t, ts, http.MethodGet, "/play/"+gameID+"/"+strconv.Itoa(playerID), nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+	if _, err := srv.store.UpdateGame(gameID, func(game *Game) error {
+		game.Phase = phaseComplete
+		return nil
+	}); err != nil {
+		t.Fatalf("complete game: %v", err)
+	}
+	resp = doRequest(t, ts, http.MethodGet, "/play/"+gameID+"/"+strconv.Itoa(playerID), nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected completed player view status %d, got %d", http.StatusOK, resp.StatusCode)
 	}
 }
 

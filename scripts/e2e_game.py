@@ -176,7 +176,15 @@ def main():
             phase = normalize_phase(snapshot.get("phase"))
 
             if phase == "guesses":
-                assignments = snapshot.get("guess_assignments") or []
+                assignments = []
+                for player in players:
+                    player_id = player["player_id"]
+                    status, player_snapshot = request_json(
+                        "GET",
+                        f"{base_url}/api/games/{game_id}/players/{player_id}/state?auth_token={player_tokens.get(player_id, '')}",
+                    )
+                    assert status == 200, f"player snapshot failed for {player_id}"
+                    assignments.extend(player_snapshot.get("guess_assignments") or [])
                 assert assignments, "expected guess assignments during guesses phase"
                 for assignment in assignments:
                     guesser = int(assignment["player_id"])
@@ -186,7 +194,15 @@ def main():
                 continue
 
             if phase == "guesses-votes":
-                assignments = snapshot.get("vote_assignments") or []
+                assignments = []
+                for player in players:
+                    player_id = player["player_id"]
+                    status, player_snapshot = request_json(
+                        "GET",
+                        f"{base_url}/api/games/{game_id}/players/{player_id}/state?auth_token={player_tokens.get(player_id, '')}",
+                    )
+                    assert status == 200, f"player snapshot failed for {player_id}"
+                    assignments.extend(player_snapshot.get("vote_assignments") or [])
                 assert assignments, "expected vote assignments during vote phase"
                 for assignment in assignments:
                     voter = int(assignment["player_id"])

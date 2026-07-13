@@ -74,14 +74,16 @@ export function updateFromSnapshot(ctx, data) {
   const playerNameValue = els.meta?.dataset.playerName || "";
   const isHost = playerId !== 0 && playerId === state.hostId;
   if (els.playerName && playerNameValue) {
-    if (isHost) {
+    if (phase === "complete") {
+      els.playerName.textContent = `Signed in as ${playerNameValue}. Game complete.`;
+    } else if (isHost) {
       els.playerName.textContent = `Signed in as ${playerNameValue}. You're the host.`;
     } else {
       els.playerName.textContent = `Signed in as ${playerNameValue}. Waiting for the host to begin.`;
     }
   }
   if (els.hostSection) {
-    els.hostSection.style.display = isHost ? "grid" : "none";
+    els.hostSection.style.display = isHost && phase !== "complete" ? "grid" : "none";
   }
   if (els.hostStartGame) {
     const minPlayers = Number(data.min_players || 2);
