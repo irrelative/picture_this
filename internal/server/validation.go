@@ -3,8 +3,11 @@ package server
 import (
 	"errors"
 	"fmt"
+	"net/mail"
 	"strings"
 	"sync"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -104,14 +107,12 @@ func validateEmail(email string) (string, error) {
 	if len(trimmed) > maxEmailLength {
 		return "", fmt.Errorf("email must be %d characters or fewer", maxEmailLength)
 	}
-	if strings.Contains(trimmed, " ") {
+	parsed, err := mail.ParseAddress(trimmed)
+	if err != nil || parsed.Address != trimmed || parsed.Name != "" {
 		return "", errors.New("email is invalid")
 	}
-	parts := strings.Split(trimmed, "@")
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return "", errors.New("email is invalid")
-	}
-	if !strings.Contains(parts[1], ".") {
+	local, domain, ok := strings.Cut(trimmed, "@")
+	if !ok || local == "" || domain == "" || strings.HasPrefix(domain, ".") || strings.HasSuffix(domain, ".") || strings.Contains(domain, "..") {
 		return "", errors.New("email is invalid")
 	}
 	return trimmed, nil
@@ -132,7 +133,7 @@ func validateText(label, text string, maxLen int) (string, error) {
 	if trimmed == "" {
 		return "", fmt.Errorf("%s is required", label)
 	}
-	if len(trimmed) > maxLen {
+	if utf8.RuneCountInString(trimmed) > maxLen {
 		return "", fmt.Errorf("%s must be %d characters or fewer", label, maxLen)
 	}
 	if !isSafeText(trimmed) {
@@ -148,16 +149,7 @@ func normalizeText(text string) string {
 
 func isSafeText(text string) bool {
 	for _, r := range text {
-		if r > 127 {
-			return false
-		}
-		if r >= 'a' && r <= 'z' {
-			continue
-		}
-		if r >= 'A' && r <= 'Z' {
-			continue
-		}
-		if r >= '0' && r <= '9' {
+		if unicode.IsLetter(r) || unicode.IsNumber(r) || unicode.IsMark(r) {
 			continue
 		}
 		switch r {

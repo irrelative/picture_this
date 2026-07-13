@@ -124,6 +124,22 @@ func TestRegisterRejectsExistingEmail(t *testing.T) {
 	}
 }
 
+func TestRegistrationAcceptsInternationalUsernameAndRejectsMalformedEmail(t *testing.T) {
+	_, ts := newServerHarness(t)
+	resp := doRequest(t, ts, http.MethodPost, "/api/auth/register", map[string]any{
+		"email": "jose@example.com", "username": "José", "password": "password123",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("international username: got %d", resp.StatusCode)
+	}
+	resp = doRequest(t, ts, http.MethodPost, "/api/auth/register", map[string]any{
+		"email": "person@example.", "username": "Person", "password": "password123",
+	})
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("malformed email: got %d", resp.StatusCode)
+	}
+}
+
 func TestHomePage(t *testing.T) {
 	_, ts := newServerHarness(t)
 
