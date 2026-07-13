@@ -1,6 +1,30 @@
 package server
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
+
+func TestAddPlayerDurablyRollsBackPersistenceFailure(t *testing.T) {
+	store := NewStore()
+	game := store.CreateGame(0)
+	_, _, err := store.AddPlayerDurably(game.ID, "Ada", nil, "hash", func(*Game, *Player) error {
+		return errors.New("database unavailable")
+	})
+	if err == nil {
+		t.Fatal("expected persistence failure")
+	}
+	got, ok := store.GetGame(game.ID)
+	if !ok {
+		t.Fatal("game disappeared")
+	}
+	if len(got.Players) != 0 || got.HostID != 0 {
+		t.Fatalf("failed join leaked state: players=%d host=%d", len(got.Players), got.HostID)
+	}
+	if _, player, retryErr := store.AddPlayer(game.ID, "Ada", nil, "hash"); retryErr != nil || !player.IsHost {
+		t.Fatalf("retry failed: player=%+v err=%v", player, retryErr)
+	}
+}
 
 func TestAddPlayerPausedRejectsNameTakeover(t *testing.T) {
 	store := NewStore()

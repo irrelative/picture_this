@@ -286,7 +286,10 @@ func (s *Server) handleJoinGame(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create recovery credential"})
 		return
 	}
-	game, player, err := s.store.AddPlayer(gameID, name, avatar, recoveryHash)
+	game, player, err := s.store.AddPlayerDurably(gameID, name, avatar, recoveryHash, func(game *Game, player *Player) error {
+		_, err := s.persistPlayer(game, player)
+		return err
+	})
 	if err != nil {
 		if err.Error() == "game not found" {
 			c.Status(http.StatusNotFound)
@@ -300,22 +303,16 @@ func (s *Server) handleJoinGame(c *gin.Context) {
 		return
 	}
 
-	playerID, persistErr := s.persistPlayer(game, player)
-	if persistErr != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to join game"})
-		return
-	}
-
 	resp := map[string]any{
 		"game_id":   game.ID,
 		"player":    name,
 		"join_code": game.JoinCode,
 	}
-	resp["player_id"] = playerID
-	resp["auth_token"] = ensurePlayerAuthToken(game, playerID)
+	resp["player_id"] = player.ID
+	resp["auth_token"] = ensurePlayerAuthToken(game, player.ID)
 	resp["recovery_code"] = recoveryCode
 	c.JSON(http.StatusOK, resp)
-	log.Printf("player joined game_id=%s player_id=%d player_name=%s", game.ID, playerID, name)
+	log.Printf("player joined game_id=%s player_id=%d player_name=%s", game.ID, player.ID, name)
 
 	if s.sessions != nil {
 		s.sessions.SetName(c.Writer, c.Request, name)

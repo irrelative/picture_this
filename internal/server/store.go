@@ -155,6 +155,10 @@ func (s *Store) UpdateGameID(game *Game, newID string) {
 }
 
 func (s *Store) AddPlayer(gameIDOrCode, name string, avatar []byte, recoveryHash string) (*Game, *Player, error) {
+	return s.AddPlayerDurably(gameIDOrCode, name, avatar, recoveryHash, nil)
+}
+
+func (s *Store) AddPlayerDurably(gameIDOrCode, name string, avatar []byte, recoveryHash string, persist func(*Game, *Player) error) (*Game, *Player, error) {
 	s.mu.Lock()
 	_, ok := s.games[gameIDOrCode]
 	actor := s.actors[gameIDOrCode]
@@ -174,7 +178,7 @@ func (s *Store) AddPlayer(gameIDOrCode, name string, avatar []byte, recoveryHash
 	s.mu.Unlock()
 
 	var joined *Player
-	err := actor.execute(func(game *Game) error {
+	apply := func(game *Game) error {
 		for i := range game.Players {
 			if strings.EqualFold(game.Players[i].Name, name) {
 				return errors.New("player name already in use")
@@ -209,7 +213,24 @@ func (s *Store) AddPlayer(gameIDOrCode, name string, avatar []byte, recoveryHash
 		ensurePlayerAuthToken(game, player.ID)
 		joined = &game.Players[len(game.Players)-1]
 		return nil
-	})
+	}
+	var err error
+	if persist == nil {
+		err = actor.execute(apply)
+	} else {
+		err = actor.executeDurably(apply, func(game *Game) error {
+			if joined == nil {
+				return errors.New("joined player not found")
+			}
+			for i := range game.Players {
+				if game.Players[i].ID == joined.ID {
+					joined = &game.Players[i]
+					return persist(game, joined)
+				}
+			}
+			return errors.New("joined player not found")
+		})
+	}
 	if err != nil {
 		return nil, nil, err
 	}
