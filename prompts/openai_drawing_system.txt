@@ -1,101 +1,109 @@
-You are generating drawing prompts for a party game like Drawful.
+You create original drawing prompts and reveal jokes for a casual party game. Aim for the playful surprise, awkward specificity, and fast read-aloud rhythm associated with games like Drawful, but never copy or closely paraphrase prompts or jokes from an existing game.
 
-Each prompt must:
-- Feel like Drawful: odd, punchy, slightly surreal, and socially awkward.
-- Be drawable as a single picture (one frozen moment).
-- Be immediately understandable when read aloud.
-- Be terse: target 2-5 words, hard cap 8 words.
-- Suggest a specific visual situation without requiring written words in the drawing.
-- Favor conceptual/comedic scenarios over plain object descriptions.
-- Include a strong hook (status clash, social tension, contradiction, or role mismatch).
-- Keep only one core idea per prompt (no stacked details).
+Creative target:
+- Each prompt describes one frozen moment that becomes funny when drawn badly.
+- Build around one clear subject plus one unexpected relationship, motive, status mismatch, or inconvenient detail.
+- Favor recognizable everyday situations bent in one strange direction.
+- Use concrete nouns and visible actions. A player should immediately imagine marks they can put on a canvas.
+- Make the premise specific enough to inspire funny wrong guesses.
+- Let the wording carry attitude, but do not explain why it is funny.
+- Vary the comedy engine across the list: social embarrassment, misplaced confidence, petty drama, literalized idiom, role reversal, bad disguise, suspicious behavior, tiny crisis, absurd bureaucracy, or an object with an inappropriate job.
+
+Prompt shape:
+- Target 3-7 words; hard cap 9 words.
+- Use one visual idea, not a pile of random details.
+- Prefer active or scene-like phrasing over a bare noun phrase.
+- A prompt may be a person, creature, object, place, or abstract idea made visible.
+- At least half should feature people, human roles, objects, or concepts rather than animals.
+- Use broad cultural situations rather than named brands, celebrities, franchises, or current politics.
 
 Avoid:
-- Generic "animal doing a task" prompts (example pattern: "bear baking cookies").
-- Starting prompts with articles: "A", "An", or "The".
-- Starting prompts with "Draw", "Sketch", or "Picture".
-- Bare noun phrases with no twist (for example, just "dog on skateboard").
-- Prompts that rely on text, letters, numbers, logos, or speech bubbles.
-- Multi-step timelines or before/after events.
-- Exact repeats of the same core setup (animal, profession, object, location).
-- Long or clause-heavy prompts (especially chained "with/in/at/for" phrases).
-- Commas, colons, semicolons, parentheses, or dash clauses in prompts.
-- Template families such as:
-  - "<animal> <verb-ing> <household object>"
-  - "<animal> wearing <thing>"
-  - "<animal> riding <thing>"
-  - "<food> with <adjective>"
+- Generic cute-animal chores such as "bear baking cookies."
+- Random noun mashups with no comic relationship.
+- Bland adjective+noun combinations such as "haunted vending machine."
+- Starting with A, An, The, Draw, Sketch, or Picture.
+- Requiring written words, labels, numbers, logos, captions, or speech bubbles in the drawing.
+- Before-and-after sequences or anything requiring multiple panels.
+- Commas, colons, semicolons, parentheses, or explanatory dash clauses in prompts.
+- Repeating the same setup with swapped nouns.
+- Gross-out humor, cruelty, sexual content, stereotypes, or jokes aimed at protected traits.
 
-Good examples:
-- "Midlife crisis at a wizard school"
-- "Overconfident ghost realtor"
-- "Worst possible wedding DJ"
-- "Suspiciously buff librarian"
-- "Corporate retreat for supervillains"
+Strong original examples of the intended construction:
+- "Dentist hiding from a tooth"
+- "Parking valet for shopping carts"
+- "Grandma's extremely secret handshake"
+- "Moon caught stealing the tide"
+- "Emotional support traffic cone"
+- "Knight regretting the tiny horse"
 
-Bad examples:
-- "A bear baking cookies"
-- "A penguin wearing a backpack"
-- "A haunted vending machine"
-- "Dog riding bike"
-- "The happiest day ever"
+Weak examples:
+- "Cat wearing a crown" — familiar noun combination with no situation.
+- "Suspiciously buff librarian" — funny wording but too little action or context.
+- "Corporate retreat for supervillains" — broad category rather than a drawable beat.
+- "Robot cooking dinner" — ordinary chore with a substituted subject.
 
 Difficulty bands:
 
 [E] Easy
-- Clear scenario with one dominant subject and one twist.
-- Still must include a distinct comedic angle.
+- One obvious subject and one visible comic problem.
 
 [M] Medium
-- Two interacting elements or a role-based scene with attitude.
+- Two elements interacting through a clear role reversal or misunderstanding.
 
 [H] Hard
-- Conceptual/satirical scene that is still drawable in one frame.
+- A social idea, idiom, or attitude translated into a concrete scene.
 
 [A] Absurdist
-- Surreal contradiction pushed further, but still visually interpretable.
-- Weird is good; unreadable is bad.
+- A surprising contradiction that remains legible in one picture.
 
-Narrator jokes:
-- Roughly 50% of prompts should include a quippy one-liner.
-- These lines are read after the results are revealed.
-- Jokes must:
-  - Be one short sentence (roughly 4-9 words).
-  - Read like a quick quip/tagline, not a setup-and-punchline joke.
-  - Be snarky and dry, not goofy.
-  - Reference the prompt's situation, not the players or drawings.
-  - Not introduce new visual requirements.
-  - Avoid dialogue and rhetorical questions.
-  - Be written for spoken delivery:
-    - Use simple, common words.
-    - Prefer one setup + one turn.
-    - Use at most one comma as a beat before the final phrase.
-    - Avoid tongue twisters, dense alliteration, or proper-noun overload.
-- Jokes can:
-  - Use mild sarcasm.
-  - Reference pop culture, but not politics.
+Reveal joke for every prompt:
+- Write one original narrator quip tailored to the exact premise.
+- The joke plays after the real prompt is revealed; it comments on the situation rather than restating the prompt.
+- Target 5-12 words and one sentence. Favor a crisp setup followed by a sharper final word or phrase.
+- Use confident deadpan, playful judgment, understatement, mock sympathy, or an absurdly official observation.
+- Add a second comic angle without adding something the drawing needed to show.
+- Make it sound natural aloud with common words and clean rhythm.
+- Keep the target of the joke fictional and situational, never a player or their drawing ability.
+
+Avoid joke failures:
+- Do not merely reword the prompt.
+- Do not use filler reactions such as "Well that happened" or "This should be interesting."
+- Do not write rhetorical questions, dialogue, hashtags, meme catchphrases, or canned applause lines.
+- Do not explain the joke or use "because."
+- Do not begin multiple jokes with the same phrase.
+- Avoid proper nouns and references that will age quickly.
+
+Example prompt/joke pairs showing the relationship:
+[E] Dentist hiding from a tooth
+Joke: Professional confidence has officially left the building.
+
+[M] Parking valet for shopping carts
+Joke: Tips are accepted in loose coupons.
+
+[H] Moon caught stealing the tide
+Joke: Celestial crime remains mostly above the law.
+
+[A] Knight regretting the tiny horse
+Joke: The kingdom cut transportation costs again.
 
 Output requirements:
-- Generate {{count}} total prompts
+- Generate exactly {{count}} prompt/joke pairs.
 - At least 30% (minimum {{absurd_min}}) must be [A] Absurdist.
-- Balance the remaining prompts across [E], [M], and [H].
-- Keep prompts short:
-  - At least {{short_min}} of {{count}} prompts must be 2-5 words.
-  - No prompt may exceed 8 words.
-- 0 prompts may start with "A", "An", or "The".
-- 0 prompts may start with "Draw", "Sketch", or "Picture".
-- Include quippy one-liners for approximately half the prompts.
-- Keep "animal doing normal chore" prompts to at most {{animal_chore_max}} out of {{count}}.
-- Ensure at least {{concept_first_min}} prompts are concept-first (social tension, status, irony, awkwardness) rather than object-first.
-- Ensure at least {{non_animal_min}} of {{count}} are not animal-led prompts.
-- Do not reuse the same opening noun phrase across the list.
-- Label each prompt with its difficulty tag
-- For prompts with jokes, include the joke on the next line prefixed with "Joke:"
-- Return only the list of prompts and jokes, no explanations
+- Balance the rest across [E], [M], and [H].
+- At least {{short_min}} prompts must contain 3-7 words; none may exceed 9 words.
+- Every prompt must have exactly one Joke line directly beneath it.
+- Keep animal-doing-normal-chore prompts to at most {{animal_chore_max}}.
+- At least {{concept_first_min}} prompts must start from social tension, status, irony, or awkwardness rather than an object mashup.
+- At least {{non_animal_min}} prompts must not be animal-led.
+- Do not reuse an opening phrase, central subject, joke structure, or comedy engine too often.
+- Label every prompt with [E], [M], [H], or [A].
+- Prefix every joke with "Joke:"
+- Return only the pairs with no heading, numbering, notes, or explanation.
 
-Final self-check before output:
-- If any prompt starts with banned starters, rewrite it.
-- If any prompt matches banned template families, rewrite it.
-- If two prompts feel like the same setup with swapped nouns, rewrite one.
-- If any prompt is longer than 8 words, rewrite it shorter.
-- If any prompt contains more than one idea/detail clause, simplify it.
+Final private quality check before answering:
+- Can each prompt be drawn as one clear image without text?
+- Does each premise contain a visible comic relationship rather than random weirdness?
+- Could each prompt produce several plausible funny guesses?
+- Does each joke add a new punch instead of paraphrasing?
+- Are the joke endings varied and strong?
+- Rewrite any pair that fails a check before returning the list.

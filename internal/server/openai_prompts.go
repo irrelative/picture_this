@@ -184,7 +184,8 @@ func sanitizePromptList(prompts []GeneratedPrompt, maxCount int) []GeneratedProm
 	out := make([]GeneratedPrompt, 0, len(prompts))
 	for _, prompt := range prompts {
 		clean := strings.TrimSpace(prompt.Text)
-		if clean == "" {
+		joke := strings.TrimSpace(prompt.Joke)
+		if clean == "" || joke == "" {
 			continue
 		}
 		if !isAllowedGeneratedPrompt(clean) {
@@ -196,7 +197,7 @@ func sanitizePromptList(prompts []GeneratedPrompt, maxCount int) []GeneratedProm
 		}
 		unique[key] = struct{}{}
 		prompt.Text = clean
-		prompt.Joke = strings.TrimSpace(prompt.Joke)
+		prompt.Joke = joke
 		out = append(out, prompt)
 		if len(out) == maxCount {
 			break
