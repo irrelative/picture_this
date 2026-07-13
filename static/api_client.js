@@ -63,3 +63,7 @@ export function getAllPlayerRecoveryCredentials(gameId) {
   }
 	return credentials.sort((a, b) => a.player_id - b.player_id);
 }
+
+export function removePlayerRecoveryCredentials(gameId, playerId) {
+	localStorage.removeItem(`pt_recovery_${gameId}_${playerId}`);
+}

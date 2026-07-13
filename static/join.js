@@ -1,4 +1,4 @@
-import { gameAPIPath, getAllPlayerRecoveryCredentials, postJSON, requestJSON, setPlayerAuthToken, setPlayerRecoveryCode } from "./api_client.js";
+import { gameAPIPath, getAllPlayerRecoveryCredentials, postJSON, removePlayerRecoveryCredentials, requestJSON, setPlayerAuthToken, setPlayerRecoveryCode } from "./api_client.js";
 
 const joinForm = document.getElementById("joinForm");
 const joinResult = document.getElementById("joinResult");
@@ -82,7 +82,7 @@ async function loadJoinAs() {
 			button.hidden = false;
 			button.dataset.savedSeat = String(credentials.player_id);
 			button.textContent = `Rejoin as ${credentials.player_name || `player ${credentials.player_id}`}`;
-			button.addEventListener("click", () => recoverSavedSeat(credentials));
+			button.addEventListener("click", () => recoverSavedSeat(credentials, button));
 			localRecovery.appendChild(button);
 		});
   }
@@ -94,7 +94,7 @@ async function loadJoinAs() {
   renderJoinAs(players);
 }
 
-async function recoverSavedSeat(savedRecovery) {
+async function recoverSavedSeat(savedRecovery, button) {
   joinResult.textContent = "Recovering your saved seat...";
   const code = joinForm.elements.code.value.trim();
   const { res, data } = await postJSON(gameAPIPath(code, "/players/recover"), {
@@ -103,6 +103,10 @@ async function recoverSavedSeat(savedRecovery) {
   });
   if (!res.ok) {
     joinResult.textContent = data.error || "Seat recovery failed.";
+		if (typeof data.error === "string" && data.error.includes("invalid recovery") && window.confirm("This saved recovery code is no longer valid. Remove it from this device?")) {
+			removePlayerRecoveryCredentials(savedRecovery.game_id, savedRecovery.player_id);
+			button?.remove();
+		}
     return;
   }
   setPlayerAuthToken(data.game_id, data.player_id, data.auth_token);
