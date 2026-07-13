@@ -20,6 +20,9 @@ type loginRequest struct {
 }
 
 func (s *Server) handleRegister(c *gin.Context) {
+	if !s.enforceRateLimit(c, "register") {
+		return
+	}
 	if s.sessions == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "authentication is unavailable"})
 		return
@@ -85,6 +88,9 @@ func (s *Server) handleRegister(c *gin.Context) {
 }
 
 func (s *Server) handleLogin(c *gin.Context) {
+	if !s.enforceRateLimit(c, "login") {
+		return
+	}
 	if s.sessions == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "authentication is unavailable"})
 		return

@@ -3,9 +3,13 @@ package server
 import (
 	"errors"
 	"fmt"
+	"net"
+	"net/http"
 	"net/mail"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -56,7 +60,63 @@ func registerValidators() {
 }
 
 func (s *Server) enforceRateLimit(c *gin.Context, action string) bool {
-	return true
+	limit, window := ratePolicy(action)
+	now := s.rateNow()
+	key := action + ":" + requestClientIP(c.Request)
+	s.rateMu.Lock()
+	entry := s.rateEntries[key]
+	if entry == nil || now.Sub(entry.started) >= window {
+		entry = &rateEntry{started: now}
+		s.rateEntries[key] = entry
+	}
+	entry.count++
+	allowed := entry.count <= limit
+	retry := window - now.Sub(entry.started)
+	if len(s.rateEntries) > 4096 {
+		for candidate, value := range s.rateEntries {
+			if now.Sub(value.started) > 2*window {
+				delete(s.rateEntries, candidate)
+			}
+		}
+	}
+	s.rateMu.Unlock()
+	if allowed {
+		return true
+	}
+	c.Header("Retry-After", strconv.Itoa(max(1, int(retry.Seconds()))))
+	c.JSON(http.StatusTooManyRequests, gin.H{"error": "too many requests; try again shortly"})
+	return false
+}
+
+type rateEntry struct {
+	started time.Time
+	count   int
+}
+
+func ratePolicy(action string) (int, time.Duration) {
+	switch action {
+	case "login", "recover":
+		return 10, time.Minute
+	case "register", "create":
+		return 20, time.Minute
+	case "join", "audience-join":
+		return 60, time.Minute
+	default:
+		return 240, time.Minute
+	}
+}
+
+func requestClientIP(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
+		if forwarded := strings.TrimSpace(strings.Split(r.Header.Get("X-Forwarded-For"), ",")[0]); net.ParseIP(forwarded) != nil {
+			return forwarded
+		}
+	}
+	return host
 }
 
 func validateName(name string) (string, error) {

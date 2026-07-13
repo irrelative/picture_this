@@ -354,7 +354,7 @@ func (s *Server) handleJoinGame(c *gin.Context) {
 }
 
 func (s *Server) handleRecoverPlayer(c *gin.Context) {
-	if !s.enforceRateLimit(c, "join") {
+	if !s.enforceRateLimit(c, "recover") {
 		return
 	}
 	var req recoverPlayerRequest

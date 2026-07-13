@@ -24,6 +24,9 @@ type Server struct {
 	jobsMu          sync.Mutex
 	promptJobs      map[string]*promptGenerateJob
 	nextPromptJobID uint64
+	rateMu          sync.Mutex
+	rateEntries     map[string]*rateEntry
+	rateNow         func() time.Time
 }
 
 func New(conn *gorm.DB, cfg config.Config) *Server {
@@ -38,6 +41,8 @@ func New(conn *gorm.DB, cfg config.Config) *Server {
 		timers:          make(map[string]*time.Timer),
 		timerGeneration: make(map[string]uint64),
 		promptJobs:      make(map[string]*promptGenerateJob),
+		rateEntries:     make(map[string]*rateEntry),
+		rateNow:         time.Now,
 	}
 }
 

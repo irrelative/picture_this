@@ -140,6 +140,23 @@ func TestRegistrationAcceptsInternationalUsernameAndRejectsMalformedEmail(t *tes
 	}
 }
 
+func TestLoginRateLimit(t *testing.T) {
+	_, ts := newServerHarness(t)
+	for i := 0; i < 10; i++ {
+		resp := doRequest(t, ts, http.MethodPost, "/api/auth/login", map[string]any{"email": "none@example.com", "password": "wrong"})
+		if resp.StatusCode == http.StatusTooManyRequests {
+			t.Fatalf("limited request %d too early", i)
+		}
+	}
+	resp := doRequest(t, ts, http.MethodPost, "/api/auth/login", map[string]any{"email": "none@example.com", "password": "wrong"})
+	if resp.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("expected 429, got %d", resp.StatusCode)
+	}
+	if resp.Header.Get("Retry-After") == "" {
+		t.Fatal("missing Retry-After")
+	}
+}
+
 func TestHomePage(t *testing.T) {
 	_, ts := newServerHarness(t)
 
