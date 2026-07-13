@@ -7,6 +7,7 @@ templ AdminPromptLibrary(data AdminPromptLibraryData) {
 				<span class="tag">Admin</span>
 				<h1>Prompt Library</h1>
 				<p>Create, update, and delete prompts for the game library.</p>
+				@AdminNav()
 			</header>
 
 			if data.Error != "" {
@@ -43,7 +44,6 @@ templ AdminPromptLibrary(data AdminPromptLibraryData) {
 						</label>
 						<div class="settings-actions">
 							<button class="primary" type="submit">Generate prompts</button>
-							<a class="secondary" href="/admin">Back to admin</a>
 						</div>
 					</form>
 					<div id="admin-prompts-generate-job"></div>
@@ -63,7 +63,6 @@ templ AdminPromptLibrary(data AdminPromptLibraryData) {
 						</label>
 						<div class="settings-actions">
 							<button class="primary" type="submit">Add prompt</button>
-							<a class="secondary" href="/admin">Back to admin</a>
 						</div>
 					</form>
 				</section>
