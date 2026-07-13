@@ -85,7 +85,7 @@ func (s *Server) autoAdvancePhase(gameID string, expectedPhase string) {
 	now := time.Now().UTC()
 	filledGuesses := make([]autoFilledGuess, 0)
 	filledVotes := make([]autoFilledVote, 0)
-	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+	game, err := s.store.UpdateGameDurably(gameID, func(game *Game) error {
 		if game.Phase != expectedPhase {
 			return errors.New("phase changed")
 		}
@@ -97,40 +97,32 @@ func (s *Server) autoAdvancePhase(gameID string, expectedPhase string) {
 		}
 		_, err := s.advancePhase(game, transitionAuto, now)
 		return err
+	}, func(game *Game) error {
+		for _, filled := range filledGuesses {
+			if err := s.persistGuess(game, filled.PlayerID, filled.DrawingIndex, filled.Text); err != nil {
+				return err
+			}
+		}
+		for _, filled := range filledVotes {
+			if err := s.persistVote(game, filled.PlayerID, filled.RoundNumber, filled.DrawingIndex, filled.ChoiceText, filled.ChoiceType); err != nil {
+				return err
+			}
+		}
+		if game.Phase == phaseDrawings && expectedPhase != phaseDrawings {
+			if err := s.persistRound(game); err != nil {
+				return err
+			}
+			if err := s.assignPrompts(game); err != nil {
+				return err
+			}
+		}
+		return s.persistPhase(game, "game_advanced", EventPayload{Phase: game.Phase, Reason: "timeout"})
 	})
 	if err != nil {
+		log.Printf("game auto-advance failed game_id=%s phase=%s error=%v", gameID, expectedPhase, err)
 		return
 	}
-	for _, filled := range filledGuesses {
-		if err := s.persistGuess(game, filled.PlayerID, filled.DrawingIndex, filled.Text); err != nil {
-			log.Printf("auto-fill persist guess failed game_id=%s player_id=%d error=%v", game.ID, filled.PlayerID, err)
-		}
-	}
-	for _, filled := range filledVotes {
-		if err := s.persistVote(game, filled.PlayerID, filled.RoundNumber, filled.DrawingIndex, filled.ChoiceText, filled.ChoiceType); err != nil {
-			log.Printf("auto-fill persist vote failed game_id=%s player_id=%d error=%v", game.ID, filled.PlayerID, err)
-		}
-	}
-	if game.Phase == phaseDrawings && expectedPhase != phaseDrawings {
-		if err := s.persistRound(game); err != nil {
-			log.Printf("auto-advance persist round failed game_id=%s error=%v", game.ID, err)
-			return
-		}
-		if err := s.assignPrompts(game); err != nil {
-			log.Printf("auto-advance assign prompts failed game_id=%s error=%v", game.ID, err)
-			return
-		}
-		game, err = s.store.ReplaceGameState(gameID, game)
-		if err != nil {
-			log.Printf("auto-advance publish prompts failed game_id=%s error=%v", gameID, err)
-			return
-		}
-	}
 	if game.Phase != expectedPhase {
-		if err := s.persistPhase(game, "game_advanced", EventPayload{Phase: game.Phase, Reason: "timeout"}); err != nil {
-			log.Printf("auto-advance persist phase failed game_id=%s error=%v", game.ID, err)
-			return
-		}
 		log.Printf("game auto-advanced game_id=%s from=%s to=%s", game.ID, expectedPhase, game.Phase)
 	}
 	if game.Phase == phaseComplete {

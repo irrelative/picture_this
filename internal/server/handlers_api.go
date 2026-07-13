@@ -1120,7 +1120,7 @@ func (s *Server) handleAdvance(c *gin.Context) {
 	prevPhase := ""
 	filledGuesses := make([]autoFilledGuess, 0)
 	filledVotes := make([]autoFilledVote, 0)
-	game, err := s.store.UpdateGame(gameID, func(game *Game) error {
+	game, err := s.store.UpdateGameDurably(gameID, func(game *Game) error {
 		if _, err := s.authenticateHostRequest(c, game, req.PlayerID, req.AuthToken); err != nil {
 			return err
 		}
@@ -1133,43 +1133,30 @@ func (s *Server) handleAdvance(c *gin.Context) {
 		}
 		_, err := s.advancePhase(game, transitionManual, time.Time{})
 		return err
+	}, func(game *Game) error {
+		for _, filled := range filledGuesses {
+			if err := s.persistGuess(game, filled.PlayerID, filled.DrawingIndex, filled.Text); err != nil {
+				return err
+			}
+		}
+		for _, filled := range filledVotes {
+			if err := s.persistVote(game, filled.PlayerID, filled.RoundNumber, filled.DrawingIndex, filled.ChoiceText, filled.ChoiceType); err != nil {
+				return err
+			}
+		}
+		if game.Phase == phaseDrawings && prevPhase != phaseDrawings {
+			if err := s.persistRound(game); err != nil {
+				return err
+			}
+			if len(game.Players) > 0 {
+				if err := s.assignPrompts(game); err != nil {
+					return err
+				}
+			}
+		}
+		return s.persistPhase(game, "game_advanced", EventPayload{Phase: game.Phase})
 	})
 	if respondGameMutationError(c, err) {
-		return
-	}
-	for _, filled := range filledGuesses {
-		if err := s.persistGuess(game, filled.PlayerID, filled.DrawingIndex, filled.Text); err != nil {
-			log.Printf("manual advance persist guess failed game_id=%s player_id=%d error=%v", game.ID, filled.PlayerID, err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save guesses"})
-			return
-		}
-	}
-	for _, filled := range filledVotes {
-		if err := s.persistVote(game, filled.PlayerID, filled.RoundNumber, filled.DrawingIndex, filled.ChoiceText, filled.ChoiceType); err != nil {
-			log.Printf("manual advance persist vote failed game_id=%s player_id=%d error=%v", game.ID, filled.PlayerID, err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save votes"})
-			return
-		}
-	}
-	if game.Phase == phaseDrawings && prevPhase != phaseDrawings {
-		if err := s.persistRound(game); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create round"})
-			return
-		}
-		if len(game.Players) > 0 {
-			if err := s.assignPrompts(game); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to assign prompts"})
-				return
-			}
-			game, err = s.store.ReplaceGameState(gameID, game)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to publish prompts"})
-				return
-			}
-		}
-	}
-	if err := s.persistPhase(game, "game_advanced", EventPayload{Phase: game.Phase}); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to advance game"})
 		return
 	}
 	log.Printf("game advanced game_id=%s phase=%s", game.ID, game.Phase)
