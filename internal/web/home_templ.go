@@ -94,12 +94,12 @@ func Home(flash string, playerName string, games []GameSummary, loggedIn bool, u
 					}
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div class=\"auth-grid\"><form id=\"registerForm\" class=\"join-form auth-form\"><h3>Create account</h3><label class=\"field\"><span class=\"label\">Email</span> <input name=\"email\" type=\"email\" autocomplete=\"email\" required></label> <label class=\"field\"><span class=\"label\">Username</span> <input name=\"username\" autocomplete=\"nickname\" placeholder=\"Defaults from email\"></label> <label class=\"field\"><span class=\"label\">Password</span> <input name=\"password\" type=\"password\" autocomplete=\"new-password\" required></label> <button type=\"submit\" class=\"primary\">Register</button><p id=\"registerResult\" class=\"result\" role=\"status\" aria-live=\"polite\"></p></form><form id=\"loginForm\" class=\"join-form auth-form\"><h3>Log in</h3><label class=\"field\"><span class=\"label\">Email</span> <input name=\"email\" type=\"email\" autocomplete=\"email\" required></label> <label class=\"field\"><span class=\"label\">Password</span> <input name=\"password\" type=\"password\" autocomplete=\"current-password\" required></label> <button type=\"submit\" class=\"secondary\">Log in</button><p id=\"loginResult\" class=\"result\" role=\"status\" aria-live=\"polite\"></p></form></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div class=\"auth-grid\"><form id=\"registerForm\" class=\"join-form auth-form\"><h3>Create account</h3><label class=\"field\"><span class=\"label\">Email</span> <input name=\"email\" type=\"email\" autocomplete=\"email\" required></label> <label class=\"field\"><span class=\"label\">Username</span> <input name=\"username\" autocomplete=\"nickname\" placeholder=\"Defaults from email\"></label> <label class=\"field\"><span class=\"label\">Password</span> <input name=\"password\" type=\"password\" autocomplete=\"new-password\" minlength=\"8\" maxlength=\"128\" aria-describedby=\"registerPasswordHint\" required></label><p id=\"registerPasswordHint\" class=\"hint\">Use 8–128 characters.</p><button type=\"submit\" class=\"primary\">Register</button><p id=\"registerResult\" class=\"result\" role=\"status\" aria-live=\"polite\"></p></form><form id=\"loginForm\" class=\"join-form auth-form\"><h3>Log in</h3><label class=\"field\"><span class=\"label\">Email</span> <input name=\"email\" type=\"email\" autocomplete=\"email\" required></label> <label class=\"field\"><span class=\"label\">Password</span> <input name=\"password\" type=\"password\" autocomplete=\"current-password\" required></label> <button type=\"submit\" class=\"secondary\">Log in</button><p id=\"loginResult\" class=\"result\" role=\"status\" aria-live=\"polite\"></p></form></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</section><section class=\"panel panel--split panel--tone-warning create-game-panel\"><div><h2>Create a game</h2><p>Generate a new lobby and share the join code with your players. Choose min/max players up front.</p></div><form id=\"createGameForm\" class=\"join-form create-game-form\"><label class=\"field\"><span class=\"label\">Minimum players</span> <input name=\"min_players\" type=\"number\" min=\"2\" max=\"10\" value=\"2\" required")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</section><section class=\"panel panel--split panel--tone-warning create-game-panel\"><div><h2>Create a game</h2><p>Generate a new lobby and share the join code with your players. Choose min/max players up front.</p></div><form id=\"createGameForm\" class=\"join-form create-game-form\"><label class=\"field\"><span class=\"label\">Minimum players</span> <input name=\"min_players\" type=\"number\" min=\"2\" max=\"10\" value=\"3\" required")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -109,7 +109,7 @@ func Home(flash string, playerName string, games []GameSummary, loggedIn bool, u
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "></label> <label class=\"field\"><span class=\"label\">Maximum players</span> <input name=\"max_players\" type=\"number\" min=\"0\" max=\"10\" value=\"10\" required")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "></label> <label class=\"field\"><span class=\"label\">Maximum players</span> <input name=\"max_players\" type=\"number\" min=\"0\" max=\"10\" value=\"8\" required")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -141,7 +141,7 @@ func Home(flash string, playerName string, games []GameSummary, loggedIn bool, u
 				var templ_7745c5c3_Var5 string
 				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(playerName)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/home.templ`, Line: 95, Col: 91}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/home.templ`, Line: 96, Col: 91}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 				if templ_7745c5c3_Err != nil {
@@ -164,7 +164,7 @@ func Home(flash string, playerName string, games []GameSummary, loggedIn bool, u
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(playerName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/home.templ`, Line: 105, Col: 118}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/home.templ`, Line: 106, Col: 118}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {

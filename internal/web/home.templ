@@ -38,8 +38,9 @@ templ Home(flash string, playerName string, games []GameSummary, loggedIn bool, 
 							</label>
 							<label class="field">
 								<span class="label">Password</span>
-								<input name="password" type="password" autocomplete="new-password" required/>
+								<input name="password" type="password" autocomplete="new-password" minlength="8" maxlength="128" aria-describedby="registerPasswordHint" required/>
 							</label>
+							<p id="registerPasswordHint" class="hint">Use 8–128 characters.</p>
 							<button type="submit" class="primary">Register</button>
 							<p id="registerResult" class="result" role="status" aria-live="polite"></p>
 						</form>
@@ -68,11 +69,11 @@ templ Home(flash string, playerName string, games []GameSummary, loggedIn bool, 
 				<form id="createGameForm" class="join-form create-game-form">
 					<label class="field">
 						<span class="label">Minimum players</span>
-						<input name="min_players" type="number" min="2" max="10" value="2" required disabled?={ !loggedIn }/>
+						<input name="min_players" type="number" min="2" max="10" value="3" required disabled?={ !loggedIn }/>
 					</label>
 					<label class="field">
 						<span class="label">Maximum players</span>
-						<input name="max_players" type="number" min="0" max="10" value="10" required disabled?={ !loggedIn }/>
+						<input name="max_players" type="number" min="0" max="10" value="8" required disabled?={ !loggedIn }/>
 					</label>
 					<button id="createGame" class="primary home-cta" type="submit" disabled?={ !loggedIn }>Create game</button>
 				</form>
