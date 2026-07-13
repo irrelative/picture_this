@@ -18,12 +18,13 @@ func (s *Server) RestoreActiveGames() error {
 	if err := s.db.Where("phase <> ?", phaseComplete).Find(&records).Error; err != nil {
 		return err
 	}
+	var restoreErrors []error
 	for _, record := range records {
 		if _, _, err := s.restoreGameFromDB(fmt.Sprintf("%d", record.ID)); err != nil {
-			return err
+			restoreErrors = append(restoreErrors, fmt.Errorf("restore game %d: %w", record.ID, err))
 		}
 	}
-	return nil
+	return errors.Join(restoreErrors...)
 }
 
 func (s *Server) restoreGameFromDB(param string) (*Game, string, error) {
