@@ -54,7 +54,7 @@ func Default() Config {
 		DBMaxIdleConns:           10,
 		DBConnMaxLifetimeSeconds: 300,
 		DBConnMaxIdleTimeSeconds: 60,
-		OpenAIModel:              "gpt-5.2",
+		OpenAIModel:              "gpt-5.6",
 		OpenAIEmbeddingModel:     "text-embedding-3-small",
 		PromptSimilarityMax:      0.12,
 		OpenAIPromptSystemPath:   "prompts/openai_drawing_system.txt",
