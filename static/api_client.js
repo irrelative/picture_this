@@ -43,19 +43,23 @@ export function setPlayerRecoveryCode(gameId, playerId, recoveryCode, playerName
 }
 
 export function getPlayerRecoveryCredentials(gameId, playerId = 0) {
+	return getAllPlayerRecoveryCredentials(gameId).find((entry) => !playerId || entry.player_id === Number(playerId)) || null;
+}
+
+export function getAllPlayerRecoveryCredentials(gameId) {
   const prefix = `pt_recovery_${gameId}_`;
+	const credentials = [];
   for (let index = 0; index < localStorage.length; index += 1) {
     const key = localStorage.key(index) || "";
     if (!key.startsWith(prefix)) continue;
     const storedPlayerId = Number(key.slice(prefix.length));
-    if (playerId && storedPlayerId !== Number(playerId)) continue;
     const raw = localStorage.getItem(key) || "";
     try {
       const parsed = JSON.parse(raw);
-      if (parsed?.recovery_code) return { ...parsed, player_id: storedPlayerId };
+      if (parsed?.recovery_code) credentials.push({ ...parsed, player_id: storedPlayerId });
     } catch {
-      if (raw) return { game_id: gameId, player_id: storedPlayerId, player_name: "", recovery_code: raw };
+      if (raw) credentials.push({ game_id: gameId, player_id: storedPlayerId, player_name: "", recovery_code: raw });
     }
   }
-  return null;
+	return credentials.sort((a, b) => a.player_id - b.player_id);
 }
