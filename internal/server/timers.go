@@ -98,25 +98,7 @@ func (s *Server) autoAdvancePhase(gameID string, expectedPhase string) {
 		_, err := s.advancePhase(game, transitionAuto, now)
 		return err
 	}, func(game *Game) error {
-		for _, filled := range filledGuesses {
-			if err := s.persistGuess(game, filled.PlayerID, filled.DrawingIndex, filled.Text); err != nil {
-				return err
-			}
-		}
-		for _, filled := range filledVotes {
-			if err := s.persistVote(game, filled.PlayerID, filled.RoundNumber, filled.DrawingIndex, filled.ChoiceText, filled.ChoiceType); err != nil {
-				return err
-			}
-		}
-		if game.Phase == phaseDrawings && expectedPhase != phaseDrawings {
-			if err := s.persistRound(game); err != nil {
-				return err
-			}
-			if err := s.assignPrompts(game); err != nil {
-				return err
-			}
-		}
-		return s.persistPhase(game, "game_advanced", EventPayload{Phase: game.Phase, Reason: "timeout"})
+		return s.persistAdvanceTransaction(game, filledGuesses, filledVotes, expectedPhase, "timeout")
 	})
 	if err != nil {
 		log.Printf("game auto-advance failed game_id=%s phase=%s error=%v", gameID, expectedPhase, err)

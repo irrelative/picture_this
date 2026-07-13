@@ -12,6 +12,7 @@ import (
 	"picture-this/internal/db"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type settingsRequest struct {
@@ -1134,27 +1135,7 @@ func (s *Server) handleAdvance(c *gin.Context) {
 		_, err := s.advancePhase(game, transitionManual, time.Time{})
 		return err
 	}, func(game *Game) error {
-		for _, filled := range filledGuesses {
-			if err := s.persistGuess(game, filled.PlayerID, filled.DrawingIndex, filled.Text); err != nil {
-				return err
-			}
-		}
-		for _, filled := range filledVotes {
-			if err := s.persistVote(game, filled.PlayerID, filled.RoundNumber, filled.DrawingIndex, filled.ChoiceText, filled.ChoiceType); err != nil {
-				return err
-			}
-		}
-		if game.Phase == phaseDrawings && prevPhase != phaseDrawings {
-			if err := s.persistRound(game); err != nil {
-				return err
-			}
-			if len(game.Players) > 0 {
-				if err := s.assignPrompts(game); err != nil {
-					return err
-				}
-			}
-		}
-		return s.persistPhase(game, "game_advanced", EventPayload{Phase: game.Phase})
+		return s.persistAdvanceTransaction(game, filledGuesses, filledVotes, prevPhase, "")
 	})
 	if respondGameMutationError(c, err) {
 		return
@@ -1163,6 +1144,36 @@ func (s *Server) handleAdvance(c *gin.Context) {
 	c.JSON(http.StatusOK, s.snapshotForPlayer(game, req.PlayerID))
 	s.broadcastGameUpdate(game)
 	s.schedulePhaseTimer(game)
+}
+
+func (s *Server) persistAdvanceTransaction(game *Game, guesses []autoFilledGuess, votes []autoFilledVote, previousPhase, reason string) error {
+	persist := func(target *Server) error {
+		for _, filled := range guesses {
+			if err := target.persistGuess(game, filled.PlayerID, filled.DrawingIndex, filled.Text); err != nil {
+				return err
+			}
+		}
+		for _, filled := range votes {
+			if err := target.persistVote(game, filled.PlayerID, filled.RoundNumber, filled.DrawingIndex, filled.ChoiceText, filled.ChoiceType); err != nil {
+				return err
+			}
+		}
+		if game.Phase == phaseDrawings && previousPhase != phaseDrawings {
+			if err := target.persistRound(game); err != nil {
+				return err
+			}
+			if len(game.Players) > 0 {
+				if err := target.assignPrompts(game); err != nil {
+					return err
+				}
+			}
+		}
+		return target.persistPhase(game, "game_advanced", EventPayload{Phase: game.Phase, Reason: reason})
+	}
+	if s.db == nil {
+		return persist(s)
+	}
+	return s.db.Transaction(func(tx *gorm.DB) error { scoped := *s; scoped.db = tx; return persist(&scoped) })
 }
 
 func (s *Server) handleResumeGame(c *gin.Context) {
