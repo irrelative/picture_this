@@ -83,6 +83,13 @@ export async function postAdvance(gameId, playerId, authToken) {
   });
 }
 
+export async function postResume(gameId, playerId, authToken) {
+  return requestJSON(gameAPIPath(gameId, "/resume"), {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ player_id: playerId, auth_token: authToken || "" })
+  });
+}
+
 export async function postEndGame(gameId, playerId, authToken) {
   return requestJSON(gameAPIPath(gameId, "/end"), {
     method: "POST",

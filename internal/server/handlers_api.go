@@ -1165,6 +1165,36 @@ func (s *Server) handleAdvance(c *gin.Context) {
 	s.schedulePhaseTimer(game)
 }
 
+func (s *Server) handleResumeGame(c *gin.Context) {
+	var req advanceRequest
+	if !bindJSON(c, &req, bindMessages{}, "player_id is required") {
+		return
+	}
+	game, err := s.store.UpdateGameDurably(c.Param("gameID"), func(game *Game) error {
+		if game.Phase != phasePaused {
+			return errors.New("game is not paused")
+		}
+		if _, err := s.authenticateHostRequest(c, game, req.PlayerID, req.AuthToken); err != nil {
+			return err
+		}
+		resume := game.PausedPhase
+		if resume == "" {
+			resume = phaseLobby
+		}
+		setPhase(game, resume)
+		game.PausedPhase = ""
+		return nil
+	}, func(game *Game) error {
+		return s.persistPhase(game, "game_resumed", EventPayload{Phase: game.Phase, Reason: "host_resume"})
+	})
+	if respondGameMutationError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, s.snapshotForPlayer(game, req.PlayerID))
+	s.broadcastGameUpdate(game)
+	s.schedulePhaseTimer(game)
+}
+
 func (s *Server) handleEndGame(c *gin.Context) {
 	gameID := c.Param("gameID")
 	if !s.enforceRateLimit(c, "end") {

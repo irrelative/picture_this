@@ -6,7 +6,8 @@ import {
   postEndGame,
   postDrawing,
   postGuess,
-	postLike,
+  postLike,
+	postResume,
   postKick,
   postSettings,
   postStartGame,
@@ -383,7 +384,8 @@ if (ctx.els.hostAdvanceGame) {
     if (!ctx.els.meta) return;
     const gameId = ctx.els.meta.dataset.gameId;
     const playerId = Number(ctx.els.meta.dataset.playerId);
-    const { res, data } = await postAdvance(gameId, playerId, ctx.state.authToken);
+    const action = ctx.state.lastPhase === "paused" ? postResume : postAdvance;
+    const { res, data } = await action(gameId, playerId, ctx.state.authToken);
     if (!res.ok) {
       if (ctx.els.playerError) {
         ctx.els.playerError.textContent = data.error || "Unable to advance game.";

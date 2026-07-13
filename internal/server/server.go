@@ -101,6 +101,7 @@ func (s *Server) Handler() http.Handler {
 		api.POST("/games/:gameID/settings", s.handleSettings)
 		api.POST("/games/:gameID/kick", s.handleKick)
 		api.POST("/games/:gameID/advance", s.handleAdvance)
+		api.POST("/games/:gameID/resume", s.handleResumeGame)
 		api.POST("/games/:gameID/end", s.handleEndGame)
 	}
 

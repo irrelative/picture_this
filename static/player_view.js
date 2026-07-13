@@ -95,6 +95,7 @@ export function updateFromSnapshot(ctx, data) {
       const canAdvance = phase !== "lobby" && phase !== "complete" && isHost;
       els.hostAdvanceGame.disabled = !canAdvance;
       els.hostAdvanceGame.style.display = isHost ? "inline-flex" : "none";
+			els.hostAdvanceGame.textContent = phase === "paused" ? "Resume game" : "Advance";
     }
     if (els.hostHelp) {
       if (!isHost) {

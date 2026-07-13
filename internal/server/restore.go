@@ -10,6 +10,22 @@ import (
 	"picture-this/internal/db"
 )
 
+func (s *Server) RestoreActiveGames() error {
+	if s.db == nil {
+		return nil
+	}
+	var records []db.Game
+	if err := s.db.Where("phase <> ?", phaseComplete).Find(&records).Error; err != nil {
+		return err
+	}
+	for _, record := range records {
+		if _, _, err := s.restoreGameFromDB(fmt.Sprintf("%d", record.ID)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *Server) restoreGameFromDB(param string) (*Game, string, error) {
 	if s.db == nil {
 		return nil, "", errors.New("database not configured")

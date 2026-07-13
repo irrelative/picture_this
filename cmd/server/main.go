@@ -44,6 +44,9 @@ func main() {
 	}
 
 	srv := server.New(conn, cfg)
+	if err := srv.RestoreActiveGames(); err != nil {
+		log.Printf("failed to restore active games: %v", err)
+	}
 	log.Printf("picture-this server listening on %s", addr)
 	if err := http.ListenAndServe(addr, srv.Handler()); err != nil {
 		log.Fatal(err)
