@@ -48,7 +48,13 @@ if (registerForm) {
     });
     if (!res.ok) {
       if (registerResult) {
-        registerResult.textContent = data.error || "Unable to register.";
+        registerResult.textContent = res.status === 409
+          ? "That email is already registered. Sign in instead."
+          : data.error || "Unable to register.";
+      }
+      if (res.status === 409 && loginForm) {
+        loginForm.elements.email.value = email;
+        loginForm.elements.password.focus();
       }
       return;
     }

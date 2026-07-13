@@ -96,6 +96,29 @@ func TestRegisterLoginLogoutFlow(t *testing.T) {
 	}
 }
 
+func TestRegisterRejectsExistingEmail(t *testing.T) {
+	_, ts := newServerHarness(t)
+	payload := map[string]any{
+		"email":    "host@example.com",
+		"username": "Host",
+		"password": "password123",
+	}
+
+	resp := doRequest(t, ts, http.MethodPost, "/api/auth/register", payload)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d", http.StatusCreated, resp.StatusCode)
+	}
+
+	resp = doRequest(t, ts, http.MethodPost, "/api/auth/register", payload)
+	if resp.StatusCode != http.StatusConflict {
+		t.Fatalf("expected status %d, got %d", http.StatusConflict, resp.StatusCode)
+	}
+	body := decodeBody(t, resp)
+	if body["error"] != "email is already registered" {
+		t.Fatalf("unexpected error: %v", body["error"])
+	}
+}
+
 func TestHomePage(t *testing.T) {
 	_, ts := newServerHarness(t)
 

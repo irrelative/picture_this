@@ -9,6 +9,7 @@ import (
 	"picture-this/internal/db"
 
 	"github.com/jackc/pgconn"
+	pgconnv5 "github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/datatypes"
 	"gorm.io/gorm/clause"
 )
@@ -485,6 +486,10 @@ func isUniqueViolation(err error) bool {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
 		return pgErr.Code == "23505"
+	}
+	var pgErrV5 *pgconnv5.PgError
+	if errors.As(err, &pgErrV5) {
+		return pgErrV5.Code == "23505"
 	}
 	return false
 }

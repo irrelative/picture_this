@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgconn"
+	pgconnv5 "github.com/jackc/pgx/v5/pgconn"
 )
 
 func TestIsUniqueViolation(t *testing.T) {
@@ -25,5 +26,14 @@ func TestIsUniqueViolation(t *testing.T) {
 	wrapped := errors.New("plain error")
 	if isUniqueViolation(wrapped) {
 		t.Fatalf("expected generic error to be rejected")
+	}
+}
+
+func TestIsUniqueViolationPGXV5(t *testing.T) {
+	if !isUniqueViolation(&pgconnv5.PgError{Code: "23505"}) {
+		t.Fatal("expected pgx/v5 unique violation to be detected")
+	}
+	if isUniqueViolation(&pgconnv5.PgError{Code: "22001"}) {
+		t.Fatal("expected non-unique pgx/v5 error not to be detected")
 	}
 }

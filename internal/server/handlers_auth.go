@@ -54,6 +54,10 @@ func (s *Server) handleRegister(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	if _, exists := s.sessions.FindUserByEmail(email); exists {
+		c.JSON(http.StatusConflict, gin.H{"error": "email is already registered"})
+		return
+	}
 
 	hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
