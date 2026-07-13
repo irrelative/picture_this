@@ -10,6 +10,7 @@ import (
 
 type promptRecord struct {
 	Text string
+	Joke string
 }
 
 // LoadPromptLibrary reads prompts from a CSV and upserts them into the prompt_library table.
@@ -25,9 +26,15 @@ func LoadPromptLibrary(conn *gorm.DB, path string) (int, error) {
 	for _, record := range records {
 		entry := PromptLibrary{
 			Text: record.Text,
+			Joke: record.Joke,
 		}
 		if err := conn.FirstOrCreate(&entry, PromptLibrary{Text: entry.Text}).Error; err != nil {
 			return inserted, err
+		}
+		if entry.Joke != record.Joke {
+			if err := conn.Model(&entry).Update("joke", record.Joke).Error; err != nil {
+				return inserted, err
+			}
 		}
 		inserted++
 	}
@@ -68,7 +75,11 @@ func readPrompts(path string) ([]promptRecord, error) {
 		if text == "" {
 			continue
 		}
-		records = append(records, promptRecord{Text: text})
+		joke := ""
+		if len(row) >= 3 {
+			joke = strings.TrimSpace(row[2])
+		}
+		records = append(records, promptRecord{Text: text, Joke: joke})
 	}
 	return records, nil
 }

@@ -1,4 +1,4 @@
-.PHONY: run build init fetch-sfx cloc test frontend-install frontend-check browser-test migrate migrate-repair migrate-create load-prompts joke-audio-venv joke-audio-deps generate-joke-audio generate-joke-audio-ab generate-interlude-audio e2e-test deploy
+.PHONY: run build init fetch-sfx cloc test frontend-install frontend-check browser-test migrate migrate-repair migrate-create load-prompts generate-prompts joke-audio-venv joke-audio-deps generate-joke-audio generate-joke-audio-ab generate-interlude-audio e2e-test deploy
 
 run:
 	templ generate
@@ -49,6 +49,9 @@ migrate-create:
 
 load-prompts:
 	go run ./cmd/load-prompts -file prompts.csv
+
+generate-prompts:
+	go run ./cmd/generate-prompts -output prompts.csv $(ARGS)
 
 JOKE_AUDIO_VENV ?= .venv-joke-audio
 JOKE_AUDIO_REQUIREMENTS ?= scripts/requirements-joke-audio.txt

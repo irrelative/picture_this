@@ -108,3 +108,12 @@ func TestSanitizePromptListTrimsCompletePairs(t *testing.T) {
 		t.Fatalf("unexpected joke: %q", prompts[0].Joke)
 	}
 }
+
+func TestPromptGenerationMaxTokensSupportsPromptJokeBatches(t *testing.T) {
+	if got := promptGenerationMaxTokens(1); got != 1500 {
+		t.Fatalf("expected minimum budget 1500, got %d", got)
+	}
+	if got := promptGenerationMaxTokens(100); got != 11000 {
+		t.Fatalf("expected 100-pair budget 11000, got %d", got)
+	}
+}

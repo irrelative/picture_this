@@ -33,7 +33,6 @@ type GeneratedPrompt struct {
 type openAIChatRequest struct {
 	Model               string              `json:"model"`
 	Messages            []openAIChatMessage `json:"messages"`
-	Temperature         float64             `json:"temperature,omitempty"`
 	MaxTokens           int                 `json:"max_tokens,omitempty"`
 	MaxCompletionTokens int                 `json:"max_completion_tokens,omitempty"`
 }
@@ -81,7 +80,6 @@ func (s *Server) generatePromptsFromOpenAI(ctx context.Context, instructions str
 			{Role: "system", Content: systemPrompt},
 			{Role: "user", Content: userPrompt},
 		},
-		Temperature: 0.9,
 	}
 	if requiresMaxCompletionTokens(model) {
 		reqBody.MaxCompletionTokens = maxResponseTokens
@@ -94,7 +92,8 @@ func (s *Server) generatePromptsFromOpenAI(ctx context.Context, instructions str
 		return nil, fmt.Errorf("failed to build OpenAI request")
 	}
 
-	reqCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	const requestTimeout = 2 * time.Minute
+	reqCtx, cancel := context.WithTimeout(ctx, requestTimeout)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, "https://api.openai.com/v1/chat/completions", bytes.NewReader(payload))
@@ -104,7 +103,7 @@ func (s *Server) generatePromptsFromOpenAI(ctx context.Context, instructions str
 	req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(s.cfg.OpenAIAPIKey))
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := &http.Client{Timeout: requestTimeout}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to reach OpenAI")
@@ -138,6 +137,12 @@ func (s *Server) generatePromptsFromOpenAI(ctx context.Context, instructions str
 		return nil, errors.New("OpenAI did not return prompts in the expected format.")
 	}
 	return prompts, nil
+}
+
+// GeneratePromptsFromOpenAI generates complete drawing prompt and joke pairs
+// using the server's configured OpenAI model and prompt templates.
+func (s *Server) GeneratePromptsFromOpenAI(ctx context.Context, instructions string, count int) ([]GeneratedPrompt, error) {
+	return s.generatePromptsFromOpenAI(ctx, instructions, count)
 }
 
 func readPromptFile(path string) (string, error) {
@@ -237,12 +242,12 @@ func requiresMaxCompletionTokens(model string) bool {
 }
 
 func promptGenerationMaxTokens(count int) int {
-	estimated := 500 + (count * 30)
-	if estimated < 700 {
-		return 700
+	estimated := 1000 + (count * 100)
+	if estimated < 1500 {
+		return 1500
 	}
-	if estimated > 4000 {
-		return 4000
+	if estimated > 16000 {
+		return 16000
 	}
 	return estimated
 }
