@@ -129,13 +129,7 @@ e2e-test:
 	wait $$SERVER_PID 2>/dev/null || true; \
 	trap - EXIT;
 
+APP_DIR ?= /opt/picture-this
+
 deploy:
-	@set -eu; \
-	SRC_DIR="$$(pwd)"; \
-	DEST_DIR="/opt/picture-this"; \
-	mkdir -p "$$DEST_DIR/bin"; \
-	rsync -a --delete --exclude ".env" --exclude "bin" "$$SRC_DIR"/ "$$DEST_DIR"/; \
-	cd "$$DEST_DIR"; \
-	GO111MODULE=on go build -o "$$DEST_DIR/bin/picture-this" ./cmd/server; \
-	go run ./cmd/migrate; \
-	supervisorctl restart picture-this
+	APP_DIR="$(APP_DIR)" GOCACHE="$(GOCACHE)" bash scripts/deploy.sh

@@ -112,6 +112,27 @@ What it does:
 - Installs nginx and supervisor configs from `deploy/`.
 - Reloads nginx with the TLS config.
 
+For subsequent deployments, run `make deploy` on the VPS from the updated
+checkout, using an account that can write the application directory and control
+Supervisor (normally root). Use `make deploy APP_DIR=/custom/path` if setup used
+a custom application directory; the installed Supervisor configuration must
+point at the same path.
+
+Deployment stages a clean copy, generates templates, builds the server and
+migration command, and applies migrations using the installed `.env` before
+replacing the binary and restarting `picture-this`. It preserves the installed
+`.env` and server-only files in `static/audio/` and `static/sounds/`, and excludes
+repository metadata, local credentials, caches, and development dependencies.
+It also supports running from the application directory itself. Build or
+migration failures leave the installed binary and assets untouched. Successful
+migrations are not rolled back if a later copy or restart fails; back up the
+database before deploying schema changes. This target does not provision the VPS
+or update nginx/Supervisor configuration; rerun setup deliberately for those
+changes.
+
+Run `python3 scripts/test_deploy.py` to check deployment sequencing and file
+preservation without touching a live service.
+
 ## Server Endpoints
 - `POST /api/games` — create a new game; returns `game_id` and `join_code`.
 - `POST /api/auth/register` — register with email, username, and password.
