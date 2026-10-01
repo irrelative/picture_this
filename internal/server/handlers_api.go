@@ -784,15 +784,7 @@ func (s *Server) handleStartGame(c *gin.Context) {
 			Number: len(game.Rounds) + 1,
 		})
 		return nil
-	}, func(game *Game) error {
-		if err := s.persistPhase(game, "game_started", EventPayload{Phase: game.Phase}); err != nil {
-			return err
-		}
-		if err := s.persistRound(game); err != nil {
-			return err
-		}
-		return s.assignPrompts(game)
-	})
+	}, s.persistStartTransaction)
 	if respondGameMutationError(c, err) {
 		return
 	}
@@ -800,6 +792,27 @@ func (s *Server) handleStartGame(c *gin.Context) {
 	c.JSON(http.StatusOK, s.snapshotForPlayer(game, req.PlayerID))
 	s.broadcastGameUpdate(game)
 	s.schedulePhaseTimer(game)
+}
+
+// The actor publishes the started state only after all startup writes commit.
+func (s *Server) persistStartTransaction(game *Game) error {
+	persist := func(target *Server) error {
+		if err := target.persistPhase(game, "game_started", EventPayload{Phase: game.Phase}); err != nil {
+			return err
+		}
+		if err := target.persistRound(game); err != nil {
+			return err
+		}
+		return target.assignPrompts(game)
+	}
+	if s.db == nil {
+		return persist(s)
+	}
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		scoped := *s
+		scoped.db = tx
+		return persist(&scoped)
+	})
 }
 
 func (s *Server) handleDrawings(c *gin.Context) {

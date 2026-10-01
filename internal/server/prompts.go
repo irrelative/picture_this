@@ -1,11 +1,14 @@
 package server
 
 import (
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
-	"hash/fnv"
+	"fmt"
 	"log"
 	"sort"
-	"strconv"
 	"strings"
 
 	"picture-this/internal/db"
@@ -65,7 +68,7 @@ func voteOptionEntries(round *RoundState, drawingIndex int) []VoteOption {
 	if prompt != "" {
 		seen[prompt] = struct{}{}
 		options = append(options, VoteOption{
-			ID:      voteOptionIDPrompt,
+			ID:      opaqueVoteOptionID(round, drawingIndex, voteChoicePrompt, round.Drawings[drawingIndex].PlayerID),
 			Text:    prompt,
 			Type:    voteChoicePrompt,
 			OwnerID: round.Drawings[drawingIndex].PlayerID,
@@ -80,32 +83,28 @@ func voteOptionEntries(round *RoundState, drawingIndex int) []VoteOption {
 		}
 		seen[guess.Text] = struct{}{}
 		options = append(options, VoteOption{
-			ID:      voteOptionIDGuess + strconv.Itoa(guess.PlayerID),
+			ID:      opaqueVoteOptionID(round, drawingIndex, voteChoiceGuess, guess.PlayerID),
 			Text:    guess.Text,
 			Type:    voteChoiceGuess,
 			OwnerID: guess.PlayerID,
 		})
 	}
-	if len(options) > 1 {
-		seed := prompt + ":" + strconv.Itoa(drawingIndex)
-		sort.Slice(options, func(i, j int) bool {
-			left := optionOrderKey(options[i].ID+":"+options[i].Text, seed)
-			right := optionOrderKey(options[j].ID+":"+options[j].Text, seed)
-			if left == right {
-				return options[i].ID < options[j].ID
-			}
-			return left < right
-		})
-	}
+	// Sorting keyed, opaque IDs gives a stable shuffle without a public seed
+	// derived from the correct title.
+	sort.Slice(options, func(i, j int) bool { return options[i].ID < options[j].ID })
 	return options
 }
 
-func optionOrderKey(option string, seed string) uint64 {
-	hasher := fnv.New64a()
-	_, _ = hasher.Write([]byte(seed))
-	_, _ = hasher.Write([]byte{0})
-	_, _ = hasher.Write([]byte(option))
-	return hasher.Sum64()
+// A process-local secret keeps option IDs stable for reconnects while hiding
+// correctness and authorship. Restored games issue fresh IDs with fresh auth.
+var voteOptionSecret = []byte(rand.Text())
+
+func opaqueVoteOptionID(round *RoundState, drawingIndex int, choiceType string, ownerID int) string {
+	drawing := round.Drawings[drawingIndex]
+	mac := hmac.New(sha256.New, voteOptionSecret)
+	fmt.Fprintf(mac, "%d:%d:%d:%d:%d:%q:%s:%d", round.DBID, round.Number,
+		drawing.DBID, drawingIndex, drawing.PlayerID, drawing.Prompt, choiceType, ownerID)
+	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 }
 
 func containsOption(options []string, choice string) bool {

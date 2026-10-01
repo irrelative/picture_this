@@ -225,7 +225,8 @@ func firstValidVoteChoice(t *testing.T, assignment map[string]any, playerID int)
 		}
 		ownerID := asInt(option["owner_id"])
 		optionType, _ := option["type"].(string)
-		if optionType == voteChoiceGuess && ownerID == playerID {
+		isOwn, _ := option["is_own"].(bool)
+		if isOwn || (optionType == voteChoiceGuess && ownerID == playerID) {
 			continue
 		}
 		choiceID, _ := option["id"].(string)

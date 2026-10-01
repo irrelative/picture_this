@@ -29,10 +29,8 @@ const (
 )
 
 const (
-	voteChoicePrompt   = "prompt"
-	voteChoiceGuess    = "guess"
-	voteOptionIDPrompt = "prompt"
-	voteOptionIDGuess  = "guess:"
+	voteChoicePrompt = "prompt"
+	voteChoiceGuess  = "guess"
 )
 
 const (

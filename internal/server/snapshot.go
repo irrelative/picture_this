@@ -3,7 +3,6 @@ package server
 import (
 	"fmt"
 	"sort"
-	"strconv"
 	"time"
 
 	"picture-this/internal/config"
@@ -443,22 +442,8 @@ func revealOptionsPayload(round *RoundState, drawingIndex int, playerNames map[i
 				return choiceID
 			}
 		}
-		if choiceType == voteChoicePrompt {
-			if _, ok := statsByID[voteOptionIDPrompt]; ok {
-				return voteOptionIDPrompt
-			}
-		}
-		if choiceType == voteChoiceGuess {
-			ownerID := guessOwner(round, drawingIndex, choiceText)
-			if ownerID > 0 {
-				id := fmt.Sprintf("%s%d", voteOptionIDGuess, ownerID)
-				if _, ok := statsByID[id]; ok {
-					return id
-				}
-			}
-		}
 		for _, option := range options {
-			if option.Text == choiceText {
+			if option.Type == choiceType && option.Text == choiceText {
 				return option.ID
 			}
 		}
@@ -498,8 +483,11 @@ func revealOptionsPayload(round *RoundState, drawingIndex int, playerNames map[i
 		if like.DrawingIndex != drawingIndex {
 			continue
 		}
-		if stats := statsByID[voteOptionIDGuess+strconv.Itoa(like.GuessOwnerID)]; stats != nil {
-			stats.likes++
+		for _, option := range options {
+			if option.Type == voteChoiceGuess && option.OwnerID == like.GuessOwnerID {
+				statsByID[option.ID].likes++
+				break
+			}
 		}
 	}
 
