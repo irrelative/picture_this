@@ -22,6 +22,10 @@ This project uses the following technology:
 * Postgres for backend state storage of game, drawings, etc. The game should be able to crash and be restarted without losing game state.
 
 ## Getting Started
+Install Postgres with [pgvector](https://github.com/pgvector/pgvector) available.
+If the application database user cannot create extensions, enable it once as a
+database administrator with `CREATE EXTENSION IF NOT EXISTS vector;` in that database.
+
 1. Copy the example env file: `cp .env.example .env`
 2. Update `DATABASE_URL` in `.env`.
 3. Run initialization assets: `make init`
@@ -32,7 +36,14 @@ This project uses the following technology:
 `make run` and `make build` use the module-pinned templ generator. To regenerate
 templates directly, run `go tool templ generate`.
 
-When the server starts, it will auto-migrate and load prompts from `prompts.csv` if available.
+When the server starts, it applies the embedded SQL migrations and loads prompts
+from `prompts.csv` if available. `make migrate` applies the same migration history;
+GORM is used for queries, rather than generating schema changes at startup.
+
+The initial migrations also accept tables previously created by GORM. For a
+database left dirty by the old empty bootstrap migrations, back it up and run
+`go run ./cmd/migrate-repair -to 0` to replay the repaired history. Ordinary
+upgrades use `make migrate` without resetting the migration version.
 
 ## Configuration
 - `PROMPTS_PER_PLAYER` — number of rounds to play.
@@ -52,6 +63,10 @@ When the server starts, it will auto-migrate and load prompts from `prompts.csv`
 - `make run` — generate templ output and start the server.
 - `make build` — generate templ output and build all packages.
 - `make test` — run all tests.
+- `DATABASE_URL_TEST='postgres://...' make test` — also run migration integration
+  tests in temporary schemas, covering a fresh schema and an existing GORM schema.
+- `make e2e-test DATABASE_URL_TEST='postgres://...'` — reset the dedicated test
+  database schema and run a complete game against Postgres.
 - `make frontend-check` — lint and format-check browser code with Biome.
 - `make browser-test` — run Playwright smoke and accessibility tests against the configured base URL.
 - `make migrate` — apply SQL migrations in `db/migrations/`.
@@ -70,6 +85,7 @@ This repo includes a simple root-run setup script plus nginx/supervisor configs.
 Prereqs:
 - DNS A record for your domain points at the VPS.
 - Ports 80/443 open in your firewall/security group.
+- pgvector installed for the Postgres server (see its linked installation instructions).
 
 From the repo on the server (as root):
 ```

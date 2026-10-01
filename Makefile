@@ -99,7 +99,7 @@ e2e-test:
 		PORT=$$(python3 -c 'import socket; sock=socket.socket(); sock.bind(("127.0.0.1", 0)); print(sock.getsockname()[1]); sock.close()'); \
 		echo "PORT_TEST $$PORT_TEST in use, using $$PORT"; \
 	fi; \
-	DATABASE_URL="$(DATABASE_URL_TEST)" psql "$$DATABASE_URL" -v ON_ERROR_STOP=1 -c "drop schema public cascade; create schema public;"; \
+	psql "$(DATABASE_URL_TEST)" -v ON_ERROR_STOP=1 -c "drop schema public cascade; create schema public;"; \
 	DATABASE_URL="$(DATABASE_URL_TEST)" make migrate; \
 	PORT="$$PORT" DATABASE_URL="$(DATABASE_URL_TEST)" make run > /tmp/picture_this_test.log 2>&1 & \
 	SERVER_PID=$$!; \

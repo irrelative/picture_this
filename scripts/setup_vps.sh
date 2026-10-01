@@ -84,6 +84,11 @@ if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='${DB_N
   sudo -u postgres createdb --owner="${DB_USER}" "${DB_NAME}"
 fi
 
+# pgvector must be installed on the server. Enable it as the database admin,
+# since the application role cannot create an untrusted extension.
+sudo -u postgres psql --dbname="$DB_NAME" -v ON_ERROR_STOP=1 \
+  -c "CREATE EXTENSION IF NOT EXISTS vector;"
+
 # App env
 cat > "$APP_DIR/.env" <<ENV
 PORT=${APP_PORT}

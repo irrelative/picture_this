@@ -32,13 +32,8 @@ func resetTestAuthTokens() {
 
 func createGame(t *testing.T, ts *httptest.Server) string {
 	t.Helper()
-	ensureAuthenticatedUser(t, ts)
-	resp := doRequest(t, ts, http.MethodPost, "/api/games", map[string]any{"min_players": 2, "max_players": 0})
-	if resp.StatusCode != http.StatusCreated {
-		t.Fatalf("expected status %d, got %d", http.StatusCreated, resp.StatusCode)
-	}
-	body := decodeBody(t, resp)
-	return body["game_id"].(string)
+	gameID, _ := createGameWithCode(t, ts)
+	return gameID
 }
 
 func createGameWithCode(t *testing.T, ts *httptest.Server) (string, string) {
@@ -49,7 +44,19 @@ func createGameWithCode(t *testing.T, ts *httptest.Server) (string, string) {
 		t.Fatalf("expected status %d, got %d", http.StatusCreated, resp.StatusCode)
 	}
 	body := decodeBody(t, resp)
+	setTestAuthToken(body["game_id"].(string), int(body["player_id"].(float64)), body["auth_token"].(string))
 	return body["game_id"].(string), body["join_code"].(string)
+}
+
+// createdHostID returns the creator's seat rather than joining a second host.
+func createdHostID(t *testing.T, ts *httptest.Server, gameID string) int {
+	t.Helper()
+	snapshot := fetchSnapshot(t, ts, gameID)
+	hostID := int(snapshot["host_id"].(float64))
+	if hostID <= 0 || getTestAuthToken(gameID, hostID) == "" {
+		t.Fatal("created game is missing host credentials")
+	}
+	return hostID
 }
 
 func joinPlayer(t *testing.T, ts *httptest.Server, gameID, name string) int {

@@ -39,18 +39,37 @@ func TestCreateGame(t *testing.T) {
 	if int(body["player_id"].(float64)) <= 0 {
 		t.Fatal("expected creator player id")
 	}
+	snapshot := fetchSnapshot(t, ts, body["game_id"].(string))
+	if snapshot["host_id"] != body["player_id"] || len(snapshot["players"].([]any)) != 1 {
+		t.Fatal("expected the creator to be the lobby's only player and host")
+	}
+}
+
+func TestStartGameRequiresCreatorHost(t *testing.T) {
+	_, ts := newServerHarness(t)
+	gameID := createGame(t, ts)
+	hostID := createdHostID(t, ts, gameID)
+	guestID := joinPlayer(t, ts, gameID, "Ada")
+	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/start", map[string]any{"player_id": guestID})
+	if resp.StatusCode != http.StatusConflict {
+		t.Fatalf("expected guest start to be rejected, got %d", resp.StatusCode)
+	}
+	resp = doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/start", map[string]any{"player_id": hostID})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected creator to start the game, got %d", resp.StatusCode)
+	}
 }
 
 func TestJoinGameEnforcesTenPlayerCap(t *testing.T) {
 	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
-	for i := 1; i <= 10; i++ {
+	for i := 1; i < 10; i++ {
 		joinPlayer(t, ts, gameID, "Player"+strconv.Itoa(i))
 	}
 
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/join", map[string]string{
-		"name": "Player11",
+		"name": "Player10",
 	})
 	if resp.StatusCode != http.StatusConflict {
 		t.Fatalf("expected status %d, got %d", http.StatusConflict, resp.StatusCode)
@@ -509,7 +528,7 @@ func TestUpdateSettings(t *testing.T) {
 	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
-	hostID := joinPlayer(t, ts, gameID, "Ada")
+	hostID := createdHostID(t, ts, gameID)
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/settings", map[string]any{
 		"player_id":    hostID,
 		"rounds":       3,
@@ -534,7 +553,7 @@ func TestJoinGameLocked(t *testing.T) {
 	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
-	hostID := joinPlayer(t, ts, gameID, "Ada")
+	hostID := createdHostID(t, ts, gameID)
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/settings", map[string]any{
 		"player_id":    hostID,
 		"lobby_locked": true,
@@ -554,7 +573,7 @@ func TestKickPlayerBlocksRejoin(t *testing.T) {
 	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
-	hostID := joinPlayer(t, ts, gameID, "Ada")
+	hostID := createdHostID(t, ts, gameID)
 	playerID := joinPlayer(t, ts, gameID, "Ben")
 
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/kick", map[string]any{
@@ -588,7 +607,7 @@ func TestStartGame(t *testing.T) {
 	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
-	hostID := joinPlayer(t, ts, gameID, "Ada")
+	hostID := createdHostID(t, ts, gameID)
 	joinPlayer(t, ts, gameID, "Ben")
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/start", map[string]any{
 		"player_id": hostID,
@@ -602,7 +621,7 @@ func TestStartGameConflict(t *testing.T) {
 	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
-	hostID := joinPlayer(t, ts, gameID, "Ada")
+	hostID := createdHostID(t, ts, gameID)
 	joinPlayer(t, ts, gameID, "Ben")
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/start", map[string]any{
 		"player_id": hostID,
@@ -623,7 +642,7 @@ func TestAdvanceGame(t *testing.T) {
 	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
-	hostID := joinPlayer(t, ts, gameID, "Ada")
+	hostID := createdHostID(t, ts, gameID)
 	joinPlayer(t, ts, gameID, "Ben")
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/advance", map[string]any{
 		"player_id": hostID,

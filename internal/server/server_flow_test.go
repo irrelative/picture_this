@@ -14,7 +14,7 @@ func TestAssignPromptsNoRepeat(t *testing.T) {
 	srv, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
-	hostID := joinPlayer(t, ts, gameID, "Ada")
+	hostID := createdHostID(t, ts, gameID)
 	joinPlayer(t, ts, gameID, "Ben")
 	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/settings", map[string]any{
 		"player_id": hostID,
@@ -67,7 +67,7 @@ func TestSubmitDrawings(t *testing.T) {
 	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
-	hostID := joinPlayer(t, ts, gameID, "Ada")
+	hostID := createdHostID(t, ts, gameID)
 	playerID2 := joinPlayer(t, ts, gameID, "Ben")
 	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/start", map[string]any{"player_id": hostID})
 
@@ -99,7 +99,7 @@ func TestHostActionsRequireValidAuthToken(t *testing.T) {
 	_, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
-	hostID := joinPlayer(t, ts, gameID, "Ada")
+	hostID := createdHostID(t, ts, gameID)
 	joinPlayer(t, ts, gameID, "Ben")
 
 	resp := doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/start", map[string]any{
@@ -245,7 +245,7 @@ func TestResultsJokeStageAndHostAdvanceAuth(t *testing.T) {
 	srv, ts := newServerHarnessWithConfig(t, cfg)
 
 	gameID := createGame(t, ts)
-	hostID := joinPlayer(t, ts, gameID, "Ada")
+	hostID := createdHostID(t, ts, gameID)
 	playerID2 := joinPlayer(t, ts, gameID, "Ben")
 	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/settings", map[string]any{
 		"player_id":     hostID,
@@ -384,7 +384,7 @@ func TestAutoAdvanceFromDrawings(t *testing.T) {
 	srv, ts := newServerHarness(t)
 
 	gameID := createGame(t, ts)
-	hostID := joinPlayer(t, ts, gameID, "Ada")
+	hostID := createdHostID(t, ts, gameID)
 	joinPlayer(t, ts, gameID, "Ben")
 	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/start", map[string]any{
 		"player_id": hostID,
@@ -668,7 +668,7 @@ func TestAudienceJoinUsesTokenIdentity(t *testing.T) {
 func setupThreePlayerRound(t *testing.T, ts *httptest.Server) (string, int) {
 	t.Helper()
 	gameID := createGame(t, ts)
-	hostID := joinPlayer(t, ts, gameID, "Ada")
+	hostID := createdHostID(t, ts, gameID)
 	playerID2 := joinPlayer(t, ts, gameID, "Ben")
 	playerID3 := joinPlayer(t, ts, gameID, "Cam")
 	doRequest(t, ts, http.MethodPost, "/api/games/"+gameID+"/start", map[string]any{"player_id": hostID})
