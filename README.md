@@ -14,7 +14,7 @@ Picture This follows the original Drawful game flow with a Go backend, templ-ren
 ## Tech Stack
 This project uses the following technology:
 
-* Golang backend (Go 1.25.5)
+* Golang backend (Go 1.27.1)
 * Golang templ templating for WebUI and mobile interfaces
 * Websockets used for server and client syncing
 * Minimal javascipt, no frameworks
@@ -28,6 +28,9 @@ This project uses the following technology:
 4. Run migrations: `make migrate`
 5. Start the server: `make run`
 6. Open `http://localhost:8080` to create a game.
+
+`make run` and `make build` use the module-pinned templ generator. To regenerate
+templates directly, run `go tool templ generate`.
 
 When the server starts, it will auto-migrate and load prompts from `prompts.csv` if available.
 

@@ -1,16 +1,16 @@
 .PHONY: run build init fetch-sfx cloc test frontend-install frontend-check browser-test migrate migrate-repair migrate-create load-prompts generate-prompts joke-audio-venv joke-audio-deps generate-joke-audio generate-joke-audio-ab generate-interlude-audio e2e-test deploy
 
 run:
-	templ generate
+	go tool templ generate
 	go run ./cmd/server
 
 build:
-	templ generate
+	go tool templ generate
 	go build ./...
 
 init:
 	@mkdir -p static/sounds static/vendor
-	curl -L -o static/vendor/htmx.min.js https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js
+	curl -fL -o static/vendor/htmx-2.0.11.js https://unpkg.com/htmx.org@2.0.11/dist/htmx.js
 	./scripts/fetch_sfx.sh
 
 fetch-sfx:
